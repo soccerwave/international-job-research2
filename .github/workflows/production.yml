@@ -1,0 +1,319 @@
+name: International Academic Job Search Production
+
+on:
+  # Daily dispatch is owned by Cloudflare at 06:00 Europe/Madrid.
+  workflow_dispatch:
+    inputs:
+      bootstrap_production:
+        description: Allow the first authoritative state bootstrap; only valid with release_acceptance
+        required: false
+        default: false
+        type: boolean
+      release_acceptance:
+        description: Run the strict V1 live release gate before/after the production state mutation
+        required: false
+        default: false
+        type: boolean
+      send_telegram:
+        description: Send the production summary and Excel report
+        required: false
+        default: true
+        type: boolean
+      max_jobs_per_source:
+        description: Use all for uncapped discovery; positive integers are explicit diagnostic limits
+        required: false
+        default: 'all'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: international-academic-production
+  cancel-in-progress: false
+
+jobs:
+  readiness:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      state_exists: ${{ steps.state.outputs.state_exists }}
+      generation: ${{ steps.state.outputs.generation }}
+      run_allowed: ${{ steps.gate.outputs.run_allowed }}
+    env:
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_BUCKET: ${{ vars.R2_BUCKET }}
+      R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt -r requirements-cloud.txt
+      - name: Inspect authoritative production state
+        id: state
+        run: python scripts/check_production_state.py --github-output "$GITHUB_OUTPUT"
+      - name: Gate scheduled and manual production execution
+        id: gate
+        shell: bash
+        env:
+          STATE_EXISTS: ${{ steps.state.outputs.state_exists }}
+          BOOTSTRAP: ${{ github.event_name == 'workflow_dispatch' && inputs.bootstrap_production || false }}
+          RELEASE_ACCEPTANCE: ${{ github.event_name == 'workflow_dispatch' && inputs.release_acceptance || false }}
+          SEND_TELEGRAM: ${{ github.event_name == 'workflow_dispatch' && inputs.send_telegram || false }}
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
+            if [ "$STATE_EXISTS" = "true" ]; then
+              echo "run_allowed=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "Production state has not been bootstrapped; scheduled run is safely skipped."
+              echo "run_allowed=false" >> "$GITHUB_OUTPUT"
+            fi
+            exit 0
+          fi
+
+          if [ "$BOOTSTRAP" = "true" ] && [ "$RELEASE_ACCEPTANCE" != "true" ]; then
+            echo "bootstrap_production is only allowed with release_acceptance=true" >&2
+            exit 2
+          fi
+          if [ "$RELEASE_ACCEPTANCE" = "true" ] && [ "$SEND_TELEGRAM" != "true" ]; then
+            echo "Strict release acceptance requires send_telegram=true" >&2
+            exit 2
+          fi
+          if [ "$STATE_EXISTS" != "true" ] && [ "$BOOTSTRAP" != "true" ]; then
+            echo "Production state is missing; first manual run must enable bootstrap_production and release_acceptance." >&2
+            exit 2
+          fi
+          echo "run_allowed=true" >> "$GITHUB_OUTPUT"
+
+  production-shards:
+    if: ${{ needs.readiness.outputs.run_allowed == 'true' }}
+    needs: readiness
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        shard:
+          - euraxess-europe
+          - academicpositions
+          - linkedin-europe-germany
+          - linkedin-europe-west
+          - linkedin-europe-france-austria
+          - linkedin-europe-opportunistic
+          - linkedin-australia
+          - uk-ireland-portals
+          - thematic
+          - netherlands
+          - germany-france-primary
+          - corehr-ireland
+          - successfactors-belgium-austria
+          - australia-pageup
+          - australia-smartrecruiters
+          - australia-workday
+          - austria-direct
+    env:
+      PRODUCTION_RUN_ID: prod-${{ github.run_id }}-${{ github.run_attempt }}
+      PRODUCTION_MAX_JOBS_PER_SOURCE: ${{ github.event_name == 'workflow_dispatch' && inputs.max_jobs_per_source || 'all' }}
+      ARTIFACT_ENCRYPTION_KEY: ${{ secrets.ARTIFACT_ENCRYPTION_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Require encrypted artifact transport
+        shell: bash
+        run: test -n "${ARTIFACT_ENCRYPTION_KEY:-}" || { echo 'Missing ARTIFACT_ENCRYPTION_KEY secret' >&2; exit 2; }
+      - uses: oven-sh/setup-bun@v2
+        if: ${{ startsWith(matrix.shard, 'linkedin') }}
+      - name: Fetch pinned Mads LinkedIn transport
+        if: ${{ startsWith(matrix.shard, 'linkedin') }}
+        run: |
+          git clone --filter=blob:none https://github.com/MadsLorentzen/ai-job-search.git .vendor/ai-job-search
+          git -C .vendor/ai-job-search checkout fd89eac178dc546d41f6c1a3213de88d96112c6d
+          echo "AI_JOB_SEARCH_MADS_REPO=$GITHUB_WORKSPACE/.vendor/ai-job-search" >> "$GITHUB_ENV"
+      - name: Run independent production shard
+        continue-on-error: true
+        run: python scripts/run_production_shard.py --run-id "$PRODUCTION_RUN_ID" --shard-id "${{ matrix.shard }}"
+      - name: Encrypt shard bundle for Actions transport
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          shard="${{ matrix.shard }}"
+          base="artifacts/$PRODUCTION_RUN_ID"
+          if [ ! -d "$base/shards/$shard" ]; then
+            echo "No shard bundle produced for $shard; finalizer will report it missing."
+            exit 0
+          fi
+          paths=("shards/$shard")
+          if [ -d "$base/diagnostics/$shard" ]; then
+            paths+=("diagnostics/$shard")
+          fi
+          bash scripts/secure_artifact.sh pack \
+            "$base" \
+            "secure-artifacts/production-shard-$shard.tar.gz.enc" \
+            "${paths[@]}"
+      - name: Upload encrypted production shard bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-shard-${{ matrix.shard }}
+          path: secure-artifacts/production-shard-${{ matrix.shard }}.tar.gz.enc
+          retention-days: 2
+          if-no-files-found: warn
+
+  production-finalizer:
+    if: ${{ always() && needs.readiness.outputs.run_allowed == 'true' && needs.readiness.result == 'success' }}
+    needs: [readiness, production-shards]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      PRODUCTION_RUN_ID: prod-${{ github.run_id }}-${{ github.run_attempt }}
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_BUCKET: ${{ vars.R2_BUCKET }}
+      R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_IDS: ${{ secrets.TELEGRAM_CHAT_IDS }}
+      TELEGRAM_SEND_REPORT_ALWAYS: ${{ vars.TELEGRAM_SEND_REPORT_ALWAYS }}
+      ARTIFACT_ENCRYPTION_KEY: ${{ secrets.ARTIFACT_ENCRYPTION_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt -r requirements-cloud.txt
+      - name: Require encrypted artifact transport
+        shell: bash
+        run: test -n "${ARTIFACT_ENCRYPTION_KEY:-}" || { echo 'Missing ARTIFACT_ENCRYPTION_KEY secret' >&2; exit 2; }
+      - name: Verify frozen accepted baselines before production mutation
+        run: |
+          python scripts/verify_stage7_freeze.py
+          python scripts/verify_stage8_freeze.py
+          python scripts/verify_stage9_freeze.py
+          python scripts/verify_stage10_freeze.py
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: production-shard-*
+          path: downloaded-shards
+      - name: Decrypt immutable production shard bundles
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "artifacts/$PRODUCTION_RUN_ID"
+          found=0
+          while IFS= read -r -d '' encrypted; do
+            found=1
+            bash scripts/secure_artifact.sh unpack "$encrypted" "artifacts/$PRODUCTION_RUN_ID"
+          done < <(find downloaded-shards -type f -name '*.tar.gz.enc' -print0)
+          if [ "$found" -eq 0 ]; then
+            echo 'No encrypted shard artifacts were downloaded; finalizer will report missing shards.'
+          fi
+          find "artifacts/$PRODUCTION_RUN_ID/shards" -maxdepth 2 -type f -print 2>/dev/null | sort || true
+      - name: Verify Telegram before strict first release mutation
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.release_acceptance }}
+        run: |
+          python - <<'PY'
+          import json
+          from src.reporting.telegram import check_configuration
+          print(json.dumps(check_configuration(), indent=2))
+          PY
+      - name: Run authoritative production finalizer
+        shell: bash
+        env:
+          BOOTSTRAP: ${{ github.event_name == 'workflow_dispatch' && inputs.bootstrap_production || false }}
+          RELEASE_ACCEPTANCE: ${{ github.event_name == 'workflow_dispatch' && inputs.release_acceptance || false }}
+        run: |
+          set -euo pipefail
+          args=()
+          if [ "$BOOTSTRAP" = "true" ]; then args+=(--allow-bootstrap); fi
+          if [ "$RELEASE_ACCEPTANCE" = "true" ]; then args+=(--strict-release); fi
+          python scripts/run_production_finalizer.py \
+            --run-id "$PRODUCTION_RUN_ID" \
+            "${args[@]}" \
+            | tee "artifacts/$PRODUCTION_RUN_ID/production_console.json"
+      - name: Send strict release report to Telegram
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.release_acceptance }}
+        run: |
+          python scripts/send_stage9_telegram.py \
+            --summary "artifacts/$PRODUCTION_RUN_ID/production/report_summary.json" \
+            --report "artifacts/$PRODUCTION_RUN_ID/production/academic_job_report.xlsx"
+      - name: Send operational report to Telegram
+        if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && !inputs.release_acceptance && inputs.send_telegram) }}
+        continue-on-error: true
+        run: |
+          python scripts/send_stage9_telegram.py \
+            --summary "artifacts/$PRODUCTION_RUN_ID/production/report_summary.json" \
+            --report "artifacts/$PRODUCTION_RUN_ID/production/academic_job_report.xlsx"
+      - name: Write strict V1 release evidence
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.release_acceptance }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, pathlib
+          run_id = os.environ['PRODUCTION_RUN_ID']
+          root = pathlib.Path('artifacts') / run_id / 'production'
+          summary = json.loads((root / 'production_summary.json').read_text(encoding='utf-8'))
+          checks = summary.get('strict_checks') or {}
+          if not checks or not all(checks.values()):
+              raise SystemExit('Strict release checks are absent or not all PASS')
+          evidence = {
+              'status': 'PASS',
+              'profile': 'V1_PRODUCTION_LIVE_RELEASE',
+              'run_id': run_id,
+              'production_state_key': summary.get('authoritative_state_key'),
+              'state_before_exists': summary.get('state_before_exists'),
+              'state_before_generation': summary.get('state_before_generation'),
+              'strict_checks': checks,
+              'telegram_delivery': 'PASS',
+          }
+          (root / 'v1_release_acceptance.json').write_text(json.dumps(evidence, indent=2) + '\n', encoding='utf-8')
+          print(json.dumps(evidence, indent=2))
+          PY
+      - name: Encrypt production evidence for Actions retention
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="artifacts/$PRODUCTION_RUN_ID"
+          [ -d "$base" ] || exit 0
+          paths=()
+          for path in finalizer preprod production production_console.json; do
+            [ -e "$base/$path" ] && paths+=("$path")
+          done
+          [ "${#paths[@]}" -gt 0 ] || exit 0
+          bash scripts/secure_artifact.sh pack \
+            "$base" \
+            "secure-artifacts/production-${{ github.run_id }}-${{ github.run_attempt }}.tar.gz.enc" \
+            "${paths[@]}"
+      - name: Upload encrypted production evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-${{ github.run_id }}-${{ github.run_attempt }}
+          path: secure-artifacts/production-${{ github.run_id }}-${{ github.run_attempt }}.tar.gz.enc
+          retention-days: 2
+          if-no-files-found: warn
+      - name: Notify Telegram on production failure
+        if: ${{ failure() }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || [ -z "${TELEGRAM_CHAT_IDS:-}" ]; then exit 0; fi
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          IFS=',' read -ra CHATS <<< "$TELEGRAM_CHAT_IDS"
+          for CHAT in "${CHATS[@]}"; do
+            CHAT="$(echo "$CHAT" | xargs)"
+            [ -z "$CHAT" ] && continue
+            MSG=$(printf '❌ International academic production run failed\nRun: %s' "$RUN_URL")
+            curl -fsS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+              --data-urlencode "chat_id=${CHAT}" \
+              --data-urlencode "text=${MSG}" >/dev/null || true
+          done

@@ -1,0 +1,80 @@
+name: Recover International Academic Production State
+
+on:
+  workflow_dispatch:
+    inputs:
+      backup_key:
+        description: Exact immutable R2 key under state/backups/ or state/bootstrap/
+        required: true
+        type: string
+      confirmation:
+        description: Type RESTORE exactly
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: international-academic-production
+  cancel-in-progress: false
+
+jobs:
+  restore:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_BUCKET: ${{ vars.R2_BUCKET }}
+      R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+      ARTIFACT_ENCRYPTION_KEY: ${{ secrets.ARTIFACT_ENCRYPTION_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt -r requirements-cloud.txt
+      - name: Verify immutable baselines before recovery
+        run: |
+          python scripts/verify_stage7_freeze.py
+          python scripts/verify_stage8_freeze.py
+          python scripts/verify_stage9_freeze.py
+          python scripts/verify_stage10_freeze.py
+      - name: Validate explicit recovery confirmation
+        shell: bash
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
+          BACKUP_KEY: ${{ inputs.backup_key }}
+        run: |
+          set -euo pipefail
+          if [ "$CONFIRMATION" != "RESTORE" ]; then
+            echo "Recovery refused: confirmation must be RESTORE" >&2
+            exit 2
+          fi
+          case "$BACKUP_KEY" in
+            state/backups/*|state/bootstrap/*) ;;
+            *) echo "Recovery refused: invalid backup key" >&2; exit 2 ;;
+          esac
+      - name: Restore backup as a new monotonic generation
+        run: |
+          python scripts/restore_production_state.py \
+            --backup-key "${{ inputs.backup_key }}" \
+            --run-id "github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            --confirm RESTORE \
+            | tee recovery_result.json
+      - name: Encrypt recovery evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${ARTIFACT_ENCRYPTION_KEY:-}" || { echo 'Missing ARTIFACT_ENCRYPTION_KEY secret' >&2; exit 2; }
+          mkdir -p recovery-artifact
+          bash scripts/secure_artifact.sh pack . recovery-artifact/production-recovery-${{ github.run_id }}-${{ github.run_attempt }}.tar.gz.enc recovery_result.json
+      - name: Upload encrypted recovery evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-recovery-${{ github.run_id }}-${{ github.run_attempt }}
+          path: recovery-artifact/production-recovery-${{ github.run_id }}-${{ github.run_attempt }}.tar.gz.enc
+          retention-days: 2
+          if-no-files-found: error
