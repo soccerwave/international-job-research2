@@ -1,0 +1,34 @@
+{
+  "schema_version": "E04_TEMPORAL_DEVELOPMENT_LABELS_V1.0.0",
+  "source_run_id": "prod-33934558200-1",
+  "comparison_source_run_id": "prod-33932214707-1",
+  "status": "DEVELOPMENT_EVIDENCE_NOT_BLIND_VALIDATION",
+  "selection_rule": "All 17 canonical IDs present in production run 33934558200 but absent from production run 33932214707.",
+  "methodology_note": "The labels were fixed before the E0.4 candidate file was created, but the same development process inspected these labels while designing E0.4. Therefore this slice is conservatively treated as development/challenge evidence, not as an independent validation set. It may be used for regression checks but cannot certify promotion.",
+  "labels": [
+    {"canonical_id":"vac_0660cfe453254f20e36c","expected":"SKIP","class":"NON_ACADEMIC_ADVANCED_AI","rationale":"AI Researcher at a private AI company; advanced AI research and non-academic role scope are outside the target academic profile."},
+    {"canonical_id":"vac_2bd4288854023477045c","expected":"SKIP","class":"FACULTY_ENGINEERING_DISCIPLINE_MISMATCH","rationale":"Assistant/Associate Professor in climate-resilient infrastructure/transport within Engineering, requiring geomechanics/geospatial/environmental infrastructure expertise."},
+    {"canonical_id":"vac_33f79c7ebbc428817d46","expected":"REVIEW","class":"ADJACENT_COGNITIVE_NEUROSCIENCE_FACULTY","rationale":"Cognitive-neuroscience faculty role is scientifically adjacent and accepts related PhDs, but seeks an independent cognitive-neuroscience programme and strong specialist methods; merits human review, not automatic apply."},
+    {"canonical_id":"vac_45876c00cfdb74f3edc7","expected":"SKIP","class":"FACULTY_BUSINESS_MANAGEMENT_DISCIPLINE_MISMATCH","rationale":"Teaching appointment in Inclusive Management/Business Management, outside the candidate's academic discipline."},
+    {"canonical_id":"vac_4aaf2122d4367307f872","expected":"SKIP","class":"FACULTY_CULTURAL_STUDIES_DISCIPLINE_MISMATCH","rationale":"Tenure-track Cultural Studies appointment in Arts/Literature/Cultural Studies, outside the established academic field."},
+    {"canonical_id":"vac_4d08517549f7b389701f","expected":"SKIP","class":"RESEARCH_COMPUTER_SCIENCE_DISCIPLINE_MISMATCH","rationale":"Research Fellow/Level B is based in Computer Science and IT with no exercise, stress, brain-health or adjacent scientific anchor."},
+    {"canonical_id":"vac_55bfee3f291065bc2700","expected":"SKIP","class":"FACULTY_MATHEMATICS_DISCIPLINE_MISMATCH","rationale":"Assistant/Associate Professor appointments in Warwick Mathematics Institute require independent mathematics research and teaching."},
+    {"canonical_id":"vac_63271ae06829b81f4be0","expected":"SKIP","class":"SENIOR_FACULTY_PHARMACY","rationale":"Full Professor in Pharmacy is both outside target career level and outside the candidate's discipline."},
+    {"canonical_id":"vac_6e5c45156631fa285ec7","expected":"SKIP","class":"ENGINEERING_POSTDOC_NO_PROFILE_ANCHOR","rationale":"DigiStent postdoc/research-associate is explicitly in a School of Engineering and the captured posting supplies no evidence of a profile-relevant exercise/stress/neuroscience research role."},
+    {"canonical_id":"vac_71bdebf0a71d843f6b78","expected":"SKIP","class":"FACULTY_FINE_ARTS_DISCIPLINE_MISMATCH","rationale":"Lecturer in Artistic Practice/Fine Arts requires an established contemporary-art practice and relevant arts degree."},
+    {"canonical_id":"vac_893987051d3d7eb25eb5","expected":"SKIP","class":"SPECIALIST_CHEMOBIOLOGY_POSTDOC","rationale":"CNRS postdoc is centred on biomolecular/protein/oligonucleotide chemistry, bioconjugation and DNA-encoded libraries."},
+    {"canonical_id":"vac_bd39c5553725d8f23fdf","expected":"SKIP","class":"ADVANCED_AI_PREDICTIVE_BIOLOGY","rationale":"Postdoctoral Scientist requires strong AI/ML, deep learning, multimodal/foundation modelling and AI/ML publication expertise."},
+    {"canonical_id":"vac_c2aa2842d806b0e30d14","expected":"SKIP","class":"SPECIALIST_IMMUNOLOGY_WET_LAB","rationale":"Monash Research Fellow requires a PhD in immunology/closely related discipline plus hands-on immunology, molecular and cellular biology techniques."},
+    {"canonical_id":"vac_dbed8388022ca5e8552e","expected":"SKIP","class":"GENERIC_RESEARCH_NO_PROFILE_EVIDENCE","rationale":"The captured TNO Medior Researcher page contains no profile-relevant scientific topic or target academic appointment evidence; it should not consume human review capacity."},
+    {"canonical_id":"vac_dd193dc0f3c23c901c33","expected":"SKIP","class":"SPACE_SCIENCE_POSTDOC_DISCIPLINE_MISMATCH","rationale":"ESA fellowship is explicitly for independent research synergistic with space-science missions in heliophysics, planetary science, astrophysics or fundamental physics."},
+    {"canonical_id":"vac_e3b4e735aa9565eed0ea","expected":"SKIP","class":"NON_ACADEMIC_SYSTEMS_RESEARCH_ENGINEERING","rationale":"Neo4j Research Engineer focuses on databases, compilers, distributed/parallel systems and systems programming, outside the profile."},
+    {"canonical_id":"vac_f46aefefcafa3b0e5973","expected":"SKIP","class":"ADVANCED_AI_RESEARCH_FELLOW","rationale":"Sydney Research Fellow in SAILS requires AI/ML research across molecular/omics, LLMs, computer vision or trustworthy AI and is outside established capabilities."}
+  ],
+  "expected_clean_ids": ["vac_33f79c7ebbc428817d46"],
+  "guardrails": {
+    "may_be_used_for_development_regression": true,
+    "may_not_be_used_as_promotion_validation": true,
+    "next_blind_validation_must_come_from_a_production_run_after_candidate_freeze": true,
+    "final_holdout_remains_sealed": true
+  }
+}

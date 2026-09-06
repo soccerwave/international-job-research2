@@ -1,0 +1,58 @@
+{
+  "evaluator_version": "E0.1",
+  "pipeline_stage": "V0.7_EVALUATOR_BASELINE",
+  "status": "ACCEPTED",
+  "principle": "MULTI_DIMENSIONAL_FAIL_OPEN_NO_SINGLE_COMPOSITE_SCORE",
+  "pre_freeze_regression_run_id": 33904441665,
+  "freeze_candidate_commit": "bf804a2c4f2dafe1c3940cc0dc5a0762e43401fa",
+  "freeze_candidate_verification_run_id": 33904599196,
+  "protected_git_blobs": {
+    "src/evaluation/__init__.py": "4f1afaa28c4abfcd9d15fabd02de00bace06affd",
+    "src/evaluation/evaluator.py": "d5a99a99943b4aad3acb34c350dffa5ae615de85",
+    "config/evaluator.json": "f6fef4b01a9e119e40f8c949083200e4b64c1f1c",
+    "config/scientific_profile.json": "04fff8797881705493f01ac59184f498c75844bd",
+    "config/roles.json": "1df04ebd549ca6418e32eee5f75dd9f0e3ba5f1e",
+    "config/blockers.json": "9955a67fc8dd7bf3326f1462cce878f21b1180ba",
+    "config/language_policy.json": "5cc2f8dc84395b427f84aca2adaebfa53ff2c9c7",
+    "config/mobility_policy.json": "706c391335af961ef059c04a98a336371c38c82e",
+    "config/decision_policy.json": "2ee0f6b08ca7e655e5005941aa5b67ed1f0d843c",
+    "schemas/evaluation.schema.json": "81dffe31a2874d85129fd9bc13baf6a6508c3d04",
+    "tests/test_stage7_evaluator.py": "7c7e3c8f7b5734f492197b91e46ea5b1baec70bb",
+    "tests/test_stage7_role_mapping.py": "91957465f100e9397e47615329c0157e357ef135",
+    "tests/test_stage7_calibration.py": "24d19ef9d0b7d50fef639d3387837e743475fb94",
+    "tests/fixtures/stage7_calibration_cases.json": "153123e905024c82aa4697e2bab10f7dc952aee9",
+    "scripts/verify_stage7_freeze.py": "393b81f54bbb7c630587fa739269ea36b0b9a5ff",
+    ".github/workflows/test-stage7.yml": "5db9bfe3e7f296b526df0308de043c6c4ad535f0"
+  },
+  "regression": {
+    "stage7_rule_tests": 20,
+    "stage7_role_mapping_tests": 3,
+    "stage7_calibration_test_methods": 1,
+    "stage7_calibration_cases": 16,
+    "stage6_regression_tests": 21,
+    "stage5_regression_tests": 11,
+    "stage4_regression_tests": 4,
+    "total_unittest_methods_in_gate": 60,
+    "calibration_distribution": {
+      "STRONG_APPLY": 5,
+      "APPLY": 2,
+      "REVIEW": 7,
+      "LOW_PRIORITY": 1,
+      "SKIP": 1
+    }
+  },
+  "policy_versions": {
+    "scientific_profile": "ACADEMIC_PROFILE_V1.0.0",
+    "role_policy": "ROLE_POLICY_V1.0.1",
+    "language_policy": "LANGUAGE_POLICY_V1.0.0",
+    "mobility_policy": "MOBILITY_POLICY_V1.0.0",
+    "blocker_policy": "BLOCKER_POLICY_V1.0.0",
+    "decision_policy": "PRE_EVALUATION_DECISION_POLICY_V1.0.0"
+  },
+  "notes": [
+    "Spain V1.36 composite scoring was not reused; only regression/freeze discipline and evidence hygiene were carried forward.",
+    "SKIP requires explicit configured hard-blocker evidence; ambiguity remains REVIEW.",
+    "Australia sponsorship silence remains REVIEW, including casual/session roles, preserving the Stage 3 mobility policy.",
+    "Advanced independent fMRI analysis is not inferred from MRI/neuroimaging exposure and routes to REVIEW when explicitly required."
+  ]
+}

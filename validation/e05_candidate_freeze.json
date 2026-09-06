@@ -1,0 +1,69 @@
+{
+  "schema_version": "E05_CANDIDATE_FREEZE_V1.0.0",
+  "status": "REJECTED_FRESH_BLIND_VALIDATION",
+  "promotion_status": "NOT_PROMOTED",
+  "holdout_opened": false,
+  "candidate": {
+    "evaluator_version": "E0.5_GENERALIZATION_CANDIDATE",
+    "path": "src/evaluation/calibrated_e05.py",
+    "candidate_code_commit": "c000cc68f503e84eb709a9da627997c0d4597b06",
+    "candidate_blob_sha": "5855915e3b2a0024c765814b024290bd07d19db7"
+  },
+  "development_evidence": {
+    "classification": "DEVELOPMENT_ONLY_NOT_PROMOTION_EVIDENCE",
+    "workflow_run_id": 33963996755,
+    "artifact_id": 9968831163,
+    "artifact_digest": "sha256:3b44d62c49ee846df96a910de88358c9dc63e4a83b3c0a08a3187a61601812bb",
+    "generalization_counterexamples": {"total": 15, "passed": 15},
+    "burned_e042_blind_set": {"classification":"DEVELOPMENT_ONLY_NOT_PROMOTION_EVIDENCE","total":42,"correct":42,"accuracy":1.0,"surfaced_precision":1.0,"surfaced_recall":1.0},
+    "burned_e03_validation": {"classification":"DEVELOPMENT_ONLY_NOT_PROMOTION_EVIDENCE","total":38,"correct":38,"accuracy":1.0,"surfaced_precision":1.0,"surfaced_recall":1.0},
+    "temporal_development": {"classification":"DEVELOPMENT_ONLY_NOT_PROMOTION_EVIDENCE","total":17,"correct":17,"accuracy":1.0,"surfaced_precision":1.0,"surfaced_recall":1.0},
+    "accepted_v1_runtime_regression": {"conclusion":"success","freeze_status":"ACCEPTED","protected_file_count":17}
+  },
+  "fresh_blind_validation_gate": {
+    "classification": "FRESH_POST_FREEZE_PROMOTION_VALIDATION",
+    "source_run_id": 33964408465,
+    "source_artifact_id": 9968973897,
+    "source_artifact_digest": "sha256:473e9afbf15d45bc9963664741dab037dc8909461f2ed1fd2821d6d6a929039e",
+    "labels_path": "validation/e05_fresh_blind_labels.json",
+    "labels_commit": "b496fbe9dbd1ae256e3b74ca89baab8640bb18bf",
+    "selection_count": 64,
+    "first_infrastructure_attempt": {
+      "workflow_run_id": 33965124547,
+      "result": "INFRASTRUCTURE_FAILURE_BEFORE_PREDICTION",
+      "predictions_revealed": false
+    },
+    "scoring_workflow_run_id": 33965199215,
+    "score_artifact_id": 9969193260,
+    "score_artifact_digest": "sha256:3da1dac54e6a9aa69e7d39e30659ea84bdff3baf3e42e8b3676ab0c949d0002d",
+    "minimum_accuracy": 0.90,
+    "minimum_surfaced_precision": 0.90,
+    "minimum_surfaced_recall": 0.75,
+    "critical_false_negative_max": 0,
+    "accuracy": 0.828125,
+    "surfaced_precision": 0.5333333333333333,
+    "surfaced_recall": 0.7272727272727273,
+    "critical_false_negative_count": 3,
+    "correct": 53,
+    "result": "FAIL",
+    "decision": "REJECT_E0.5_FOR_PROMOTION",
+    "result_path": "validation/e05_fresh_blind_result.json"
+  },
+  "methodology": {
+    "project_objective": "Find suitable opportunities reliably while keeping obvious noise manageable; do not optimize historical exact-match accuracy as an end in itself.",
+    "false_negative_cost_exceeds_false_positive_cost": true,
+    "ambiguity_is_fail_open": true,
+    "burned_e042_set_is_not_promotion_evidence": true,
+    "burned_e03_set_is_not_promotion_evidence": true,
+    "temporal_development_set_is_not_promotion_evidence": true,
+    "development_exact_match_is_not_sufficient_for_promotion": true,
+    "candidate_must_not_change_after_freeze_without_starting_a_new_candidate_cycle": true,
+    "holdout_must_remain_sealed_until_fresh_blind_gate_passes": true,
+    "fresh_e05_blind_set_is_now_burned_for_future_candidates": true,
+    "labels_were_locked_before_predictions": true,
+    "first_scoring_attempt_failed_before_importing_or_running_candidate": true,
+    "next_required_evidence": "Start a new evaluator candidate cycle. E0.5 and its 64-record fresh blind set are burned. Use the E0.5 failures only as development evidence, freeze a new candidate, then collect another post-freeze inventory and independent blind sample before any future promotion attempt."
+  },
+  "frozen_at_utc": "2026-09-05T11:42:00Z",
+  "rejected_at_utc": "2026-09-05T12:08:45Z"
+}

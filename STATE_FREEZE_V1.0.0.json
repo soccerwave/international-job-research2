@@ -1,0 +1,77 @@
+{
+  "state_semantics_version": "STATE_SCHEMA_V1.0.0",
+  "pipeline_stage": "V0.8_STATE_PERSISTENCE",
+  "status": "ACCEPTED",
+  "principle": "FINALIZER_ONLY_FAIL_OPEN_DURABLE_STATE_WITH_R2_COMPARE_AND_SWAP",
+  "pre_freeze_regression_run_id": 33906803021,
+  "pre_freeze_commit": "01e1dff5d13fb73be356ccdcf88e9d4e4558d5f6",
+  "freeze_candidate_commit": "d58113d263c2e50b6b9fa496e4ec2fe3fb571024",
+  "freeze_candidate_verification_run_id": 33907964795,
+  "invalid_live_attempt": {
+    "run_id": 33907625254,
+    "reason": "R2 smoke did not execute because scripts/run_stage8_r2_smoke.py could not import src; pipeline exit was masked by tee before pipefail was enforced"
+  },
+  "protected_git_blobs": {
+    "src/state/__init__.py": "79b6d83242957810c450a7bdd4bee62f35b308c5",
+    "src/state/engine.py": "e6a27423de7613d793dd337c0dfde6083be131b7",
+    "src/state/r2_store.py": "e3c6fc2e9babee3fb0826d08b2ba4d04e84a56ba",
+    "src/runtime/state_writer.py": "4221044d8af11afe2c5d143ca5a0934b43ab21e0",
+    "schemas/state.schema.json": "f8818e0aab5c0bc02b72fd9dd989739bde2be768",
+    "requirements-cloud.txt": "c5cb19e4ec8277e7e58e97cb1cac45159062af8f",
+    "tests/test_stage8_state.py": "75bfa8ea1926713de998468e7286198c3ecd283a",
+    "tests/test_stage8_r2.py": "4344cafe568747eb2247f1faca9b6bf939c3ab90",
+    "tests/test_stage8_state_writer.py": "59759d3c257672383630b9d102c27ef76a7b031c",
+    "scripts/run_stage8_r2_smoke.py": "32d75f695c9aaf59829f864821ad0f67186c9817",
+    "scripts/verify_stage8_freeze.py": "ee970562c088ab663f19a708161d798b2d4a1c26",
+    "docs/runtime/STATE_PERSISTENCE_CONTRACT.md": "ef9e23faf2182ea2f7273b6ffeda6c77e4fee495",
+    ".github/workflows/test-stage8.yml": "39653b70a23b9f6f84f661be211220618e3afbde"
+  },
+  "regression": {
+    "stage8_state_semantics_tests": 17,
+    "stage8_r2_mock_tests": 8,
+    "stage8_finalizer_writer_tests": 4,
+    "stage8_total_tests": 29,
+    "stage7_regression_tests": 24,
+    "stage6_regression_tests": 21,
+    "stage5_regression_tests": 11,
+    "stage4_regression_tests": 4,
+    "total_unittest_methods_in_gate": 89
+  },
+  "state_events": ["NEW", "SEEN", "MATERIALLY_CHANGED", "REOPENED"],
+  "quality_events": ["DETAIL_RESOLVED", "DETAIL_UNRESOLVED"],
+  "lifecycle_statuses": ["OPEN", "CLOSED", "UNKNOWN"],
+  "r2_contract": {
+    "authoritative_key": "state/current/state.json",
+    "immutable_backups": true,
+    "integrity": "SHA256_METADATA_PLUS_READBACK",
+    "first_write_condition": "If-None-Match:*",
+    "subsequent_write_condition": "If-Match:<previous ETag>",
+    "stale_writer_action": "REJECT",
+    "live_acceptance_profile": "STAGE8_R2_LIVE_CAS",
+    "live_acceptance_run_id": 33908172065,
+    "live_acceptance_commit": "b67a7c449127d1757614fa3708fbb0dd7c9864a7",
+    "live_acceptance_prefix": "acceptance/stage8/33908172065-1",
+    "live_acceptance_artifact_id": 9950302267,
+    "live_result": {
+      "status": "PASS",
+      "stale_writer_rejected": true,
+      "final_generation": 2,
+      "final_jobs": 1
+    }
+  },
+  "dependency_pins": {
+    "boto3": "1.43.88",
+    "botocore": "1.43.88",
+    "s3transfer": "0.19.2"
+  },
+  "notes": [
+    "Absence from a later run never implies closure.",
+    "REOPENED requires prior explicit CLOSED evidence followed by explicit OPEN evidence.",
+    "Full-JD degradation/recovery is a quality event and does not overwrite the last trustworthy enriched snapshot.",
+    "Generic careers/listing URLs are excluded from durable identity aliases after a regression test exposed a false-merge risk.",
+    "The Stage 4 raw fan-in finalizer is intentionally not wired to durable state before canonicalization/evaluation integration.",
+    "The supported mutation boundary is src/runtime/state_writer.py and uses CENTRAL_FINALIZER writer role only.",
+    "The live acceptance workflow enforces pipefail so a failing Python smoke test cannot be masked by tee.",
+    "Live Cloudflare R2 acceptance verified bootstrap, generation 1 and 2 conditional writes, immutable backups, read-back integrity, and stale-writer rejection."
+  ]
+}

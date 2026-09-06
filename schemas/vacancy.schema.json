@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:international-academic-job-search:vacancy:1.0.0",
+  "title": "International Academic Job Vacancy Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version","record_stage","source_record_id","canonical_id","source","position","location","dates","contract","description","requirements","classification","provenance"],
+  "properties": {
+    "schema_version": {"const":"VACANCY_SCHEMA_V1.0.0"},
+    "record_stage": {"enum":["SHARD_ENRICHED","CANONICALIZED"]},
+    "source_record_id": {"type":"string","minLength":3},
+    "canonical_id": {"type":["string","null"]},
+    "source": {
+      "type":"object","additionalProperties":false,
+      "required":["source_key","source_kind","provider","source_job_id","listing_url","detail_url","apply_url","retrieved_at","source_language","source_status"],
+      "properties": {
+        "source_key":{"type":"string","minLength":1},
+        "source_kind":{"enum":["SHARED_AGGREGATOR","NATIONAL_PORTAL","THEMATIC_PORTAL","ATS","DIRECT_INSTITUTION","LINKEDIN"]},
+        "provider":{"type":"string"},
+        "source_job_id":{"type":"string","minLength":1},
+        "listing_url":{"type":"string"},
+        "detail_url":{"type":["string","null"]},
+        "apply_url":{"type":["string","null"]},
+        "retrieved_at":{"type":"string","format":"date-time"},
+        "source_language":{"type":["string","null"]},
+        "source_status":{"enum":["OPEN","CLOSED","UNKNOWN","ERROR"]}
+      }
+    },
+    "position": {
+      "type":"object","additionalProperties":false,
+      "required":["title_raw","title_normalized","institution_raw","institution_normalized","department","role_family","role_level","employment_type","workplace_mode"],
+      "properties": {
+        "title_raw":{"type":"string"},
+        "title_normalized":{"type":["string","null"]},
+        "institution_raw":{"type":["string","null"]},
+        "institution_normalized":{"type":["string","null"]},
+        "department":{"type":["string","null"]},
+        "role_family":{"enum":["POSTDOC","RESEARCH_FELLOW_POSTDOC","ASSISTANT_PROFESSOR","LECTURER","RESEARCH_ASSISTANT_PROFESSOR","TENURE_TRACK","JUNIOR_PROFESSOR","RESEARCH_SCIENTIST","SCIENTIFIC_PROJECT_MANAGER","RESEARCH_PROJECT_MANAGER","RESEARCH_PROGRAMME_MANAGER","OTHER_RESEARCH","OUT_OF_SCOPE","UNKNOWN"]},
+        "role_level":{"enum":["POSTDOC","EARLY_FACULTY","FACULTY","RESEARCH_STAFF","PROJECT_MANAGEMENT","STUDENT","UNKNOWN"]},
+        "employment_type":{"enum":["FULL_TIME","PART_TIME","FULL_OR_PART_TIME","CASUAL","SESSIONAL","UNKNOWN"]},
+        "workplace_mode":{"enum":["ONSITE","HYBRID","REMOTE","UNKNOWN"]}
+      }
+    },
+    "location": {
+      "type":"object","additionalProperties":false,
+      "required":["country_code","country_name","city","region"],
+      "properties": {
+        "country_code":{"type":["string","null"],"pattern":"^[A-Z]{2}$"},
+        "country_name":{"type":["string","null"]},
+        "city":{"type":["string","null"]},
+        "region":{"type":["string","null"]}
+      }
+    },
+    "dates": {
+      "type":"object","additionalProperties":false,
+      "required":["posted_at","deadline_at","deadline_text","deadline_status","collected_at"],
+      "properties": {
+        "posted_at":{"type":["string","null"],"format":"date-time"},
+        "deadline_at":{"type":["string","null"],"format":"date-time"},
+        "deadline_text":{"type":["string","null"]},
+        "deadline_status":{"enum":["KNOWN","ROLLING","OPEN_UNTIL_FILLED","UNKNOWN"]},
+        "collected_at":{"type":"string","format":"date-time"}
+      }
+    },
+    "contract": {
+      "type":"object","additionalProperties":false,
+      "required":["term_type","duration_months","fte","salary"],
+      "properties": {
+        "term_type":{"enum":["FIXED_TERM","PERMANENT","TENURE_TRACK","TEMPORARY","UNKNOWN"]},
+        "duration_months":{"type":["number","null"],"minimum":0},
+        "fte":{"type":["number","null"],"minimum":0,"maximum":1.5},
+        "salary": {
+          "type":"object","additionalProperties":false,
+          "required":["min","max","currency","period","raw_text"],
+          "properties": {
+            "min":{"type":["number","null"]},
+            "max":{"type":["number","null"]},
+            "currency":{"type":["string","null"]},
+            "period":{"enum":["YEAR","MONTH","HOUR","OTHER","UNKNOWN"]},
+            "raw_text":{"type":["string","null"]}
+          }
+        }
+      }
+    },
+    "description": {
+      "type":"object","additionalProperties":false,
+      "required":["full_jd","detail_status","detail_failure_reason","detail_retrieved_at"],
+      "properties": {
+        "full_jd":{"type":["string","null"]},
+        "detail_status":{"enum":["FULL","PARTIAL","UNAVAILABLE","FETCH_FAILED","BLOCKED","NOT_ATTEMPTED"]},
+        "detail_failure_reason":{"type":["string","null"]},
+        "detail_retrieved_at":{"type":["string","null"],"format":"date-time"}
+      }
+    },
+    "requirements": {
+      "type":"object","additionalProperties":false,
+      "required":["phd_requirement","degree_text","degree_fields","years_postdoc","language_requirements","work_rights_text","sponsorship_text","professional_registration_text","teaching_requirement_text","methods_required","methods_preferred"],
+      "properties": {
+        "phd_requirement":{"enum":["REQUIRED","PREFERRED","NOT_REQUIRED","UNKNOWN"]},
+        "degree_text":{"type":["string","null"]},
+        "degree_fields":{"type":"array","items":{"type":"string"}},
+        "years_postdoc":{"type":["number","null"],"minimum":0},
+        "language_requirements": {
+          "type":"array","items": {
+            "type":"object","additionalProperties":false,
+            "required":["language","level","mandatory","raw_text"],
+            "properties": {
+              "language":{"type":"string"},
+              "level":{"type":["string","null"]},
+              "mandatory":{"type":["boolean","null"]},
+              "raw_text":{"type":["string","null"]}
+            }
+          }
+        },
+        "work_rights_text":{"type":["string","null"]},
+        "sponsorship_text":{"type":["string","null"]},
+        "professional_registration_text":{"type":["string","null"]},
+        "teaching_requirement_text":{"type":["string","null"]},
+        "methods_required":{"type":"array","items":{"type":"string"}},
+        "methods_preferred":{"type":"array","items":{"type":"string"}}
+      }
+    },
+    "classification": {
+      "type":"object","additionalProperties":false,
+      "required":["market_tier","role_policy_status","pre_evaluation_disposition","review_codes","blocker_codes"],
+      "properties": {
+        "market_tier":{"enum":["CORE","OPPORTUNISTIC","EXCLUDED","UNKNOWN"]},
+        "role_policy_status":{"enum":["PRIMARY","SECONDARY","CONDITIONAL","OUT_OF_SCOPE","AMBIGUOUS"]},
+        "pre_evaluation_disposition":{"enum":["ELIGIBLE_FOR_EVALUATION","NEEDS_DETAIL_REVIEW","POLICY_REVIEW","POLICY_SKIP"]},
+        "review_codes":{"type":"array","items":{"type":"string"}},
+        "blocker_codes":{"type":"array","items":{"type":"string"}}
+      }
+    },
+    "provenance": {
+      "type":"object","additionalProperties":false,
+      "required":["observed_by_sources","raw_payload_fingerprint","notes"],
+      "properties": {
+        "observed_by_sources":{"type":"array","items":{"type":"string"},"minItems":1},
+        "raw_payload_fingerprint":{"type":["string","null"]},
+        "notes":{"type":"array","items":{"type":"string"}}
+      }
+    },
+    "raw_extra":{"type":"object","additionalProperties":true}
+  }
+}

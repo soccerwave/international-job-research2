@@ -1,0 +1,45 @@
+{
+  "version": "1.0.0",
+  "profile_id": "ACADEMIC_PROFILE_V1.0.0",
+  "education": ["PhD in Exercise Physiology"],
+  "current_or_recent_profile": [
+    "Marie Skłodowska-Curie Postdoctoral Fellow at the University of Barcelona",
+    "Independent project leadership and competitive European grant experience"
+  ],
+  "scientific_tracks": {
+    "A_CORE_EXERCISE_PHYSICAL_ACTIVITY": ["exercise physiology","exercise science","sport and exercise","physical activity","exercise interventions","training","fitness","clinical exercise","human movement","physical activity and health"],
+    "B_CORE_EXERCISE_NEUROSCIENCE_STRESS": ["exercise neuroscience","brain health","stress biology","psychological stress","psychosocial stress","stress recovery","psychobiology","psychophysiology","cortisol","HPA axis","cognitive neuroscience","cognition","neurocognitive health","brain and behavior"],
+    "C_ADJACENT": ["healthy ageing","lifestyle intervention","behavioral medicine","behavioral health","mental health intervention","rehabilitation","health promotion","digital health","wearables","behavior change"]
+  },
+  "capabilities": [
+    "human exercise and physical activity interventions",
+    "randomized controlled trials and intervention research",
+    "psychological and cognitive assessment",
+    "cortisol and stress-biology measures",
+    "NR3C1 epigenetic research exposure",
+    "physiological and fitness assessment",
+    "MRI and neuroimaging collaboration/exposure",
+    "statistics, SPSS and R",
+    "project coordination",
+    "grant writing and Horizon Europe/MSCA experience",
+    "supervision, mentoring and teaching",
+    "international multidisciplinary collaboration",
+    "digital health and virtual reality research"
+  ],
+  "do_not_infer": [
+    "advanced independent fMRI preprocessing or analysis",
+    "electrophysiology",
+    "patch clamp",
+    "optogenetics",
+    "advanced machine learning or AI research",
+    "licensed clinical exercise professional status",
+    "medical degree",
+    "nursing degree",
+    "professional healthcare registration",
+    "specialist wet-lab molecular biology expertise"
+  ],
+  "language_evidence": {
+    "english": "ACADEMIC_WORKING",
+    "other_local_languages": "DO_NOT_ASSUME"
+  }
+}

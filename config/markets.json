@@ -1,0 +1,31 @@
+{
+  "version": "1.0.0",
+  "policy_id": "MARKET_POLICY_V1.0.0",
+  "core_markets": [
+    {"country_code":"NL","country":"Netherlands","collection_mode":"DEDICATED_PLUS_SHARED","faculty_policy":"IN_SCOPE","postdoc_policy":"IN_SCOPE"},
+    {"country_code":"DE","country":"Germany","collection_mode":"DEDICATED_PLUS_SHARED","faculty_policy":"SELECTIVE","postdoc_policy":"IN_SCOPE"},
+    {"country_code":"IE","country":"Ireland","collection_mode":"DEDICATED_PLUS_SHARED","faculty_policy":"IN_SCOPE","postdoc_policy":"IN_SCOPE"},
+    {"country_code":"GB","country":"United Kingdom","collection_mode":"DEDICATED_PLUS_SHARED","faculty_policy":"IN_SCOPE","postdoc_policy":"IN_SCOPE"},
+    {"country_code":"BE","country":"Belgium","collection_mode":"DEDICATED_PLUS_SHARED","faculty_policy":"IN_SCOPE","postdoc_policy":"IN_SCOPE"},
+    {"country_code":"FR","country":"France","collection_mode":"DEDICATED_PLUS_SHARED","faculty_policy":"OUT_OF_SCOPE","postdoc_policy":"IN_SCOPE"},
+    {"country_code":"AU","country":"Australia","collection_mode":"DEDICATED_PLUS_SHARED","faculty_policy":"IN_SCOPE","postdoc_policy":"IN_SCOPE"},
+    {"country_code":"AT","country":"Austria","collection_mode":"DEDICATED_PLUS_SHARED","faculty_policy":"SELECTIVE","postdoc_policy":"IN_SCOPE"}
+  ],
+  "opportunistic_markets": [
+    {"country_code":"IT","country":"Italy","collection_mode":"SHARED_SOURCES_ONLY"},
+    {"country_code":"PT","country":"Portugal","collection_mode":"SHARED_SOURCES_ONLY"},
+    {"country_code":"CZ","country":"Czechia","collection_mode":"SHARED_SOURCES_ONLY"},
+    {"country_code":"PL","country":"Poland","collection_mode":"SHARED_SOURCES_ONLY"},
+    {"country_code":"LU","country":"Luxembourg","collection_mode":"SHARED_SOURCES_ONLY"}
+  ],
+  "excluded_markets": [
+    {"country_code":"SE","country":"Sweden","collection_mode":"NO_DEDICATED_QUERY"},
+    {"country_code":"CA","country":"Canada","collection_mode":"NO_DEDICATED_QUERY"},
+    {"country_code":"CH","country":"Switzerland","collection_mode":"NO_DEDICATED_QUERY"}
+  ],
+  "rules": {
+    "opportunistic_does_not_justify_dedicated_crawler": true,
+    "excluded_market_hit_from_shared_source": "POLICY_REVIEW_NOT_AUTOMATIC_INCLUDE",
+    "market_ambiguity": "POLICY_REVIEW"
+  }
+}
