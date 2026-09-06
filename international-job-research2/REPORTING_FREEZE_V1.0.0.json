@@ -1,0 +1,75 @@
+{
+  "reporting_version": "REPORTING_V1.0.0",
+  "pipeline_stage": "V0.9_REPORTING",
+  "status": "ACCEPTED",
+  "principle": "HUMAN_REVIEW_FIRST_NO_COMPOSITE_SCORE_FAIL_OPEN_POST_STATE_REPORTING",
+  "verified_candidate_commit": "e4e20ecdf6a6c5f5174beb37878617926383e6e2",
+  "verified_candidate_run_id": 33910831069,
+  "final_live_acceptance_commit": "e329832c2c06ac97f0184e0c755f20aa32166daa",
+  "final_live_acceptance_run_id": 33913219057,
+  "deterministic_artifact": {
+    "artifact_id": 9952148653,
+    "name": "stage9-report-smoke-33913219057-1",
+    "sha256": "5262c50a1800e3f75e96fd3a4ffee4c2ef2e8bc6f162a2601ff45eb151967024"
+  },
+  "protected_git_blobs": {
+    "src/reporting/__init__.py": "ce117e0038e7988fef3a60ebc5c7e731a8fee1f8",
+    "src/reporting/report.py": "a7d33ea016ea6a462e691b1a4af34d1c491340f7",
+    "src/reporting/telegram.py": "f9f888557966ef0c717ba87ca38a7f15b47f1c2b",
+    "scripts/build_stage9_report.py": "c6e8bc6b70c5c405f9d2ac1c61c524d2e0ecfa93",
+    "scripts/send_stage9_telegram.py": "56ccf6f7eaaa11f09e629ad42b3950ceabd7ffc8",
+    "scripts/run_stage9_smoke.py": "d86312f006aa121775f2ed824f0900b6f19a2fb9",
+    "scripts/verify_stage9_freeze.py": "033fcdccff9e15d56cb2c57bcf0c453ab35d9364",
+    "tests/test_stage9_reporting.py": "85e4855960db403cc3befc2fe276519d6c833336",
+    "requirements.txt": "e4b8d7f6469036b0a6ec0f8dbf8ba5b5b32e6020",
+    "docs/reporting/REPORTING_CONTRACT.md": "3e3127d8bfc03a7c4d218860ca47eb0f440a0dad"
+  },
+  "workbook_sheets": [
+    "SUMMARY",
+    "TODAY_ACTIONABLE",
+    "CURRENT_ACTIONABLE",
+    "REVIEW_QUEUE",
+    "LOW_PRIORITY",
+    "AUDIT",
+    "SOURCES"
+  ],
+  "actionable_recommendations": [
+    "STRONG_APPLY",
+    "APPLY",
+    "REVIEW"
+  ],
+  "today_events": [
+    "NEW",
+    "MATERIALLY_CHANGED",
+    "REOPENED"
+  ],
+  "regression": {
+    "stage9_unittest_methods": 12,
+    "stage8_regression_tests": 29,
+    "stage7_regression_tests": 24,
+    "stage6_regression_tests": 21,
+    "stage5_regression_tests": 11,
+    "stage4_regression_tests": 4,
+    "total_unittest_methods_in_gate": 101,
+    "deterministic_xlsx_telegram_smoke": "PASS",
+    "stage7_freeze_verifier": "PASS",
+    "stage8_freeze_verifier": "PASS",
+    "stage9_freeze_verifier": "PASS"
+  },
+  "live_telegram_acceptance": {
+    "status": "PASS",
+    "configuration_check": "PASS",
+    "bot_reachable": true,
+    "chat_count": 2,
+    "message_delivery": "PASS",
+    "xlsx_delivery": "PASS"
+  },
+  "notes": [
+    "Country is a reporting dimension and never a sheet partition.",
+    "Stage 7 evaluator dimensions are shown independently; Stage 9 introduces no composite score.",
+    "REVIEW, NEEDS_DETAIL_REVIEW, POLICY_REVIEW and unresolved Full JD remain human-reviewable unless explicitly closed.",
+    "Reporting consumes Stage 8 state annotations and never recomputes or mutates durable state.",
+    "Telegram delivery is post-state; delivery failure cannot roll back or invalidate a successful R2 state write.",
+    "Stage 10 owns production scheduling and end-to-end orchestration."
+  ]
+}

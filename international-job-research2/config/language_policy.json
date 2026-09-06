@@ -1,0 +1,20 @@
+{
+  "version": "1.0.0",
+  "policy_id": "LANGUAGE_POLICY_V1.0.0",
+  "principle": "FAIL_OPEN_UNLESS_EXPLICIT_STRONG_MISMATCH",
+  "rules": [
+    {"code":"LANGUAGE_UNSTATED","condition":"posting does not state a language requirement","action":"NO_BLOCKER"},
+    {"code":"LOCAL_LANGUAGE_PREFERRED","condition":"local language is preferred/desirable but not mandatory","action":"NO_BLOCKER"},
+    {"code":"LOCAL_LANGUAGE_MANDATORY_UNCONFIRMED","condition":"local language is mandatory and candidate proficiency is not confirmed","action":"POLICY_REVIEW"},
+    {"code":"GERMAN_C1_C2_TEACHING","condition":"German C1 or C2 is explicitly mandatory for teaching","action":"POLICY_SKIP"},
+    {"code":"LANGUAGE_NATIVE_OR_BILINGUAL_UNCONFIRMED","condition":"native/bilingual local language is explicitly mandatory and profile does not establish it","action":"POLICY_REVIEW"},
+    {"code":"ENGLISH_ACADEMIC","condition":"English is the working language or academic English is required","action":"NO_BLOCKER"}
+  ],
+  "country_notes": {
+    "DE":"Teaching-heavy roles with explicit German C1/C2 are strong blockers under the current profile policy.",
+    "FR":"French faculty is already out of scope; French-language requirements on postdoctoral/research roles remain reviewable unless a deterministic mismatch is established.",
+    "NL":"Dutch requirements are not inferred from country; evaluate only explicit posting language.",
+    "BE":"Dutch/French requirements are not inferred from country; evaluate only explicit posting language.",
+    "AT":"German requirements are not inferred from country; evaluate only explicit posting language."
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "version": "1.0.0",
+  "policy_id": "MOBILITY_POLICY_V1.0.0",
+  "verified_on": "2026-09-04",
+  "principle": "MOBILITY_IS_SEPARATE_FROM_SCIENTIFIC_FIT_AND_SILENCE_IS_NOT_A_BLOCKER",
+  "statuses": ["FAVORABLE","POTENTIALLY_VIABLE","REVIEW","BLOCKED","VERIFY_CURRENT_RULES"],
+  "countries": {
+    "GB": {
+      "default_status":"POTENTIALLY_VIABLE",
+      "signals":["Global Talent routes exist for researchers and academics.","Current or recent individual fellowship history can be relevant; exact fellowship eligibility must be re-verified at decision time.","Employer sponsorship being unavailable is not an automatic blocker because an independent Global Talent route may exist."],
+      "posting_rules":{"sponsorship_yes":"FAVORABLE","sponsorship_unstated":"POTENTIALLY_VIABLE","sponsorship_no":"REVIEW","explicit_right_to_work_required":"REVIEW"}
+    },
+    "NL": {
+      "default_status":"POTENTIALLY_VIABLE",
+      "signals":["Research and highly skilled migrant routes rely on recognised sponsors.","Recognised sponsor status can be checked in IND public registers."],
+      "posting_rules":{"sponsorship_yes":"FAVORABLE","sponsorship_unstated":"POTENTIALLY_VIABLE","sponsorship_no":"REVIEW"}
+    },
+    "DE": {
+      "default_status":"POTENTIALLY_VIABLE",
+      "signals":["Academic and research immigration is generally viable but route details are role-specific and must be current-verified."],
+      "posting_rules":{"sponsorship_yes":"FAVORABLE","sponsorship_unstated":"POTENTIALLY_VIABLE","sponsorship_no":"REVIEW"}
+    },
+    "IE": {
+      "default_status":"POTENTIALLY_VIABLE",
+      "signals":["Scientific researchers may use an accredited research organisation Hosting Agreement route."],
+      "posting_rules":{"hosting_agreement_yes":"FAVORABLE","sponsorship_unstated":"POTENTIALLY_VIABLE","work_rights_restriction":"REVIEW"}
+    },
+    "BE": {
+      "default_status":"POTENTIALLY_VIABLE",
+      "signals":["Researcher and postdoctoral routes can involve a hosting agreement and single permit; exact national implementation must be current-verified."],
+      "posting_rules":{"hosting_agreement_yes":"FAVORABLE","sponsorship_unstated":"POTENTIALLY_VIABLE","work_rights_restriction":"REVIEW"}
+    },
+    "FR": {
+      "default_status":"POTENTIALLY_VIABLE",
+      "signals":["Researcher talent-passport routes use a hosting agreement with an approved research/higher-education institution."],
+      "posting_rules":{"hosting_agreement_yes":"FAVORABLE","sponsorship_unstated":"POTENTIALLY_VIABLE","work_rights_restriction":"REVIEW"}
+    },
+    "AT": {
+      "default_status":"POTENTIALLY_VIABLE",
+      "signals":["Researcher residence routes use an admission/hosting agreement with an eligible research institution."],
+      "posting_rules":{"hosting_agreement_yes":"FAVORABLE","sponsorship_unstated":"POTENTIALLY_VIABLE","work_rights_restriction":"REVIEW"}
+    },
+    "AU": {
+      "default_status":"REVIEW",
+      "signals":["Employer-sponsored temporary and permanent skilled routes exist.","Academic and researcher nominations have specific rules or exemptions in some employer-nominated routes.","Employer willingness is decisive for many vacancies."],
+      "posting_rules":{"sponsorship_yes":"FAVORABLE","sponsorship_may_be_available":"POTENTIALLY_VIABLE","sponsorship_unstated":"REVIEW","sponsorship_no_and_work_rights_required":"BLOCKED"}
+    },
+    "IT":{"default_status":"VERIFY_CURRENT_RULES"},
+    "PT":{"default_status":"VERIFY_CURRENT_RULES"},
+    "CZ":{"default_status":"VERIFY_CURRENT_RULES"},
+    "PL":{"default_status":"VERIFY_CURRENT_RULES"},
+    "LU":{"default_status":"VERIFY_CURRENT_RULES"}
+  },
+  "anti_rules": ["Do not convert sponsorship silence into rejection.","Do not fold mobility into scientific-fit scoring.","Do not assume a historic immigration rule remains current; verify time-sensitive details before final mobility rejection."]
+}

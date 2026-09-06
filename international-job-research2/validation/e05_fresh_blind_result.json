@@ -1,0 +1,72 @@
+{
+  "schema_version": "E05_FRESH_BLIND_RESULT_V1.0.0",
+  "classification": "FRESH_POST_FREEZE_PROMOTION_VALIDATION",
+  "candidate_version": "E0.5_GENERALIZATION_CANDIDATE",
+  "candidate_blob_sha": "5855915e3b2a0024c765814b024290bd07d19db7",
+  "source_run_id": 33964408465,
+  "source_production_id": "prod-33964408465-1",
+  "source_artifact_id": 9968973897,
+  "source_artifact_digest": "sha256:473e9afbf15d45bc9963664741dab037dc8909461f2ed1fd2821d6d6a929039e",
+  "labels_commit": "b496fbe9dbd1ae256e3b74ca89baab8640bb18bf",
+  "first_infrastructure_attempt": {
+    "workflow_run_id": 33965124547,
+    "result": "INFRASTRUCTURE_FAILURE_BEFORE_PREDICTION",
+    "failure": "ModuleNotFoundError: No module named 'src'",
+    "predictions_revealed": false,
+    "score_artifact_created": false
+  },
+  "scoring_workflow_run_id": 33965199215,
+  "scoring_workflow_head_sha": "3578b37bcc09341d0419b08072757216a04caccf",
+  "score_artifact_id": 9969193260,
+  "score_artifact_digest": "sha256:3da1dac54e6a9aa69e7d39e30659ea84bdff3baf3e42e8b3676ab0c949d0002d",
+  "selection_count": 64,
+  "correct": 53,
+  "accuracy": 0.828125,
+  "expected_surfaced": 11,
+  "predicted_surfaced": 15,
+  "surfaced_precision": 0.5333333333333333,
+  "surfaced_recall": 0.7272727272727273,
+  "critical_false_negative_count": 3,
+  "thresholds": {
+    "minimum_accuracy": 0.90,
+    "minimum_surfaced_precision": 0.90,
+    "minimum_surfaced_recall": 0.75,
+    "critical_false_negative_max": 0
+  },
+  "confusion": {
+    "APPLY->APPLY": 1,
+    "REVIEW->REVIEW": 5,
+    "REVIEW->SKIP": 3,
+    "REVIEW->STRONG_APPLY": 1,
+    "SKIP->REVIEW": 7,
+    "SKIP->SKIP": 46,
+    "STRONG_APPLY->STRONG_APPLY": 1
+  },
+  "mismatches": [
+    {"canonical_id":"vac_207728d279d65d24989a","expected":"REVIEW","predicted":"STRONG_APPLY","title":"Universitätsassistent:in - Postdoc","blocker_codes":[],"review_codes":[]},
+    {"canonical_id":"vac_3727853c4f3ceea2d25a","expected":"SKIP","predicted":"REVIEW","title":"University Assistant postdoctoral","blocker_codes":["MANDATORY_GERMAN_C1_C2_TEACHING"],"review_codes":["ADVANCED_FMRI_ANALYSIS_NOT_ESTABLISHED","ADJACENT_SCIENTIFIC_FIT_E04"]},
+    {"canonical_id":"vac_39c19d2488b12d9fca24","expected":"SKIP","predicted":"REVIEW","title":"Assistant Professor BSc (Hons) Business and Management","blocker_codes":["NO_PROFILE_ANCHOR_IN_FULL_JD_E021"],"review_codes":["ADJACENT_FACULTY_E04"]},
+    {"canonical_id":"vac_61b559dba586d71a050d","expected":"REVIEW","predicted":"SKIP","title":"Post-Doctoral Researcher (Integrative Biologist) - APC Microbiome Ireland","blocker_codes":["SPECIALIST_BIOLOGY_TITLE_E021","INHERITED_EXPLICIT_HARD_E042"],"review_codes":["DIRECT_FIT_WITH_UNRESOLVED_BLOCKER_E04"]},
+    {"canonical_id":"vac_9edc371058ff9d307735","expected":"SKIP","predicted":"REVIEW","title":"Senior Lecturer Medical Education (Placement Education Coordinator)","blocker_codes":["NO_PROFILE_ANCHOR_IN_FULL_JD_E021"],"review_codes":["SPONSORSHIP_UNSTATED","ADJACENT_FACULTY_E04"]},
+    {"canonical_id":"vac_a5ee4240e91cbd590790","expected":"REVIEW","predicted":"SKIP","title":"Post-Doctoral Research Assoc.","blocker_codes":["NO_PROFILE_ANCHOR_IN_FULL_JD_E021","NO_PROFILE_RELEVANCE_EVIDENCE_E04"],"review_codes":[]},
+    {"canonical_id":"vac_b338a389be8f49053b94","expected":"SKIP","predicted":"REVIEW","title":"Associate Lecturer/Lecturer - Exercise Physiology","blocker_codes":["AU_NO_SPONSORSHIP_WORK_RIGHTS_REQUIRED"],"review_codes":["DIRECT_FIT_WITH_UNRESOLVED_BLOCKER_E04"]},
+    {"canonical_id":"vac_b360015524bc8cdc9897","expected":"REVIEW","predicted":"SKIP","title":"Postdoctoral Research Associate in Epidemiology and Health Data Science","blocker_codes":["MANDATORY_SPECIALIST_OMICS_GENOMICS_E05"],"review_codes":["ADJACENT_SCIENTIFIC_FIT_E04"]},
+    {"canonical_id":"vac_d253531f1dc59e356e2f","expected":"SKIP","predicted":"REVIEW","title":"Postdoctoral researcher studying the impostor phenomenon","blocker_codes":["NO_PROFILE_ANCHOR_IN_FULL_JD_E021"],"review_codes":["ADJACENT_SCIENTIFIC_FIT_E04"]},
+    {"canonical_id":"vac_d258f3fb75dc8d61919d","expected":"SKIP","predicted":"REVIEW","title":"Postdoc Position: A Model-Based Approach to Understanding Cognitive Development in Early Childhood","blocker_codes":[],"review_codes":["ADJACENT_SCIENTIFIC_FIT_E04"]},
+    {"canonical_id":"vac_d8246eb81e703844db58","expected":"SKIP","predicted":"REVIEW","title":"Endowed Professorship Neuromorphic Systems at the Institute of Physiology - Assistant Professor Tenure Track","blocker_codes":["NO_PROFILE_ANCHOR_IN_FULL_JD_E021"],"review_codes":["VERIFY_CURRENT_MOBILITY_RULES","ADJACENT_FACULTY_E04"]}
+  ],
+  "critical_false_negatives": [
+    "vac_61b559dba586d71a050d",
+    "vac_a5ee4240e91cbd590790",
+    "vac_b360015524bc8cdc9897"
+  ],
+  "gate_failures": [
+    "accuracy 0.8281 < 0.9000",
+    "surfaced_precision 0.5333 < 0.9000",
+    "surfaced_recall 0.7273 < 0.7500",
+    "critical_false_negatives 3 > 0"
+  ],
+  "result": "FAIL",
+  "decision": "REJECT_E0.5_FOR_PROMOTION",
+  "future_use": "This fresh blind set is burned and may be used only as development evidence for future candidates."
+}

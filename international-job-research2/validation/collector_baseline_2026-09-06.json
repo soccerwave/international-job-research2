@@ -1,0 +1,81 @@
+{
+  "baseline_version": "PHASE1_STAGE1_COLLECTOR_BASELINE_V1",
+  "status": "FROZEN_BASELINE",
+  "date": "2026-09-06",
+  "repository": "soccerwave/international-academic-job-search",
+  "baseline_branch": "main",
+  "baseline_commit": "61af22729a7a27060646dca8f0ed365ba0435b95",
+  "production_producer_version": "V1.1_PAGINATED_DISCOVERY",
+  "reference_workflow_run": 34029865296,
+  "reference_runtime_run_id": "prod-34029865296-1",
+  "workflow_conclusion": "cancelled",
+  "production_status": "PARTIAL_PASS",
+  "production_artifact": {
+    "id": 9989035983,
+    "digest": "sha256:d26fd920e252091fd0dfe4afb50abbeb249b1d97e74f325a9a74e802967fa909"
+  },
+  "run_metrics": {
+    "expected_shards": 14,
+    "accepted_shards": 13,
+    "missing_shards": ["linkedin-europe"],
+    "input_records": 4222,
+    "canonical_records": 3960,
+    "duplicates_removed": 262,
+    "merged_clusters": 155,
+    "cross_source_clusters": 154,
+    "state_generation_after_finalization": 14,
+    "source_health": {
+      "OK": 22,
+      "PARTIAL": 7,
+      "ERROR": 1,
+      "UNKNOWN": 0
+    }
+  },
+  "sources": {
+    "academicpositions": {"status": "PARTIAL", "records": 466, "known_issue": "country/page HTTP 404 failures; 159 full descriptions unavailable"},
+    "academics_de": {"status": "OK", "records": 609, "certified": false},
+    "academictransfer": {"status": "OK", "records": 10, "certified": false},
+    "cnrs_emploi": {"status": "OK", "records": 4, "certified": false},
+    "corehr_dcu": {"status": "OK", "records": 6, "certified": false},
+    "corehr_galway": {"status": "OK", "records": 16, "certified": false},
+    "corehr_tcd": {"status": "OK", "records": 10, "certified": false},
+    "corehr_ucc": {"status": "OK", "records": 33, "certified": false},
+    "corehr_ucd": {"status": "OK", "records": 10, "certified": false},
+    "dvs": {"status": "PARTIAL", "records": 26, "known_issue": "3 full descriptions unavailable"},
+    "ecss": {"status": "OK", "records": 2, "certified": false},
+    "euraxess": {"status": "PARTIAL", "records": 10, "known_issue": "repeated pages in NL/DE/IE/GB/BE; 429 retry exhaustion in FR/AT/IT/PT/PL/LU; CZ facet missing"},
+    "fens": {"status": "OK", "records": 76, "certified": false},
+    "jobs_ac_uk": {"status": "PARTIAL", "records": 845, "known_issue": "2 full descriptions unavailable; completeness uncertified"},
+    "linkedin_mads_australia": {"status": "PARTIAL", "records": 1407, "known_issue": "Australia lecturer search failed with HTTP 400 after deep pagination"},
+    "pageup_deakin": {"status": "OK", "records": 19, "certified": false},
+    "pageup_monash": {"status": "PARTIAL", "records": 80, "known_issue": "repeated-page termination"},
+    "pageup_unsw": {"status": "OK", "records": 108, "certified": false},
+    "shard_linkedin_europe": {"status": "ERROR", "records": 0, "known_issue": "expected shard artifact missing after cancellation"},
+    "smartrecruiters_griffith": {"status": "OK", "records": 49, "certified": false},
+    "smartrecruiters_western_sydney": {"status": "OK", "records": 36, "certified": false},
+    "successfactors_ghent": {"status": "OK", "records": 17, "certified": false},
+    "successfactors_uclouvain_science": {"status": "OK", "records": 4, "certified": false},
+    "successfactors_univie_postdoc": {"status": "OK", "records": 23, "certified": false},
+    "successfactors_vub": {"status": "OK", "records": 10, "certified": false},
+    "uibk": {"status": "OK", "records": 13, "certified": false},
+    "university_vacancies_ie": {"status": "OK", "records": 129, "certified": false},
+    "workday_flinders": {"status": "OK", "records": 38, "certified": false},
+    "workday_uq": {"status": "OK", "records": 73, "certified": false},
+    "workday_usyd": {"status": "PARTIAL", "records": 93, "known_issue": "repeated-page termination"}
+  },
+  "explicit_exclusions": {
+    "pr_30": {
+      "state_at_freeze": "open_unmerged",
+      "head_commit": "8b50f4ba299281e26681c0b7e80518847254dfbf",
+      "included_in_baseline": false,
+      "reason": "diagnostic changes were not present on baseline main commit"
+    }
+  },
+  "interpretation": {
+    "runtime_ok_is_certification": false,
+    "counts_are_targets": false,
+    "evaluator_changes_allowed_in_phase1_stage1": false,
+    "new_source_promotion_allowed_in_phase1_stage1": false
+  },
+  "next_stage": "PHASE1_STAGE2_COVERAGE_RECONCILIATION"
+}

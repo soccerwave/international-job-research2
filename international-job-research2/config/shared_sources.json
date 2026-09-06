@@ -1,0 +1,96 @@
+{
+  "version": "SHARED_SOURCE_REGISTRY_V1.0.0",
+  "stage": "V0.5_SHARED_COVERAGE",
+  "acceptance": {
+    "validated_at": "2026-09-04",
+    "github_actions_run_id": 33895687778,
+    "validated_commit": "f6d622c85d9d3288df2aaff2d141d8b6c2c72c7a",
+    "validation_profile": "STAGE5_FINAL_SHARED_COVERAGE",
+    "requirements": [
+      "live discovery returns at least one record per source probe",
+      "sample Full JD status is FULL or PARTIAL",
+      "country metadata is verified when the source exposes it",
+      "Stage 5 parser/schema tests pass",
+      "Stage 4 regression tests pass"
+    ]
+  },
+  "sources": [
+    {
+      "source_id": "euraxess",
+      "enabled": true,
+      "kind": "SHARED_AGGREGATOR",
+      "donor": {"repo":"soccerwave/researcher-job-search","path":"sources/euraxess.py","commit":"96ef9eafea2d70aaf750bcbbd69375d1bcf2eb7e","reuse_mode":"ADAPT"},
+      "endpoint": "https://euraxess.ec.europa.eu/jobs/search",
+      "detail_strategy": "source detail HTML",
+      "market_scope": "core Europe + opportunistic",
+      "notes": "Country discovery uses the current job_country[] options and stable GET facets such as f[0]=job_country:794; no silent global fallback."
+    },
+    {
+      "source_id": "academicpositions",
+      "enabled": true,
+      "kind": "SHARED_AGGREGATOR",
+      "donor": {"repo":"soccerwave/researcher-job-search","path":"sources/academicpositions.py","commit":"96ef9eafea2d70aaf750bcbbd69375d1bcf2eb7e","reuse_mode":"ADAPT"},
+      "endpoint": "https://academicpositions.com/jobs/country/{country}",
+      "detail_strategy": "JobPosting JSON-LD + HTML fallback",
+      "market_scope": "core + opportunistic + Australia"
+    },
+    {
+      "source_id": "linkedin_europe",
+      "enabled": true,
+      "kind": "LINKEDIN",
+      "donor": {"repo":"soccerwave/researcher-job-search","path":"sources/linkedin_mads.py","commit":"96ef9eafea2d70aaf750bcbbd69375d1bcf2eb7e","reuse_mode":"ADAPT"},
+      "external_transport": {"repo":"MadsLorentzen/ai-job-search","path":".agents/skills/linkedin-search","commit":"fd89eac178dc546d41f6c1a3213de88d96112c6d","license":"MIT"},
+      "detail_strategy": "Mads detail command",
+      "market_scope": "core Europe",
+      "volume_policy": "low-volume personal use"
+    },
+    {
+      "source_id": "linkedin_australia",
+      "enabled": true,
+      "kind": "LINKEDIN",
+      "donor": {"repo":"soccerwave/researcher-job-search","path":"sources/linkedin_mads.py","commit":"96ef9eafea2d70aaf750bcbbd69375d1bcf2eb7e","reuse_mode":"ADAPT"},
+      "external_transport": {"repo":"MadsLorentzen/ai-job-search","path":".agents/skills/linkedin-search","commit":"fd89eac178dc546d41f6c1a3213de88d96112c6d","license":"MIT"},
+      "detail_strategy": "Mads detail command",
+      "market_scope": "Australia",
+      "volume_policy": "low-volume personal use"
+    },
+    {
+      "source_id": "jobs_ac_uk",
+      "enabled": true,
+      "kind": "SHARED_AGGREGATOR",
+      "donor": {"audit":"Spain + Mads upstream + selected regional derivatives","result":"NO_DIRECT_IMPLEMENTATION_FOUND","reuse_mode":"BUILD_NEW_FROM_PORTAL_CONTRACT"},
+      "endpoint": "https://www.jobs.ac.uk/search/",
+      "detail_strategy": "jobs.ac.uk detail HTML",
+      "market_scope": "UK backbone + Ireland/international supplement"
+    },
+    {
+      "source_id": "ecss",
+      "enabled": true,
+      "kind": "THEMATIC_PORTAL",
+      "donor": {"audit":"Spain + Mads upstream + selected regional derivatives","result":"NO_DIRECT_IMPLEMENTATION_FOUND","reuse_mode":"BUILD_NEW_FROM_PORTAL_CONTRACT"},
+      "endpoint": "https://www.ecss2006.com/ASP/CONGRESS/TOOLS/BENEFITS/EVSS.asp",
+      "detail_strategy": "linked vacancy PDF/HTML",
+      "market_scope": "global sport science, policy filtered later"
+    },
+    {
+      "source_id": "dvs",
+      "enabled": true,
+      "kind": "THEMATIC_PORTAL",
+      "donor": {"audit":"Spain + Mads upstream + selected regional derivatives","result":"NO_DIRECT_IMPLEMENTATION_FOUND","reuse_mode":"BUILD_NEW_FROM_PORTAL_CONTRACT"},
+      "endpoint": "https://www.sportwissenschaft.de/stellenborse/stellenangebote/",
+      "detail_strategy": "linked vacancy PDF/HTML",
+      "market_scope": "Germany/Austria high-signal",
+      "notes": "Country is inferred only from explicit domain/text evidence; the board itself is not treated as proof of Germany."
+    },
+    {
+      "source_id": "fens",
+      "enabled": true,
+      "kind": "THEMATIC_PORTAL",
+      "donor": {"audit":"Spain + Mads upstream + selected regional derivatives","result":"NO_DIRECT_IMPLEMENTATION_FOUND","reuse_mode":"BUILD_NEW_FROM_PORTAL_CONTRACT"},
+      "endpoint": "https://www.fens.org/careers/job-market",
+      "detail_strategy": "FENS detail HTML",
+      "market_scope": "global neuroscience, policy filtered later",
+      "notes": "Country metadata from FENS detail pages is preserved even for out-of-scope markets; policy filtering happens later."
+    }
+  ]
+}

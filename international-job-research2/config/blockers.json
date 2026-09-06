@@ -1,0 +1,31 @@
+{
+  "version": "1.0.0",
+  "policy_id": "BLOCKER_POLICY_V1.0.0",
+  "hard_blockers": [
+    {"code":"ROLE_STUDENT","evidence_required":"title or Full JD explicitly identifies PhD student/doctoral student/trainee role","action":"POLICY_SKIP"},
+    {"code":"FR_FACULTY_OUT_OF_SCOPE","evidence_required":"France faculty title such as Maître de conférences/MCF or equivalent faculty appointment","action":"POLICY_SKIP"},
+    {"code":"MANDATORY_MEDICAL_OR_NURSING_DEGREE","evidence_required":"medical or nursing degree is explicitly mandatory","action":"POLICY_SKIP"},
+    {"code":"MANDATORY_PROFESSIONAL_REGISTRATION","evidence_required":"specific professional/clinical registration is explicitly mandatory and profile does not establish it","action":"POLICY_SKIP"},
+    {"code":"MANDATORY_GERMAN_C1_C2_TEACHING","evidence_required":"German C1/C2 is explicitly mandatory for teaching duties","action":"POLICY_SKIP"},
+    {"code":"MANDATORY_PATCH_CLAMP","evidence_required":"patch clamp is a core mandatory method","action":"POLICY_SKIP"},
+    {"code":"MANDATORY_OPTOGENETICS","evidence_required":"optogenetics is a core mandatory method","action":"POLICY_SKIP"},
+    {"code":"MANDATORY_SPECIALIST_WET_LAB","evidence_required":"specialist wet-lab expertise absent from declared profile is explicitly mandatory and central to role","action":"POLICY_SKIP"},
+    {"code":"MANDATORY_ADVANCED_AI_ML","evidence_required":"advanced AI/ML/computational research expertise is explicitly mandatory and central to role","action":"POLICY_SKIP"},
+    {"code":"AU_NO_SPONSORSHIP_WORK_RIGHTS_REQUIRED","evidence_required":"Australia posting explicitly states no sponsorship and requires existing unrestricted work rights","action":"POLICY_SKIP"},
+    {"code":"HIGH_CONFIDENCE_UNRELATED_DOMAIN","evidence_required":"Full JD establishes a domain materially unrelated to all A/B/C scientific tracks; title alone is insufficient","action":"POLICY_SKIP"}
+  ],
+  "review_triggers": [
+    {"code":"FULL_JD_UNAVAILABLE","action":"NEEDS_DETAIL_REVIEW"},
+    {"code":"GENERIC_RESEARCH_FELLOW","action":"POLICY_REVIEW"},
+    {"code":"UNCLEAR_DOMAIN","action":"POLICY_REVIEW"},
+    {"code":"SPONSORSHIP_UNSTATED","action":"POLICY_REVIEW_IF_MOBILITY_DEPENDS_ON_EMPLOYER"},
+    {"code":"VISA_AMBIGUOUS","action":"POLICY_REVIEW"},
+    {"code":"MRI_PREFERRED_NOT_REQUIRED","action":"NO_BLOCKER"},
+    {"code":"METHOD_MISMATCH_UNCLEAR","action":"POLICY_REVIEW"},
+    {"code":"UNCERTAIN_LOCAL_TITLE","action":"POLICY_REVIEW"},
+    {"code":"SALARY_UNKNOWN","action":"NO_BLOCKER"},
+    {"code":"CONTRACT_UNKNOWN","action":"NO_BLOCKER"},
+    {"code":"LOCAL_LANGUAGE_MANDATORY_UNCONFIRMED","action":"POLICY_REVIEW"}
+  ],
+  "evidence_rules": ["A hard blocker must be supported by explicit title or Full JD evidence.","Absence of information is not blocker evidence.","Preferred/desirable requirements never trigger a hard blocker by themselves.","When detail retrieval fails, route to NEEDS_DETAIL_REVIEW rather than POLICY_SKIP."]
+}

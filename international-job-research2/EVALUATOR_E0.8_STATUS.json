@@ -1,0 +1,22 @@
+{
+  "evaluator_version": "E0.8_ROUTING_GENERALIZATION_CANDIDATE",
+  "status": "REJECTED_FRESH_BLIND_VALIDATION",
+  "promotion_status": "NOT_PROMOTED",
+  "frozen_candidate_blob_sha": "3086abcbd5d4c941e2c0f6bafb73cb9724bf3902",
+  "freeze_merge_commit": "b327c1754e8f3176c3149c6d7d375176c53e253f",
+  "fresh_blind_workflow_run_id": 33975048981,
+  "fresh_blind_artifact_id": 9972058741,
+  "fresh_blind_result": "FAIL",
+  "fresh_blind_route_accuracy": 0.975,
+  "fresh_blind_operational_surfaced_precision": 0.75,
+  "fresh_blind_operational_surfaced_recall": 0.75,
+  "fresh_blind_critical_operational_false_negative_count": 1,
+  "fresh_blind_detail_review_false_negative_count": 0,
+  "holdout_opened": false,
+  "wired_to_production": false,
+  "wired_to_user_facing_reporting": false,
+  "accepted_v1_runtime_changed": false,
+  "roadmap_status": "CLOSED_NO_E0.9",
+  "next_decision": "ARCHITECTURE_OR_PRODUCT_DECISION",
+  "needs_detail_review_second_excel_sheet": "PENDING_FUTURE_INTEGRATION_DECISION"
+}

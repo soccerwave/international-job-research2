@@ -1,0 +1,15 @@
+{
+  "candidate_version": "E0.6.2_CONTEXT_LOCALIZATION_CANDIDATE",
+  "candidate_blob_sha": "703327844b12a7e885da1ddf477e4feb22c87db3",
+  "classification": "FRESH_POST_MERGE_BLIND_PROMOTION_GATE",
+  "thresholds": {
+    "minimum_accuracy": 0.90,
+    "minimum_surfaced_precision": 0.90,
+    "minimum_surfaced_recall": 0.75,
+    "critical_false_negative_max": 0
+  },
+  "candidate_may_change_after_freeze": false,
+  "historical_burned_sets_may_certify_promotion": false,
+  "final_holdout_opened": false,
+  "result": "PENDING"
+}

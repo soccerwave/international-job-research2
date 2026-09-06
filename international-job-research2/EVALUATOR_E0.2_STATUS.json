@@ -1,0 +1,15 @@
+{
+  "evaluator_version": "E0.2_CALIBRATED_SHADOW",
+  "status": "SHADOW_VALIDATION_PENDING",
+  "base_evaluator": "E0.1",
+  "scope": "USER_FACING_CONTROL_PLANE_ONLY",
+  "production_evaluator_changed": false,
+  "audit_evaluator_preserved": true,
+  "known_false_positive_fixes": [
+    "COGNITION_SUBSTRING_RECOGNITION",
+    "GENERIC_TRAINING_SIGNAL",
+    "PHD_POSITION_SCOPE_LEAK",
+    "HIGH_CONFIDENCE_UNRELATED_TITLE_DOMAIN",
+    "CORU_REGISTRATION"
+  ]
+}

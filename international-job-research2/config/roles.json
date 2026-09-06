@@ -1,0 +1,61 @@
+{
+  "version": "1.0.1",
+  "policy_id": "ROLE_POLICY_V1.0.1",
+  "normalized_role_families": ["POSTDOC","RESEARCH_FELLOW_POSTDOC","ASSISTANT_PROFESSOR","LECTURER","RESEARCH_ASSISTANT_PROFESSOR","TENURE_TRACK","JUNIOR_PROFESSOR","RESEARCH_SCIENTIST","SCIENTIFIC_PROJECT_MANAGER","RESEARCH_PROJECT_MANAGER","RESEARCH_PROGRAMME_MANAGER","OTHER_RESEARCH","OUT_OF_SCOPE"],
+  "primary_families": ["POSTDOC","RESEARCH_FELLOW_POSTDOC","ASSISTANT_PROFESSOR","LECTURER","RESEARCH_ASSISTANT_PROFESSOR","TENURE_TRACK","JUNIOR_PROFESSOR"],
+  "secondary_families": ["RESEARCH_SCIENTIST","SCIENTIFIC_PROJECT_MANAGER","RESEARCH_PROJECT_MANAGER","RESEARCH_PROGRAMME_MANAGER"],
+  "global_title_patterns": [
+    {"pattern":"postdoctoral fellow","family":"POSTDOC","policy":"PRIMARY"},
+    {"pattern":"postdoctoral researcher","family":"POSTDOC","policy":"PRIMARY"},
+    {"pattern":"postdoc","family":"POSTDOC","policy":"PRIMARY"},
+    {"pattern":"research fellow","family":"RESEARCH_FELLOW_POSTDOC","policy":"CONDITIONAL","condition":"must_be_postdoc_or_comparable_research_level"},
+    {"pattern":"assistant professor","family":"ASSISTANT_PROFESSOR","policy":"PRIMARY"},
+    {"pattern":"lecturer","family":"LECTURER","policy":"PRIMARY"},
+    {"pattern":"research assistant professor","family":"RESEARCH_ASSISTANT_PROFESSOR","policy":"PRIMARY"},
+    {"pattern":"tenure track","family":"TENURE_TRACK","policy":"PRIMARY"},
+    {"pattern":"research scientist","family":"RESEARCH_SCIENTIST","policy":"SECONDARY"},
+    {"pattern":"scientific project manager","family":"SCIENTIFIC_PROJECT_MANAGER","policy":"SECONDARY"},
+    {"pattern":"research project manager","family":"RESEARCH_PROJECT_MANAGER","policy":"SECONDARY"},
+    {"pattern":"research programme manager","family":"RESEARCH_PROGRAMME_MANAGER","policy":"SECONDARY"},
+    {"pattern":"research program manager","family":"RESEARCH_PROGRAMME_MANAGER","policy":"SECONDARY"}
+  ],
+  "country_rules": {
+    "NL": [
+      {"pattern":"universitair docent","family":"ASSISTANT_PROFESSOR","policy":"PRIMARY"},
+      {"pattern":"tenure track","family":"TENURE_TRACK","policy":"PRIMARY"}
+    ],
+    "DE": [
+      {"pattern":"postdoktorand","family":"POSTDOC","policy":"PRIMARY"},
+      {"pattern":"postdoktorandin","family":"POSTDOC","policy":"PRIMARY"},
+      {"pattern":"wissenschaftliche mitarbeiter","family":"OTHER_RESEARCH","policy":"CONDITIONAL","condition":"include_only_if_phd_postdoc_level_is_explicit"},
+      {"pattern":"wissenschaftlicher mitarbeiter","family":"OTHER_RESEARCH","policy":"CONDITIONAL","condition":"include_only_if_phd_postdoc_level_is_explicit"},
+      {"pattern":"juniorprofessor","family":"JUNIOR_PROFESSOR","policy":"PRIMARY"},
+      {"pattern":"w1","family":"JUNIOR_PROFESSOR","policy":"CONDITIONAL","condition":"must_be_academic_W1_context"},
+      {"pattern":"tenure track","family":"TENURE_TRACK","policy":"PRIMARY"}
+    ],
+    "FR": [
+      {"pattern":"postdoctorant","family":"POSTDOC","policy":"PRIMARY"},
+      {"pattern":"post-doctorant","family":"POSTDOC","policy":"PRIMARY"},
+      {"pattern":"postdoctoral","family":"POSTDOC","policy":"PRIMARY"},
+      {"pattern":"maître de conférences","family":"OUT_OF_SCOPE","policy":"HARD_EXCLUDE"},
+      {"pattern":"maitre de conferences","family":"OUT_OF_SCOPE","policy":"HARD_EXCLUDE"},
+      {"pattern":"mcf","family":"OUT_OF_SCOPE","policy":"HARD_EXCLUDE"}
+    ],
+    "AU": [
+      {"pattern":"postdoctoral research fellow","family":"POSTDOC","policy":"PRIMARY"},
+      {"pattern":"research fellow","family":"RESEARCH_FELLOW_POSTDOC","policy":"CONDITIONAL","condition":"must_be_research_or_postdoc_level"},
+      {"pattern":"lecturer level b","family":"LECTURER","policy":"PRIMARY"},
+      {"pattern":"academic level b","family":"LECTURER","policy":"PRIMARY"},
+      {"pattern":"continuing lecturer","family":"LECTURER","policy":"HIGH_VALUE"},
+      {"pattern":"ongoing lecturer","family":"LECTURER","policy":"HIGH_VALUE"},
+      {"pattern":"sessional lecturer","family":"OUT_OF_SCOPE","policy":"NORMALLY_SKIP"},
+      {"pattern":"casual lecturer","family":"OUT_OF_SCOPE","policy":"NORMALLY_SKIP"}
+    ]
+  },
+  "rules": {
+    "generic_research_fellow_without_level_evidence":"POLICY_REVIEW",
+    "uncertain_local_title":"POLICY_REVIEW",
+    "student_or_training_role":"POLICY_SKIP",
+    "secondary_families_enabled_by_default":false
+  }
+}

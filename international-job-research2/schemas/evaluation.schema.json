@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:international-academic-job-search:evaluation:E0.1",
+  "title": "International Academic Vacancy Evaluation E0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["evaluator_version","recommendation","pre_evaluation_disposition","role_family","role_policy_status","dimensions","fit_signals","review_codes","blocker_codes","evidence","reason"],
+  "properties": {
+    "evaluator_version": {"const":"E0.1"},
+    "recommendation": {"enum":["STRONG_APPLY","APPLY","REVIEW","LOW_PRIORITY","SKIP"]},
+    "pre_evaluation_disposition": {"enum":["ELIGIBLE_FOR_EVALUATION","NEEDS_DETAIL_REVIEW","POLICY_REVIEW","POLICY_SKIP"]},
+    "role_family": {"type":"string"},
+    "role_policy_status": {"enum":["PRIMARY","SECONDARY","CONDITIONAL","OUT_OF_SCOPE","AMBIGUOUS"]},
+    "dimensions": {
+      "type":"object","additionalProperties":false,
+      "required":["scientific","level","methods","language","mobility","registration","contract"],
+      "properties": {
+        "scientific":{"enum":["STRONG","GOOD","ADJACENT","WEAK","UNCLEAR"]},
+        "level":{"enum":["STRONG","ACCEPTABLE","REVIEW","MISMATCH","UNKNOWN"]},
+        "methods":{"enum":["STRONG","ACCEPTABLE","REVIEW","MISMATCH","UNKNOWN"]},
+        "language":{"enum":["CLEAR","REVIEW","BLOCKED"]},
+        "mobility":{"enum":["FAVORABLE","POTENTIALLY_VIABLE","REVIEW","BLOCKED","VERIFY_CURRENT_RULES"]},
+        "registration":{"enum":["CLEAR","REVIEW","BLOCKED"]},
+        "contract":{"enum":["ATTRACTIVE","ACCEPTABLE","REVIEW","UNKNOWN"]}
+      }
+    },
+    "fit_signals":{"type":"array","items":{"type":"string"}},
+    "review_codes":{"type":"array","items":{"type":"string"}},
+    "blocker_codes":{"type":"array","items":{"type":"string"}},
+    "evidence":{"type":"object","additionalProperties":{"type":"array","items":{"type":"string"}}},
+    "reason":{"type":"string","minLength":1}
+  }
+}

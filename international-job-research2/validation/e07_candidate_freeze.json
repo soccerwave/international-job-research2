@@ -1,0 +1,52 @@
+{
+  "schema_version": "E07_CANDIDATE_FREEZE_V1.0.0",
+  "status": "FROZEN_FOR_FRESH_BLIND_VALIDATION",
+  "promotion_status": "NOT_PROMOTED",
+  "holdout_opened": false,
+  "candidate": {
+    "evaluator_version": "E0.7_DETAIL_SAFE_ROUTING_CANDIDATE",
+    "path": "src/evaluation/calibrated_e07.py",
+    "candidate_code_commit": "758abab47f22007c1ad64804da9e5abd0828483d",
+    "candidate_blob_sha": "70bbc538089b45d36ca513c8ef94868e03a15087",
+    "base_scientific_candidate": "E0.6.2_CONTEXT_LOCALIZATION_CANDIDATE",
+    "scientific_recommendation_behavior_changed_vs_e062": false
+  },
+  "development_evidence": {
+    "classification": "DEVELOPMENT_ONLY_NOT_PROMOTION_EVIDENCE",
+    "workflow_run_id": 33969283280,
+    "artifact_id": 9970426093,
+    "artifact_digest": "sha256:cd35a9e362b0b85a2ddaf0cda4ebba41f68824b917df92d09ec142dfc264a5e5",
+    "burned_e062_inventory_records": 518,
+    "scientific_recommendation_changes_vs_e062": 0,
+    "needs_detail_review_count": 7,
+    "known_unresolved_essential_wrappers_recovered": 2,
+    "known_hard_role_missing_detail_pollution": 0,
+    "general_detail_routing_counterexamples": "PASS",
+    "accepted_v1_runtime_regression": "PASS"
+  },
+  "fresh_blind_validation_contract": {
+    "classification": "FUTURE_FRESH_POST_FREEZE_PROMOTION_VALIDATION",
+    "inventory_requirement": "A production inventory must be collected after this exact E0.7 freeze is merged to main.",
+    "label_requirement": "Reference routing labels must be locked without consulting E0.7 outputs.",
+    "routing_labels": ["JOBS", "NEEDS_DETAIL_REVIEW", "HIDDEN"],
+    "recommendation_labels_for_jobs_route": ["STRONG_APPLY", "APPLY", "REVIEW"],
+    "minimum_route_accuracy": 0.90,
+    "minimum_operational_surface_precision": 0.90,
+    "minimum_operational_surface_recall": 0.75,
+    "critical_operational_false_negative_max": 0,
+    "detail_review_false_negative_max": 0,
+    "candidate_mutation_policy": "Any E0.7 behavior change after freeze starts a new candidate cycle."
+  },
+  "methodology": {
+    "project_objective": "Find suitable opportunities reliably while keeping obvious noise manageable.",
+    "two_channel_decision_contract": true,
+    "scientific_recommendation_is_separate_from_detail_completeness": true,
+    "needs_detail_review_is_not_a_scientific_fit_class": true,
+    "missing_detail_alone_is_not_skip": true,
+    "independent_hard_skip_can_suppress_detail_queue": true,
+    "secondary_role_policy_remains_configured_separately": true,
+    "protected_characteristic_eligibility_must_not_be_inferred": true,
+    "burned_e062_set_is_development_only": true,
+    "final_holdout_remains_sealed": true
+  }
+}
