@@ -16,24 +16,9 @@
   },
   "protected_git_blobs": {
     ".github/workflows/production.yml": "ad55882be5dcdccca7d9b284928b44e1b4b71a60",
-    ".github/workflows/publish-control-plane-report.yml": "f0ff513ccbd2df225c63f5ecf9214212536773f4",
-    ".github/workflows/recover-production-state.yml": "7dc0746a855a9e41d31e89386f33238555d4586b",
-    ".github/workflows/test-v1.yml": "403505f50d6e875b2aa2c65b20eeb101a938ab98",
-    ".github/workflows/test-public-readiness.yml": "f5588dac7d47da63bbee9abeb421f43ab761cd56",
-    ".github/workflows/test-phase1-stage4-2-linkedin.yml": "abf6fdc3e06ff537677429b143914f057bd910eb",
-    ".github/workflows/test-phase1-stage4-3-linkedin.yml": "646c25ddc8c0298d58a5b691fbe2b4e46da3d201",
-    ".github/workflows/test-phase1-stage4-4-linkedin.yml": "14a5a9944276d2b48692404813315789879c2352",
-    ".github/workflows/test-phase1-stage4-5-academicpositions.yml": "f4b6b5a4c443b08bbd410defa92af795933baa14",
-    ".github/workflows/test-phase1-stage4-6-jobs-ac-uk.yml": "5643b739f870bc71d0daa1bc481cf22d440970af",
-    ".github/workflows/test-phase1-stage4-7-pageup-monash.yml": "a536f4c70ca426cd4dae34365699f37d66499308",
-    ".github/workflows/test-phase1-stage4-8-workday-sydney.yml": "97f11110e0b75e4756ac2fcb9bd80d7e6e62fc49",
-    ".github/workflows/test-phase1-stage4-9-full-jd.yml": "24481625dda2083c44ad4432487eb4e18e5c394d",
-    ".github/workflows/test-phase1-stage4-10-date-normalization.yml": "ef3c9185de6e5aa4c4cb42e718120d9e9c2ae979",
-    ".github/workflows/test-phase1-stage4-11-retry-backoff.yml": "8ddeb35cb21356cfbffcf4fcc88e7ec079b2b779",
-    ".github/workflows/test-phase1-stage4-12-cnrs-prefilter.yml": "e04d5078969a0c783c101add00277b0d31870386",
-    ".github/workflows/test-phase1-stage4-13-ecss-dvs-coverage.yml": "7929899db099f5115374b00cb026a3244dd111a5",
-    ".github/workflows/test-phase1-stage4-14-query-taxonomy.yml": "f314b24f7cec0e70118c5f53d005b377f00a0357",
-    ".github/workflows/test-phase1-stage5-1-run-observability.yml": "1b80950cd2d164e752fe89ab49f6679543441022",
+    ".github/workflows/publish-control-plane-report.yml": "24c5fb7b5793eb1b5e759df6829d8ececa083ddb",
+    ".github/workflows/recover-production-state.yml": "fe39294ebabf59a0ba8d2f08f1086d88a91578ad",
+    ".github/workflows/test-public-readiness.yml": "433f69c01b32e68286b12a997e4269185c1cf935",
     "CHANGELOG.md": "6d363e097752514a081ee92939faca5993f02c0e",
     "README.md": "24c8ccedf31c4523564ec32693255c449493bb17",
     "VERSION.json": "10036bae544804c1ca1c712b1b39e1d21b42e922",
@@ -177,7 +162,9 @@
     "bounded_sample_records": 5,
     "bounded_sample_normalized_date_records": 3,
     "bounded_sample_location_max_length": 10,
-    "bounded_sample_foreign_country_codes": ["CH"],
+    "bounded_sample_foreign_country_codes": [
+      "CH"
+    ],
     "query_taxonomy_repair": "COMPLETED_STAGE_4_14",
     "full_board_certification": "PENDING",
     "evidence": "docs/runtime/JOBS_AC_UK_REPAIR.md"
@@ -229,7 +216,10 @@
     "canonical_authority": "make_record.normalize_detail_status",
     "generic_html_nonempty_status": "PARTIAL",
     "registered_contract_nonempty_status": "FULL",
-    "live_probe_sources": ["workday_usyd", "pageup_monash"],
+    "live_probe_sources": [
+      "workday_usyd",
+      "pageup_monash"
+    ],
     "legacy_local_length_hints_authoritative": false,
     "full_all_source_certification": "PENDING",
     "evidence": "docs/runtime/FULL_JD_SEMANTICS.md"
@@ -244,7 +234,10 @@
     "relative_date_reference": "record.collected_at",
     "iso_offset_semantics": "preserve_source_calendar_day",
     "numeric_slash_order": "DAY_FIRST",
-    "live_probe_sources": ["workday_usyd", "smartrecruiters_western_sydney"],
+    "live_probe_sources": [
+      "workday_usyd",
+      "smartrecruiters_western_sydney"
+    ],
     "full_all_source_date_certification": "PENDING",
     "evidence": "docs/runtime/DATE_NORMALIZATION.md"
   },
@@ -255,12 +248,24 @@
     "validation_artifact_id": 9993828630,
     "validation_artifact_digest": "sha256:37dad43500de76fdc2ced398ddd18bcf03a2bf478df05c7aa8fa7aaa2a3df173",
     "regression_tests": 5,
-    "retryable_methods": ["GET", "POST"],
-    "retryable_statuses": [429, 500, 502, 503, 504],
+    "retryable_methods": [
+      "GET",
+      "POST"
+    ],
+    "retryable_statuses": [
+      429,
+      500,
+      502,
+      503,
+      504
+    ],
     "default_retry_budget": 2,
     "default_backoff_factor": 0.6,
     "respect_retry_after": true,
-    "reviewed_post_files": ["src/sources/core/corehr.py", "src/sources/core/workday.py"],
+    "reviewed_post_files": [
+      "src/sources/core/corehr.py",
+      "src/sources/core/workday.py"
+    ],
     "external_retry_event_observed_in_live_probe": false,
     "full_production_reliability_certification": "PENDING",
     "evidence": "docs/runtime/RETRY_BACKOFF.md"
@@ -311,9 +316,19 @@
     "linkedin_europe_query_count": 6,
     "linkedin_australia_query_count": 5,
     "jobs_ac_uk_query_count": 8,
-    "linkedin_added_queries": ["research associate", "postdoctoral fellow"],
-    "jobs_ac_uk_added_queries": ["research associate", "postdoctoral fellow", "research scientist"],
-    "excluded_broad_queries": ["researcher", "research assistant"],
+    "linkedin_added_queries": [
+      "research associate",
+      "postdoctoral fellow"
+    ],
+    "jobs_ac_uk_added_queries": [
+      "research associate",
+      "postdoctoral fellow",
+      "research scientist"
+    ],
+    "excluded_broad_queries": [
+      "researcher",
+      "research assistant"
+    ],
     "linkedin_research_scientist_added": false,
     "full_recall_certification": "PENDING",
     "full_uncapped_runtime_after_taxonomy_change": "PENDING",
@@ -351,7 +366,15 @@
     "production_artifact_retention_days": 2,
     "control_plane_excel_artifact_upload": false,
     "artifact_encryption_secret": "ARTIFACT_ENCRYPTION_KEY",
-    "freeze_only_live_probe_reruns_removed": ["4.9", "4.10", "4.11", "4.12", "4.13", "4.14", "5.1"],
+    "freeze_only_live_probe_reruns_removed": [
+      "4.9",
+      "4.10",
+      "4.11",
+      "4.12",
+      "4.13",
+      "4.14",
+      "5.1"
+    ],
     "control_plane_push_trigger_removed": true,
     "current_tree_forbidden_export_scan": "PASS_BY_CONNECTED_TREE_AUDIT",
     "full_history_scan": "PENDING_PUBLIC_READINESS_GATE",

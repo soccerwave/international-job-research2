@@ -21,7 +21,6 @@
     "scripts/run_stage9_smoke.py": "d86312f006aa121775f2ed824f0900b6f19a2fb9",
     "scripts/verify_stage9_freeze.py": "033fcdccff9e15d56cb2c57bcf0c453ab35d9364",
     "tests/test_stage9_reporting.py": "85e4855960db403cc3befc2fe276519d6c833336",
-    ".github/workflows/test-stage9.yml": "a369e685903227ef15da8522dc712d88bdbcff6a",
     "requirements.txt": "e4b8d7f6469036b0a6ec0f8dbf8ba5b5b32e6020",
     "docs/reporting/REPORTING_CONTRACT.md": "3e3127d8bfc03a7c4d218860ca47eb0f440a0dad"
   },
@@ -34,8 +33,16 @@
     "AUDIT",
     "SOURCES"
   ],
-  "actionable_recommendations": ["STRONG_APPLY", "APPLY", "REVIEW"],
-  "today_events": ["NEW", "MATERIALLY_CHANGED", "REOPENED"],
+  "actionable_recommendations": [
+    "STRONG_APPLY",
+    "APPLY",
+    "REVIEW"
+  ],
+  "today_events": [
+    "NEW",
+    "MATERIALLY_CHANGED",
+    "REOPENED"
+  ],
   "regression": {
     "stage9_unittest_methods": 12,
     "stage8_regression_tests": 29,

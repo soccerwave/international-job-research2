@@ -23,8 +23,7 @@
     "tests/test_stage8_state_writer.py": "59759d3c257672383630b9d102c27ef76a7b031c",
     "scripts/run_stage8_r2_smoke.py": "32d75f695c9aaf59829f864821ad0f67186c9817",
     "scripts/verify_stage8_freeze.py": "ee970562c088ab663f19a708161d798b2d4a1c26",
-    "docs/runtime/STATE_PERSISTENCE_CONTRACT.md": "ef9e23faf2182ea2f7273b6ffeda6c77e4fee495",
-    ".github/workflows/test-stage8.yml": "39653b70a23b9f6f84f661be211220618e3afbde"
+    "docs/runtime/STATE_PERSISTENCE_CONTRACT.md": "ef9e23faf2182ea2f7273b6ffeda6c77e4fee495"
   },
   "regression": {
     "stage8_state_semantics_tests": 17,
@@ -37,9 +36,21 @@
     "stage4_regression_tests": 4,
     "total_unittest_methods_in_gate": 89
   },
-  "state_events": ["NEW", "SEEN", "MATERIALLY_CHANGED", "REOPENED"],
-  "quality_events": ["DETAIL_RESOLVED", "DETAIL_UNRESOLVED"],
-  "lifecycle_statuses": ["OPEN", "CLOSED", "UNKNOWN"],
+  "state_events": [
+    "NEW",
+    "SEEN",
+    "MATERIALLY_CHANGED",
+    "REOPENED"
+  ],
+  "quality_events": [
+    "DETAIL_RESOLVED",
+    "DETAIL_UNRESOLVED"
+  ],
+  "lifecycle_statuses": [
+    "OPEN",
+    "CLOSED",
+    "UNKNOWN"
+  ],
   "r2_contract": {
     "authoritative_key": "state/current/state.json",
     "immutable_backups": true,

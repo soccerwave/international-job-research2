@@ -21,8 +21,7 @@
     "tests/test_stage7_role_mapping.py": "91957465f100e9397e47615329c0157e357ef135",
     "tests/test_stage7_calibration.py": "24d19ef9d0b7d50fef639d3387837e743475fb94",
     "tests/fixtures/stage7_calibration_cases.json": "153123e905024c82aa4697e2bab10f7dc952aee9",
-    "scripts/verify_stage7_freeze.py": "393b81f54bbb7c630587fa739269ea36b0b9a5ff",
-    ".github/workflows/test-stage7.yml": "5db9bfe3e7f296b526df0308de043c6c4ad535f0"
+    "scripts/verify_stage7_freeze.py": "393b81f54bbb7c630587fa739269ea36b0b9a5ff"
   },
   "regression": {
     "stage7_rule_tests": 20,

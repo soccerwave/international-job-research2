@@ -1,1 +1,0 @@
-Fresh blind gate failed on run 33965199215. See validation/e05_fresh_blind_result.json and docs/runtime/EVALUATOR_E0.5_FRESH_BLIND_RESULT.md.

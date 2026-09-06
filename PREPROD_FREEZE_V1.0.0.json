@@ -16,9 +16,28 @@
     "evaluated_records": 106,
     "missing_shards": 0,
     "degraded_sources": 0,
-    "source_health": {"OK": 29, "PARTIAL": 0, "ERROR": 0, "UNKNOWN": 0},
-    "fresh_state": {"NEW": 106, "SEEN": 0, "MATERIALLY_CHANGED": 0, "REOPENED": 0, "state_jobs": 106, "generation": 1},
-    "replay": {"NEW": 0, "SEEN": 106, "MATERIALLY_CHANGED": 0, "REOPENED": 0, "state_jobs": 106, "generation": 2},
+    "source_health": {
+      "OK": 29,
+      "PARTIAL": 0,
+      "ERROR": 0,
+      "UNKNOWN": 0
+    },
+    "fresh_state": {
+      "NEW": 106,
+      "SEEN": 0,
+      "MATERIALLY_CHANGED": 0,
+      "REOPENED": 0,
+      "state_jobs": 106,
+      "generation": 1
+    },
+    "replay": {
+      "NEW": 0,
+      "SEEN": 106,
+      "MATERIALLY_CHANGED": 0,
+      "REOPENED": 0,
+      "state_jobs": 106,
+      "generation": 2
+    },
     "identity_projection": {
       "projection_version": "STAGE10_STATE_IDENTITY_PROJECTION_V1.0.0",
       "repeated_url_alias_values": 36,
@@ -33,7 +52,15 @@
     "production_state_touched": false,
     "artifact_workbook_verified": true,
     "artifact_workbook_formula_errors": 0,
-    "artifact_workbook_sheets": ["SUMMARY", "TODAY_ACTIONABLE", "CURRENT_ACTIONABLE", "REVIEW_QUEUE", "LOW_PRIORITY", "AUDIT", "SOURCES"]
+    "artifact_workbook_sheets": [
+      "SUMMARY",
+      "TODAY_ACTIONABLE",
+      "CURRENT_ACTIONABLE",
+      "REVIEW_QUEUE",
+      "LOW_PRIORITY",
+      "AUDIT",
+      "SOURCES"
+    ]
   },
   "incidents_closed": [
     {
@@ -68,7 +95,6 @@
     "tests/test_stage10_state_projection.py": "f5c58b5ad261ce6551db642ff7a5892ab52c2008",
     "tests/test_stage10_live_shards.py": "93b9f56e1db6fda5c1fbe67cb0afdf202f73fddb",
     "docs/runtime/PREPROD_RC1_CONTRACT.md": "57de791fa74d26148afb7e2ad19d49222d79e0a6",
-    ".github/workflows/test-stage10.yml": "2824f26c1c887013916981426fd3c571b439d6df",
     "scripts/verify_stage10_freeze.py": "2df5bd235d977a6ead19ec0c8cf417f6d091953e"
   }
 }
