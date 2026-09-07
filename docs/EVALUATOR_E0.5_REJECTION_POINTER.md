@@ -1,1 +1,0 @@
-E0.5 fresh blind validation evidence is recorded in `validation/e05_fresh_blind_labels.json`, `validation/e05_fresh_blind_result.json`, `validation/e05_fresh_blind_gate_summary.json`, and `validation/e05_candidate_freeze.json`. The candidate remains NOT_PROMOTED.
