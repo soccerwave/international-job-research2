@@ -17,7 +17,7 @@ node_modules/
 *.key
 
 # Runtime / local outputs
-runtime/
+/runtime/
 .cache/
 output/
 artifacts/

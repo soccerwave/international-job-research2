@@ -1,0 +1,2 @@
+NEXT REQUIRED STEP AFTER MERGE TO MAIN:
+Collect a new production inventory after the E0.6.2 freeze merge, independently lock fresh human labels without inspecting E0.6.2 predictions, then score the exact frozen blob once against the predeclared promotion gate. Do not open the final holdout before the fresh gate passes.
