@@ -23,8 +23,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = build_parser().parse_args()
+    diagnostic_root = Path(args.output_root) / args.run_id / "diagnostics" / args.shard_id
+    os.environ["PRODUCTION_PROGRESS_PATH"] = str(diagnostic_root / "source_lifecycle.jsonl")
     if args.shard_id.startswith("linkedin"):
-        diagnostic_root = Path(args.output_root) / args.run_id / "diagnostics" / args.shard_id
         os.environ["LINKEDIN_PROGRESS_PATH"] = str(diagnostic_root / "progress.jsonl")
         os.environ["LINKEDIN_CHECKPOINT_DIR"] = str(diagnostic_root / "checkpoints")
     diagnostic = run_production_shard(
