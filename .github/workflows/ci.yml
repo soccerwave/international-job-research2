@@ -1,0 +1,50 @@
+name: Baseline Runtime Certification
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements.txt -r requirements-cloud.txt
+
+      - name: Compile Python sources
+        run: python -m compileall -q src scripts tests
+
+      - name: Runtime import sanity
+        run: >-
+          python -c "import src.runtime.production_shards, src.runtime.production,
+          src.runtime.production_sources, src.runtime.observability, src.runtime.recovery;
+          print('runtime imports OK')"
+
+      - name: Production runtime tests
+        run: python -m unittest -v tests.test_v1_production
+
+      - name: Verify frozen stages
+        run: |
+          python scripts/verify_stage7_freeze.py
+          python scripts/verify_stage8_freeze.py
+          python scripts/verify_stage9_freeze.py
+          python scripts/verify_stage10_freeze.py
+          python scripts/verify_v1_freeze.py
+
+      - name: Public readiness scan
+        run: python scripts/check_public_readiness.py --history
