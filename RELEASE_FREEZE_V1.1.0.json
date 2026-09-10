@@ -97,7 +97,11 @@
     "src/runtime/anomaly_detection.py": "5c06c603c440f9d7bb65a07f4293e713a09a9734",
     "tests/test_phase1_stage5_5_runtime_anomaly_detection.py": "7c2ca4d53dcaee58317dc7ac45cba20a48e32816",
     "scripts/verify_stage5_observability.py": "eee783e4a292b3345c65244953fc6e7a386d2c86",
-    "tests/test_phase1_stage5_6_observability_certification.py": "a676208778c2ffe72b023df8c9cd98c4866bacbd"
+    "tests/test_phase1_stage5_6_observability_certification.py": "a676208778c2ffe72b023df8c9cd98c4866bacbd",
+    "src/runtime/board_inventory.py": "86f4363fb57989d67bacd80558c33f3fc8377759",
+    "scripts/verify_stage6_1_board_inventory.py": "fb4e1892c6a47df512c9dd1853c40cce49f5f7af",
+    "tests/test_stage6_1_current_board_inventory.py": "5cd796dac7bef9983c5867f583c292f5d715dca6",
+    "docs/runtime/BOARD_INVENTORY_V1.md": "aae559f7addd659da64908caf5df2abb6edf099d"
   },
   "automation": {
     "provider": "Cloudflare",
@@ -441,5 +445,37 @@
     "full_history_scan": "PENDING_PUBLIC_READINESS_GATE",
     "historical_actions_artifact_deletion": "MANUAL_REQUIRED_BEFORE_PUBLIC",
     "evidence": "docs/security/PUBLIC_READINESS.md"
+  },
+  "board_completeness": {
+    "version": 1,
+    "stage6_status": "IN_PROGRESS",
+    "current_board_inventory": "GITHUB_ACTIONS_VALIDATED_STAGE_6_1",
+    "current_board_inventory_ci_run_id": 34525317499,
+    "inventory_profile": "CURRENT_PRODUCTION_BOARD_INVENTORY",
+    "inventory_semantics": "CONFIGURED_WIRING_ONLY",
+    "production_shard_count": 17,
+    "source_execution_count": 33,
+    "unique_source_id_count": 30,
+    "unique_report_key_count": 29,
+    "board_family_count": 17,
+    "institution_specific_source_count": 18,
+    "institution_count": 18,
+    "configured_country_count": 13,
+    "configured_country_codes": [
+      "AT",
+      "AU",
+      "BE",
+      "CZ",
+      "DE",
+      "FR",
+      "GB",
+      "IE",
+      "IT",
+      "LU",
+      "NL",
+      "PL",
+      "PT"
+    ],
+    "evidence": "docs/runtime/BOARD_INVENTORY_V1.md"
   }
 }
