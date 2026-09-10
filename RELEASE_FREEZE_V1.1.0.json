@@ -44,7 +44,7 @@
     "scripts/check_public_readiness.py": "5e35f63aef90e718f96dd186aa58b51b7df78d7c",
     "scripts/restore_production_state.py": "2f4b2a4396a7e9816866a4f4c4f5a7a9a86e7652",
     "scripts/run_production_finalizer.py": "4b33d3a2d9b2d8321e48d270c44824c65a925d85",
-    "scripts/run_production_shard.py": "99e0fbe8cdbb4833792fb13b69608276df71d155",
+    "scripts/run_production_shard.py": "03d95c5d7c981e29c9612bd1566cc9813c59566a",
     "scripts/secure_artifact.sh": "4e18b08971ea15b4eba28476f90259ea0ff60791",
     "scripts/verify_collector_technical_audit.py": "c6d11c22da3760e0296db4cf865f139f37112f08",
     "scripts/verify_v1_freeze.py": "afa3c0d73b040d63b5d3c4971475104568d38a79",
@@ -52,7 +52,7 @@
     "src/runtime/observability.py": "c80af2d8b90eb5ed7ca36b877b2a1ca875624b95",
     "src/runtime/production.py": "8f198fb3d0d3522fc62d9b6ae20bdf8a2200c068",
     "src/runtime/production_reporting.py": "fc3e4dc2da29b322f9309e9751ce602e0d31e403",
-    "src/runtime/production_shards.py": "f790bd5c4394416568efa479a9432220baf05f89",
+    "src/runtime/production_shards.py": "e5dc5aa7935fa59def419cc4b9696f7ffa52c438",
     "src/runtime/production_sources.py": "c26f2afc736178134247bcd1442b5eb571c9ea8b",
     "src/runtime/recovery.py": "7e43912b1f73c326731012236821ba0adf2c885c",
     "src/sources/core/cnrs.py": "a06f8c520a33886c1507258046fe5a17a7db37df",
@@ -355,9 +355,13 @@
     "unexpected_shards_in_probe": 0,
     "finalizer_summary_field": "run_observability",
     "full_uncapped_runtime_certification": "PENDING",
-    "stall_detection": "PENDING_STAGE_5_2",
+    "stall_detection": "LIVE_VALIDATED_STAGE_5_2",
     "failure_taxonomy": "PENDING_STAGE_5_3",
-    "evidence": "docs/runtime/RUN_OBSERVABILITY.md"
+    "evidence": "docs/runtime/RUN_OBSERVABILITY.md",
+    "stall_detection_live_run_id": 34069647415,
+    "stall_detection_live_job_id": 101584498312,
+    "stall_detection_live_shard": "linkedin-germany-diagnostic",
+    "stall_detection_live_result": "SUCCESS"
   },
   "public_readiness": {
     "version": 1,
