@@ -5,7 +5,6 @@
   "status": "ACTIVE_COLLECTION",
   "roster_path": "config/reference/stage7_reference_roster_v1.json",
   "record_schema_path": "schemas/reference_vacancy.schema.json",
-  "records_path": "data/reference/stage7/reference_observations_v1.jsonl",
   "window": {
     "start_date": "2026-09-11",
     "end_date": "2026-09-24",
@@ -26,10 +25,28 @@
   "current_record_count": 0,
   "final_freeze_condition": "WINDOW_ENDED_AND_REFERENCE_ELIGIBILITY_ADJUDICATED",
   "stage7_2_done_condition": "REFERENCE_SET_FROZEN_WITH_COMPLETE_WINDOW_PROVENANCE",
-  "next_action": "COLLECT_REFERENCE_OBSERVATIONS_DURING_WINDOW",
-  "capture_log_path": "data/reference/stage7/reference_capture_log_v1.jsonl",
+  "next_action": "CAPTURE_REFERENCE_OBSERVATIONS_TO_ENCRYPTED_PRIVATE_R2_ONLY",
   "capture_schema_path": "schemas/reference_capture.schema.json",
   "expected_source_day_captures": 224,
   "current_capture_event_count": 0,
-  "completion_quality_gate": "EVERY_SOURCE_DAY_HAS_CAPTURED_COMPLETE_OR_DOCUMENTED_RESOLVED_EXCEPTION"
+  "completion_quality_gate": "EVERY_SOURCE_DAY_HAS_CAPTURED_COMPLETE_OR_DOCUMENTED_RESOLVED_EXCEPTION",
+  "private_storage": {
+    "backend": "R2",
+    "encryption": "AES_256_CBC_PBKDF2",
+    "visibility": "PRIVATE",
+    "git_tracking_allowed": false,
+    "logical_prefix": "stage7/reference/v1/",
+    "observations_object": "reference_observations_v1.jsonl.enc",
+    "capture_log_object": "reference_capture_log_v1.jsonl.enc",
+    "raw_snapshots_allowed": false,
+    "public_repo_persists": [
+      "schema",
+      "roster",
+      "manifest",
+      "aggregate_counts",
+      "dataset_digest",
+      "certification_evidence"
+    ]
+  },
+  "storage_migration_status": "PRIVATE_STORAGE_REQUIRED_BEFORE_FIRST_CAPTURE"
 }
