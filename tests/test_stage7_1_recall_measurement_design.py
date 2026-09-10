@@ -29,7 +29,7 @@ class Stage71RecallMeasurementDesignTests(unittest.TestCase):
         rules = design["reference_set_rules"]
         self.assertIn("MUST_NOT_USE_PIPELINE_OUTPUT", rules["independence"])
         self.assertIn("MUST_BE_FROZEN_BEFORE_COMPARISON", rules["roster_freeze"])
-        self.assertIn("ONLY_AFTER_REFERENCE_ELIGIBILITY_IS_FROZEN", rules["anti_leakage_rule"])
+        self.assertIn("ONLY AFTER REFERENCE ELIGIBILITY IS FROZEN", rules["anti_leakage_rule"])
 
     def test_market_scope_uses_current_policy(self):
         design = build_recall_measurement_design()
