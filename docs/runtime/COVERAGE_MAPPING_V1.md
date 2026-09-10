@@ -1,6 +1,6 @@
 # Stage 6.2 Coverage Mapping
 
-Status: implementation candidate pending CI and freeze closure.
+Status: GitHub Actions validated for Stage 6.2; freeze closure pending.
 
 This step maps the configured coverage relationships already present in production. It does not decide whether the current board set is complete, does not identify missing boards, and does not add sources.
 
