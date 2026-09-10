@@ -48,6 +48,7 @@ jobs:
           tests.test_stage6_2_coverage_mapping
           tests.test_stage6_3_structural_completeness
           tests.test_stage6_4_evidence_gap_register
+          tests.test_stage6_5_board_completeness_certification
 
       - name: Stage 5 observability certification
         run: python scripts/verify_stage5_observability.py
@@ -63,6 +64,9 @@ jobs:
 
       - name: Stage 6.4 evidence gap register
         run: python scripts/verify_stage6_4_gap_register.py
+
+      - name: Stage 6.5 board completeness certification
+        run: python scripts/verify_stage6_board_completeness.py
 
       - name: Verify frozen stages
         run: |
