@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from src.runtime.artifacts import verify_shard_bundle
+from src.runtime.anomaly_detection import detect_runtime_anomalies
 
 
 def _status_from(statuses: set[str]) -> str:
@@ -238,7 +239,7 @@ def collect_run_observability(
     for row in shard_rows:
         if row["status"] in {"MISSING", "ERROR"} and not row.get("source_ids"):
             failure_class_counts.update(row.get("failure_classes", []))
-    return {
+    anomalies = detect_runtime_anomalies(\n        run_id=run_id,\n        artifact_root=artifact_root,\n        shard_rows=shard_rows,\n        source_rows=source_rows,\n        missing_shards=missing,\n        unexpected_shards=unexpected,\n    )\n    return {
         "version": 1,
         "run_id": run_id,
         "expected_shards": len(expected),
@@ -248,6 +249,7 @@ def collect_run_observability(
         "shard_status_counts": dict(sorted(shard_status_counts.items())),
         "source_status_counts": dict(sorted(source_status_counts.items())),
         "failure_class_counts": dict(sorted(failure_class_counts.items())),
+        "runtime_anomalies": anomalies,
         "totals": {
             "records_observed": sum(int(row["records_observed"]) for row in shard_rows),
             "records_emitted": sum(int(row["records_emitted"]) for row in shard_rows),
