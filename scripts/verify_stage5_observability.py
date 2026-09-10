@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import json
+import sys
 import tempfile
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from src.runtime.artifacts import write_shard_bundle
 from src.runtime.contracts import ShardDiagnostic, ShardStatus
 from src.runtime.observability import collect_run_observability
 
-ROOT = Path(__file__).resolve().parents[1]
 FREEZE = ROOT / "RELEASE_FREEZE_V1.1.0.json"
 
 
