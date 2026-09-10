@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:international-academic-job-search:reference-capture:1.0.0",
+  "title": "Independent Reference Source Daily Capture",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "capture_id",
+    "reference_source_id",
+    "country_code",
+    "capture_date",
+    "captured_at",
+    "status",
+    "surface_url",
+    "observation_count",
+    "evidence_note"
+  ],
+  "properties": {
+    "capture_id": {
+      "type": "string",
+      "minLength": 3
+    },
+    "reference_source_id": {
+      "type": "string",
+      "minLength": 3
+    },
+    "country_code": {
+      "type": "string",
+      "pattern": "^[A-Z]{2}$"
+    },
+    "capture_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "captured_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "enum": [
+        "CAPTURED_COMPLETE",
+        "CAPTURED_PARTIAL",
+        "SOURCE_UNAVAILABLE",
+        "ACCESS_BLOCKED",
+        "PARSER_NOT_APPLICABLE_MANUAL_REVIEW",
+        "RETRY_REQUIRED"
+      ]
+    },
+    "surface_url": {
+      "type": "string",
+      "format": "uri"
+    },
+    "observation_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "evidence_note": {
+      "type": "string",
+      "minLength": 1
+    },
+    "snapshot_fingerprint": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "retry_of_capture_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}
