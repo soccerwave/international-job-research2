@@ -54,3 +54,9 @@ Focused Stage 4/5 diagnostic artifacts contain public vacancy-source diagnostics
 ## Certification boundary
 
 This hardening establishes a safer future artifact policy and a repository/history scanner. It cannot itself delete already-retained Actions artifacts through the currently connected GitHub interface, and it does not prove that GitHub has removed every historical log or artifact until the historical cleanup and full-history security gate have been completed.
+
+## Public repository audit status — 2026-09-10
+
+The current public repository was re-audited after Stage 7.2 setup. The full-history security workflow run 34523141455 scanned 42 refs, 36 unique trees and 290 unique blobs with zero findings. The repository Actions history currently contains six workflow families only. All failed production runs present in this public repository have no retained artifacts; successful production run 34516148698 retains only encrypted production artifacts with two-day retention. Stage 5.4 durability artifacts are encrypted synthetic diagnostics with one-day retention. Stage 5.2 and Public Readiness runs checked here retain no artifacts.
+
+The Stage 7.2 public-repository storage contract was additionally hardened: reference observation JSONL and source-day capture JSONL are no longer tracked files, their paths are ignored by Git, and the manifest requires encrypted private R2 persistence. This audit concerns this public repository. Historical artifacts in any separate legacy/private repository are outside this repository's public exposure boundary and must be audited separately if that repository is ever made public.
