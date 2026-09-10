@@ -9,14 +9,15 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from src.runtime.reference_set import (
+    CAPTURE_LOG_PATH,
+    CAPTURE_SCHEMA_PATH,
     CORE_MARKETS,
     MANIFEST_PATH,
+    RECORDS_PATH,
     ROSTER_PATH,
     SCHEMA_PATH,
     build_reference_construction_status,
 )
-
-RECORDS_PATH = ROOT / "data" / "reference" / "stage7" / "reference_observations_v1.jsonl"
 
 
 def main() -> int:
@@ -26,6 +27,8 @@ def main() -> int:
         "manifest_file_exists": MANIFEST_PATH.exists(),
         "schema_file_exists": SCHEMA_PATH.exists(),
         "records_file_exists": RECORDS_PATH.exists(),
+        "capture_schema_file_exists": CAPTURE_SCHEMA_PATH.exists(),
+        "capture_log_file_exists": CAPTURE_LOG_PATH.exists(),
         "sixteen_reference_sources": status["reference_source_count"] == 16,
         "eight_core_markets": status["core_market_count"] == 8,
         "two_sources_per_core_market": status["all_core_markets_have_two_sources"],
@@ -45,6 +48,10 @@ def main() -> int:
         "eligibility_freeze_before_matching": status["capture_policy"]["reference_eligibility_must_be_frozen_before_matching"] is True,
         "reference_schema_has_no_pipeline_match_fields": status["schema_forbidden_match_fields_present"] == [],
         "initial_reference_record_count_zero": status["current_record_count"] == 0,
+        "initial_capture_event_count_zero": status["current_capture_event_count"] == 0,
+        "expected_source_day_captures_locked": status["expected_source_day_captures"] == 224,
+        "completion_quality_gate_locked": status["completion_quality_gate"]
+        == "EVERY_SOURCE_DAY_HAS_CAPTURED_COMPLETE_OR_DOCUMENTED_RESOLVED_EXCEPTION",
         "all_market_keys_present": set(status["country_source_counts"]) == set(CORE_MARKETS),
     }
     failed = [name for name, passed in checks.items() if not passed]
@@ -61,6 +68,8 @@ def main() -> int:
             "relation_counts": status["relation_counts"],
             "window": status["window"],
             "current_record_count": status["current_record_count"],
+            "current_capture_event_count": status["current_capture_event_count"],
+            "expected_source_day_captures": status["expected_source_day_captures"],
             "reference_set_status": status["status"],
             "reference_set_frozen": status["reference_set_frozen"],
         },
