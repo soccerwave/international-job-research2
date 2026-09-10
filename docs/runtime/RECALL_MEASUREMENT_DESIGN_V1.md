@@ -1,6 +1,6 @@
 # Stage 7.1 Recall Measurement Design
 
-Status: implementation candidate pending CI and freeze closure.
+Status: GitHub Actions validated for Stage 7.1; freeze closure pending.
 
 This step defines how recall will be measured. It does not construct the reference set, calculate recall, change sources, or modify collector behavior.
 
