@@ -124,10 +124,13 @@
     "config/reference/stage7_reference_roster_v1.json": "96f25c782a3856c4a8679da76087e4a5828484f5",
     "schemas/reference_vacancy.schema.json": "b3a240da978e8241d80904905ac4e2827e74aee4",
     "schemas/reference_capture.schema.json": "5ef7f53a0bf0b0f72e70c9888d8f4fa51c40213e",
-    "src/runtime/reference_set.py": "710837d012e4c50b2b2a6ad98ffd8536832963d8",
-    "scripts/verify_stage7_2_reference_set.py": "74fa5b45f6cb925987c4066b125815abbdb1cd4a",
-    "tests/test_stage7_2_reference_set_construction.py": "531e7b637d425bd856e6e198b724277ad6bdf7d5",
-    "docs/runtime/REFERENCE_SET_CONSTRUCTION_V1.md": "9e932d607c892fd03ca29dab5fa1f7dfadea1331"
+    "src/runtime/reference_set.py": "21627e0a4eb9118e26bfbab51a53b3a6360df653",
+    "scripts/verify_stage7_2_reference_set.py": "a2d2b24bffb980d702594d37ea7344b20f991e0c",
+    "tests/test_stage7_2_reference_set_construction.py": "a076cbbb50b9523029af146941d812adce9bb54c",
+    "docs/runtime/REFERENCE_SET_CONSTRUCTION_V1.md": "8875095a3accfe583070369b979ebad859e910d2",
+    ".gitignore": "e472df420a0f10f9fc4efb418ed3d27e9553a897",
+    "data/reference/stage7/reference_set_manifest_v1.json": "c6a3c3a62015948112d829f8c0b68a59c60eab6d",
+    "docs/security/PUBLIC_READINESS.md": "dd2a7948788b7b31aa7758b9321a7c14e346300c"
   },
   "automation": {
     "provider": "Cloudflare",
@@ -452,7 +455,7 @@
   },
   "public_readiness": {
     "version": 1,
-    "status": "CODE_HARDENED_HISTORY_AND_OLD_ARTIFACT_CLEANUP_PENDING",
+    "status": "PUBLIC_REPO_HISTORY_SCANNED_ACTIONS_ARTIFACT_BOUNDARY_VERIFIED",
     "production_actions_artifacts": "AES_256_CBC_PBKDF2_ENCRYPTED",
     "production_artifact_retention_days": 2,
     "control_plane_excel_artifact_upload": false,
@@ -468,9 +471,18 @@
     ],
     "control_plane_push_trigger_removed": true,
     "current_tree_forbidden_export_scan": "PASS_BY_CONNECTED_TREE_AUDIT",
-    "full_history_scan": "PENDING_PUBLIC_READINESS_GATE",
-    "historical_actions_artifact_deletion": "MANUAL_REQUIRED_BEFORE_PUBLIC",
-    "evidence": "docs/security/PUBLIC_READINESS.md"
+    "full_history_scan": "PASS_RUN_34523141455",
+    "historical_actions_artifact_deletion": "NO_RAW_PRODUCTION_ARTIFACT_FOUND_IN_CURRENT_PUBLIC_REPO",
+    "evidence": "docs/security/PUBLIC_READINESS.md",
+    "full_history_scan_refs": 42,
+    "full_history_scan_unique_trees": 36,
+    "full_history_scan_unique_blobs": 290,
+    "full_history_scan_findings": 0,
+    "current_public_repo_actions_workflow_family_count": 6,
+    "current_public_repo_raw_production_artifacts_found": false,
+    "successful_production_artifacts": "ENCRYPTED_2_DAY_RETENTION",
+    "stage5_4_artifacts": "ENCRYPTED_SYNTHETIC_1_DAY_RETENTION",
+    "legacy_private_repo_artifacts": "OUT_OF_SCOPE_FOR_PUBLIC_REPO_AUDIT"
   },
   "board_completeness": {
     "version": 1,
@@ -595,6 +607,13 @@
     "stage7_2_status": "ACTIVE_COLLECTION",
     "stage7_2_done": false,
     "stage7_2_done_condition": "REFERENCE_SET_FROZEN_WITH_COMPLETE_WINDOW_PROVENANCE",
-    "reference_set_evidence": "docs/runtime/REFERENCE_SET_CONSTRUCTION_V1.md"
+    "reference_set_evidence": "docs/runtime/REFERENCE_SET_CONSTRUCTION_V1.md",
+    "reference_storage_backend": "PRIVATE_R2",
+    "reference_storage_encryption": "AES_256_CBC_PBKDF2",
+    "reference_git_tracking_allowed": false,
+    "reference_raw_snapshots_allowed": false,
+    "reference_public_git_jsonl_tracked": false,
+    "reference_storage_logical_prefix": "stage7/reference/v1/",
+    "reference_storage_migration_status": "PRIVATE_STORAGE_REQUIRED_BEFORE_FIRST_CAPTURE"
   }
 }
