@@ -120,7 +120,14 @@
     "src/runtime/recall_design.py": "37fa0127ff4706f00a22781e074360481a39deb9",
     "scripts/verify_stage7_1_recall_design.py": "fd0644672dfe9d715ab117002c294778e77c2ac2",
     "tests/test_stage7_1_recall_measurement_design.py": "2a3cb0e89a625aa428650cc914dd03eeb372a850",
-    "docs/runtime/RECALL_MEASUREMENT_DESIGN_V1.md": "9615f03d5ad7b806b8b595c5b31d44192df041c7"
+    "docs/runtime/RECALL_MEASUREMENT_DESIGN_V1.md": "9615f03d5ad7b806b8b595c5b31d44192df041c7",
+    "config/reference/stage7_reference_roster_v1.json": "96f25c782a3856c4a8679da76087e4a5828484f5",
+    "schemas/reference_vacancy.schema.json": "b3a240da978e8241d80904905ac4e2827e74aee4",
+    "schemas/reference_capture.schema.json": "5ef7f53a0bf0b0f72e70c9888d8f4fa51c40213e",
+    "src/runtime/reference_set.py": "710837d012e4c50b2b2a6ad98ffd8536832963d8",
+    "scripts/verify_stage7_2_reference_set.py": "74fa5b45f6cb925987c4066b125815abbdb1cd4a",
+    "tests/test_stage7_2_reference_set_construction.py": "531e7b637d425bd856e6e198b724277ad6bdf7d5",
+    "docs/runtime/REFERENCE_SET_CONSTRUCTION_V1.md": "9e932d607c892fd03ca29dab5fa1f7dfadea1331"
   },
   "automation": {
     "provider": "Cloudflare",
@@ -568,7 +575,26 @@
     "pipeline_capture_grace_hours": 48,
     "reference_set_independence": "PIPELINE_OUTPUT_AND_PIPELINE_COLLECTOR_CODE_FORBIDDEN",
     "source_changes_allowed_before_stage8": false,
-    "next_substage": "STAGE_7_2_REFERENCE_SET_CONSTRUCTION",
-    "evidence": "docs/runtime/RECALL_MEASUREMENT_DESIGN_V1.md"
+    "next_substage": "WAIT_FOR_STAGE_7_2_REFERENCE_WINDOW_COMPLETION",
+    "evidence": "docs/runtime/RECALL_MEASUREMENT_DESIGN_V1.md",
+    "reference_set_construction_setup": "GITHUB_ACTIONS_VALIDATED_STAGE_7_2_SETUP",
+    "reference_set_construction_ci_run_id": 34530183464,
+    "reference_set_construction_profile": "REFERENCE_SET_CONSTRUCTION_WINDOW",
+    "reference_set_status": "ACTIVE_COLLECTION",
+    "reference_source_roster_frozen": true,
+    "reference_set_frozen": false,
+    "reference_source_count": 16,
+    "reference_sources_per_core_market": 2,
+    "reference_window_start": "2026-09-11",
+    "reference_window_end": "2026-09-24",
+    "reference_capture_grace_end": "2026-09-26",
+    "expected_source_day_captures": 224,
+    "reference_capture_cadence": "DAILY",
+    "reference_capture_mode": "INDEPENDENT_PUBLIC_BROWSER_CAPTURE",
+    "reference_pipeline_comparison_allowed_before_freeze": false,
+    "stage7_2_status": "ACTIVE_COLLECTION",
+    "stage7_2_done": false,
+    "stage7_2_done_condition": "REFERENCE_SET_FROZEN_WITH_COMPLETE_WINDOW_PROVENANCE",
+    "reference_set_evidence": "docs/runtime/REFERENCE_SET_CONSTRUCTION_V1.md"
   }
 }

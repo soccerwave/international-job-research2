@@ -1,0 +1,129 @@
+{
+  "version": 1,
+  "stage": "7.2",
+  "profile": "INDEPENDENT_REFERENCE_SOURCE_ROSTER",
+  "frozen_at": "2026-09-11",
+  "measurement_window": {
+    "start_date": "2026-09-11",
+    "end_date": "2026-09-24",
+    "capture_grace_end_date": "2026-09-26",
+    "days": 14
+  },
+  "acquisition_mode": "INDEPENDENT_PUBLIC_BROWSER_CAPTURE",
+  "independence_rule": "DO_NOT_USE_PIPELINE_OUTPUT_OR_PIPELINE_COLLECTOR_CODE",
+  "source_selection_rule": "TWO_PREDECLARED_REFERENCE_SURFACES_PER_CORE_MARKET_WHEN_AVAILABLE_ONE_OVERLAPPING_DIRECT_SURFACE_AND_ONE_EXTERNAL_OR_UNWIRED_SURFACE",
+  "sources": [
+    {
+      "reference_source_id": "nl_academictransfer",
+      "country_code": "NL",
+      "name": "AcademicTransfer",
+      "url": "https://www.academictransfer.com/en/jobs/",
+      "relation_to_pipeline": "DIRECT_SOURCE_OVERLAP"
+    },
+    {
+      "reference_source_id": "nl_uva",
+      "country_code": "NL",
+      "name": "University of Amsterdam vacancies",
+      "url": "https://werkenbij.uva.nl/en/vacancies",
+      "relation_to_pipeline": "EXTERNAL_REFERENCE_SURFACE"
+    },
+    {
+      "reference_source_id": "de_academics",
+      "country_code": "DE",
+      "name": "academics.de",
+      "url": "https://www.academics.de/stellenanzeigen",
+      "relation_to_pipeline": "DIRECT_SOURCE_OVERLAP"
+    },
+    {
+      "reference_source_id": "de_cologne",
+      "country_code": "DE",
+      "name": "University of Cologne job portal",
+      "url": "https://jobportal.uni-koeln.de/",
+      "relation_to_pipeline": "EXTERNAL_REFERENCE_SURFACE"
+    },
+    {
+      "reference_source_id": "ie_university_vacancies",
+      "country_code": "IE",
+      "name": "University Vacancies",
+      "url": "https://universityvacancies.com/search",
+      "relation_to_pipeline": "DIRECT_SOURCE_OVERLAP"
+    },
+    {
+      "reference_source_id": "ie_trinity",
+      "country_code": "IE",
+      "name": "Trinity College Dublin vacancies",
+      "url": "https://www.tcd.ie/hr/vacancies/",
+      "relation_to_pipeline": "DIRECT_INSTITUTION_OVERLAP"
+    },
+    {
+      "reference_source_id": "gb_jobs_ac_uk",
+      "country_code": "GB",
+      "name": "jobs.ac.uk",
+      "url": "https://www.jobs.ac.uk/",
+      "relation_to_pipeline": "DIRECT_SOURCE_OVERLAP"
+    },
+    {
+      "reference_source_id": "gb_oxford",
+      "country_code": "GB",
+      "name": "University of Oxford jobs",
+      "url": "https://www.jobs.ox.ac.uk/",
+      "relation_to_pipeline": "EXTERNAL_REFERENCE_SURFACE"
+    },
+    {
+      "reference_source_id": "be_ghent",
+      "country_code": "BE",
+      "name": "Ghent University jobs",
+      "url": "https://jobs.ugent.be/",
+      "relation_to_pipeline": "DIRECT_INSTITUTION_OVERLAP"
+    },
+    {
+      "reference_source_id": "be_kuleuven",
+      "country_code": "BE",
+      "name": "KU Leuven Jobsite",
+      "url": "https://www.kuleuven.be/personeel/jobsite/jobs/",
+      "relation_to_pipeline": "EXTERNAL_REFERENCE_SURFACE"
+    },
+    {
+      "reference_source_id": "fr_cnrs",
+      "country_code": "FR",
+      "name": "CNRS Emploi",
+      "url": "https://emploi.cnrs.fr/Offres/Recherche.aspx",
+      "relation_to_pipeline": "DIRECT_SOURCE_OVERLAP"
+    },
+    {
+      "reference_source_id": "fr_inserm",
+      "country_code": "FR",
+      "name": "Inserm recruitment",
+      "url": "https://pro.inserm.fr/rubriques/nous-rejoindre/travailler-a-linserm/des-recrutements-toute-lannee",
+      "relation_to_pipeline": "EXTERNAL_REFERENCE_SURFACE"
+    },
+    {
+      "reference_source_id": "au_monash",
+      "country_code": "AU",
+      "name": "Monash University careers",
+      "url": "https://careers.pageuppeople.com/513/ind/en/listing/",
+      "relation_to_pipeline": "DIRECT_INSTITUTION_OVERLAP"
+    },
+    {
+      "reference_source_id": "au_uniroles",
+      "country_code": "AU",
+      "name": "Uni Roles Australia",
+      "url": "https://uniroles.com.au/academic-uni-jobs/",
+      "relation_to_pipeline": "KNOWN_UNWIRED_REFERENCE_SURFACE"
+    },
+    {
+      "reference_source_id": "at_univie",
+      "country_code": "AT",
+      "name": "University of Vienna jobs",
+      "url": "https://jobs.univie.ac.at/",
+      "relation_to_pipeline": "DIRECT_INSTITUTION_OVERLAP"
+    },
+    {
+      "reference_source_id": "at_tuwien",
+      "country_code": "AT",
+      "name": "TU Wien career portal",
+      "url": "https://www.tuwien.at/en/tu-wien/career",
+      "relation_to_pipeline": "EXTERNAL_REFERENCE_SURFACE"
+    }
+  ]
+}
