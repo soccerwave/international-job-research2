@@ -26,5 +26,10 @@
   "current_record_count": 0,
   "final_freeze_condition": "WINDOW_ENDED_AND_REFERENCE_ELIGIBILITY_ADJUDICATED",
   "stage7_2_done_condition": "REFERENCE_SET_FROZEN_WITH_COMPLETE_WINDOW_PROVENANCE",
-  "next_action": "COLLECT_REFERENCE_OBSERVATIONS_DURING_WINDOW"
+  "next_action": "COLLECT_REFERENCE_OBSERVATIONS_DURING_WINDOW",
+  "capture_log_path": "data/reference/stage7/reference_capture_log_v1.jsonl",
+  "capture_schema_path": "schemas/reference_capture.schema.json",
+  "expected_source_day_captures": 224,
+  "current_capture_event_count": 0,
+  "completion_quality_gate": "EVERY_SOURCE_DAY_HAS_CAPTURED_COMPLETE_OR_DOCUMENTED_RESOLVED_EXCEPTION"
 }
