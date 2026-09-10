@@ -109,7 +109,11 @@
     "src/runtime/structural_completeness.py": "4ffa33086c531d7bfcb96076e6c58ee959051c81",
     "scripts/verify_stage6_3_structural_completeness.py": "1ad5f8b702c86ebb70578a0107d980f3e95f0848",
     "tests/test_stage6_3_structural_completeness.py": "94314eb328e2f58341504aeb96101c0cae44782e",
-    "docs/runtime/STRUCTURAL_COMPLETENESS_V1.md": "85cbd7cfc30b8956f902d2bc6a2494f62df9d23d"
+    "docs/runtime/STRUCTURAL_COMPLETENESS_V1.md": "85cbd7cfc30b8956f902d2bc6a2494f62df9d23d",
+    "src/runtime/gap_register.py": "39f32135d5639468f30af008b30548383b5520c0",
+    "scripts/verify_stage6_4_gap_register.py": "3411499352a6a2b6b1513e20dbe92dec1339256a",
+    "tests/test_stage6_4_evidence_gap_register.py": "976468594b52977341022f081e40d4b2127b7a67",
+    "docs/runtime/GAP_REGISTER_V1.md": "bbcd15ee468a84e490de3ffc40de25f39dfee18a"
   },
   "automation": {
     "provider": "Cloudflare",
@@ -511,6 +515,20 @@
     "unwired_existing_collector_source_ids": [
       "uniroles_au"
     ],
-    "structural_completeness_evidence": "docs/runtime/STRUCTURAL_COMPLETENESS_V1.md"
+    "structural_completeness_evidence": "docs/runtime/STRUCTURAL_COMPLETENESS_V1.md",
+    "gap_register": "GITHUB_ACTIONS_VALIDATED_STAGE_6_4",
+    "gap_register_ci_run_id": 34527236383,
+    "gap_register_profile": "EVIDENCE_BASED_GAP_REGISTER",
+    "gap_register_semantics": "REGISTER_ONLY_NO_SOURCE_CHANGE",
+    "gap_register_entry_count": 9,
+    "confirmed_structural_gap_count": 1,
+    "confirmed_structural_gap_ids": [
+      "uniroles_au"
+    ],
+    "recall_pending_count": 5,
+    "not_gap_count": 3,
+    "gap_register_source_change_allowed": false,
+    "gap_register_next_decision_boundary": "AFTER_STAGE_7_RECALL_AND_STAGE_8_GAP_ANALYSIS",
+    "gap_register_evidence": "docs/runtime/GAP_REGISTER_V1.md"
   }
 }
