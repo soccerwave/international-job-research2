@@ -35,9 +35,9 @@ def main() -> int:
         "reference_set_not_prematurely_frozen": status["reference_set_frozen"] is False,
         "collection_status_active": status["status"] == "ACTIVE_COLLECTION",
         "window_is_fourteen_days": status["window"]["measurement_days"] == 14,
-        "window_dates_locked": status["window"]["start_date"] == "2026-09-10"
-        and status["window"]["end_date"] == "2026-09-23"
-        and status["window"]["capture_grace_end_date"] == "2026-09-25",
+        "window_dates_locked": status["window"]["start_date"] == "2026-09-11"
+        and status["window"]["end_date"] == "2026-09-24"
+        and status["window"]["capture_grace_end_date"] == "2026-09-26",
         "daily_capture_cadence": status["capture_policy"]["cadence"] == "DAILY",
         "pipeline_output_forbidden": status["capture_policy"]["pipeline_output_allowed"] is False,
         "pipeline_collector_code_forbidden": status["capture_policy"]["pipeline_collector_code_allowed"] is False,
