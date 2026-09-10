@@ -49,7 +49,7 @@
     "scripts/verify_collector_technical_audit.py": "c6d11c22da3760e0296db4cf865f139f37112f08",
     "scripts/verify_v1_freeze.py": "afa3c0d73b040d63b5d3c4971475104568d38a79",
     "src/runtime/live_shards.py": "96fd9b0b0e09b61d26aaec0bee63368138b00f95",
-    "src/runtime/observability.py": "75164b3280bb241f9cb3e572ee1c2ceeba140e4f",
+    "src/runtime/observability.py": "444f93eb980f7532cd3954f323af6de73beee3bd",
     "src/runtime/production.py": "8f198fb3d0d3522fc62d9b6ae20bdf8a2200c068",
     "src/runtime/production_reporting.py": "fc3e4dc2da29b322f9309e9751ce602e0d31e403",
     "src/runtime/production_shards.py": "5707d1168ee707b3fb872566d519258fe244ee6a",
@@ -93,7 +93,9 @@
     "src/runtime/failure_classification.py": "2d41b1d76755c67b12fa8587ffd050100576a33a",
     "tests/test_phase1_stage5_3_failure_classification.py": "56a088956fc826363bbccb9de8d8cb2d119a115e",
     ".github/workflows/test-stage5-4-live-artifact-durability.yml": "480e37c1e29de522945eaeddcdd5aba40e8c5be7",
-    "tests/test_phase1_stage5_4_artifact_durability.py": "8275087a5ccdb72be651f378ffcd6f71506ff28f"
+    "tests/test_phase1_stage5_4_artifact_durability.py": "8275087a5ccdb72be651f378ffcd6f71506ff28f",
+    "src/runtime/anomaly_detection.py": "5c06c603c440f9d7bb65a07f4293e713a09a9734",
+    "tests/test_phase1_stage5_5_runtime_anomaly_detection.py": "7c2ca4d53dcaee58317dc7ac45cba20a48e32816"
   },
   "automation": {
     "provider": "Cloudflare",
@@ -386,7 +388,20 @@
     "artifact_durability_regression_tests": 3,
     "artifact_durability_live_run_id": 34523079452,
     "artifact_durability_live_artifact_id": 10170434966,
-    "artifact_durability_live_payload": "DIAGNOSTICS_ONLY_ENCRYPT_UPLOAD_DOWNLOAD_DECRYPT"
+    "artifact_durability_live_payload": "DIAGNOSTICS_ONLY_ENCRYPT_UPLOAD_DOWNLOAD_DECRYPT",
+    "runtime_anomaly_detection": "GITHUB_ACTIONS_VALIDATED_STAGE_5_5",
+    "runtime_anomaly_detection_regression_tests": 7,
+    "runtime_anomaly_detection_ci_run_id": 34524037164,
+    "runtime_anomaly_detection_behavior": "OBSERVE_ONLY",
+    "runtime_anomaly_codes": [
+      "MISSING_SHARD_ARTIFACT",
+      "UNEXPECTED_SHARD_ARTIFACT",
+      "SOURCE_ERROR",
+      "MALFORMED_LIFECYCLE_EVENT",
+      "ORPHAN_SOURCE_DONE",
+      "LIFECYCLE_SOURCE_ERROR",
+      "INCOMPLETE_SOURCE_LIFECYCLE"
+    ]
   },
   "public_readiness": {
     "version": 1,
