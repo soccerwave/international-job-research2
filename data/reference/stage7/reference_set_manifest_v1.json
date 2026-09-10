@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "stage": "7.2",
+  "profile": "REFERENCE_SET_CONSTRUCTION_WINDOW",
+  "status": "ACTIVE_COLLECTION",
+  "roster_path": "config/reference/stage7_reference_roster_v1.json",
+  "record_schema_path": "schemas/reference_vacancy.schema.json",
+  "records_path": "data/reference/stage7/reference_observations_v1.jsonl",
+  "window": {
+    "start_date": "2026-09-10",
+    "end_date": "2026-09-23",
+    "capture_grace_end_date": "2026-09-25",
+    "timezone": "Europe/Madrid",
+    "measurement_days": 14
+  },
+  "capture_policy": {
+    "cadence": "DAILY",
+    "acquisition_mode": "INDEPENDENT_PUBLIC_BROWSER_CAPTURE",
+    "pipeline_output_allowed": false,
+    "pipeline_collector_code_allowed": false,
+    "comparison_with_pipeline_allowed_before_reference_freeze": false,
+    "reference_eligibility_must_be_frozen_before_matching": true
+  },
+  "source_roster_frozen": true,
+  "reference_set_frozen": false,
+  "current_record_count": 0,
+  "final_freeze_condition": "WINDOW_ENDED_AND_REFERENCE_ELIGIBILITY_ADJUDICATED",
+  "stage7_2_done_condition": "REFERENCE_SET_FROZEN_WITH_COMPLETE_WINDOW_PROVENANCE",
+  "next_action": "COLLECT_REFERENCE_OBSERVATIONS_DURING_WINDOW"
+}
