@@ -146,13 +146,16 @@ jobs:
           set -euo pipefail
           shard="${{ matrix.shard }}"
           base="artifacts/$PRODUCTION_RUN_ID"
-          if [ ! -d "$base/shards/$shard" ]; then
-            echo "No shard bundle produced for $shard; finalizer will report it missing."
-            exit 0
+          paths=()
+          if [ -d "$base/shards/$shard" ]; then
+            paths+=("shards/$shard")
           fi
-          paths=("shards/$shard")
           if [ -d "$base/diagnostics/$shard" ]; then
             paths+=("diagnostics/$shard")
+          fi
+          if [ "${#paths[@]}" -eq 0 ]; then
+            echo "No shard bundle or diagnostics produced for $shard; finalizer will report it missing."
+            exit 0
           fi
           bash scripts/secure_artifact.sh pack \
             "$base" \
