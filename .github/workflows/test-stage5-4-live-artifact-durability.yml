@@ -1,0 +1,52 @@
+name: Stage 5.4 Artifact Durability
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostics-only-roundtrip:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      ARTIFACT_ENCRYPTION_KEY: stage5-4-nonsensitive-test-key
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create diagnostics-only payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="artifacts/stage5-4-live"
+          mkdir -p "$base/diagnostics/test-shard"
+          printf '%s\n' '{"event":"source_waiting","stage":"5.4"}' > "$base/diagnostics/test-shard/source_lifecycle.jsonl"
+          test ! -d "$base/shards/test-shard"
+          bash scripts/secure_artifact.sh pack             "$base"             "secure-artifacts/stage5-4-diagnostics-only.tar.gz.enc"             "diagnostics/test-shard"
+
+      - name: Upload encrypted diagnostics-only artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage5-4-diagnostics-only
+          path: secure-artifacts/stage5-4-diagnostics-only.tar.gz.enc
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Remove local evidence before restore
+        run: rm -rf artifacts secure-artifacts
+
+      - name: Download encrypted diagnostics-only artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: stage5-4-diagnostics-only
+          path: downloaded
+
+      - name: Decrypt and require lifecycle evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/secure_artifact.sh unpack             "downloaded/stage5-4-diagnostics-only.tar.gz.enc"             "restored"
+          test -s "restored/diagnostics/test-shard/source_lifecycle.jsonl"
+          grep -q '"event":"source_waiting"' "restored/diagnostics/test-shard/source_lifecycle.jsonl"
