@@ -33,6 +33,8 @@ The roster contains 16 public reference surfaces: two per core market.
 
 The roster deliberately mixes surfaces already directly represented in production with external or unwired surfaces. This allows Stage 7 to measure both collector/discovery misses and source-coverage misses without changing production first.
 
+Raw reference observations and daily capture logs are not tracked in the public Git repository. They must be encrypted before persistence to the private R2 backend. Git may retain only schemas, the frozen roster, the non-sensitive manifest, aggregate counts, dataset digests, and certification evidence. Raw page snapshots are not retained.
+
 `Uni Roles Australia` is included as a known unwired reference surface because Stage 6 registered `uniroles_au` as a structural wiring gap. Including it in the reference roster does not authorize adding it to production.
 
 ## Files
@@ -40,9 +42,9 @@ The roster deliberately mixes surfaces already directly represented in productio
 - `config/reference/stage7_reference_roster_v1.json`: frozen source roster
 - `schemas/reference_vacancy.schema.json`: pre-match reference vacancy contract
 - `data/reference/stage7/reference_set_manifest_v1.json`: active collection manifest
-- `data/reference/stage7/reference_observations_v1.jsonl`: append-only reference observations
 - `schemas/reference_capture.schema.json`: daily source-capture contract
-- `data/reference/stage7/reference_capture_log_v1.jsonl`: append-only source-day capture evidence
+- private encrypted R2 object `stage7/reference/v1/reference_observations_v1.jsonl.enc`: append-only reference observations
+- private encrypted R2 object `stage7/reference/v1/reference_capture_log_v1.jsonl.enc`: append-only source-day capture evidence
 - `src/runtime/reference_set.py`: read-only construction status
 - `scripts/verify_stage7_2_reference_set.py`: setup verifier
 
