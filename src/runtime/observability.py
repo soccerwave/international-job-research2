@@ -239,7 +239,15 @@ def collect_run_observability(
     for row in shard_rows:
         if row["status"] in {"MISSING", "ERROR"} and not row.get("source_ids"):
             failure_class_counts.update(row.get("failure_classes", []))
-    anomalies = detect_runtime_anomalies(\n        run_id=run_id,\n        artifact_root=artifact_root,\n        shard_rows=shard_rows,\n        source_rows=source_rows,\n        missing_shards=missing,\n        unexpected_shards=unexpected,\n    )\n    return {
+    anomalies = detect_runtime_anomalies(
+        run_id=run_id,
+        artifact_root=artifact_root,
+        shard_rows=shard_rows,
+        source_rows=source_rows,
+        missing_shards=missing,
+        unexpected_shards=unexpected,
+    )
+    return {
         "version": 1,
         "run_id": run_id,
         "expected_shards": len(expected),
