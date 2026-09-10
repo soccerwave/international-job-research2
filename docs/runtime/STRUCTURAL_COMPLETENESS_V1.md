@@ -1,6 +1,6 @@
 # Stage 6.3 Structural Completeness Checks
 
-Status: implementation candidate pending CI and freeze closure.
+Status: GitHub Actions validated for Stage 6.3; freeze closure pending.
 
 This step audits the structure already present in the repository. It does not decide whether the board set is complete and does not add or remove sources.
 
