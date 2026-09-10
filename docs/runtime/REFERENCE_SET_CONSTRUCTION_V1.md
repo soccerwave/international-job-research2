@@ -41,9 +41,11 @@ The roster deliberately mixes surfaces already directly represented in productio
 - `schemas/reference_vacancy.schema.json`: pre-match reference vacancy contract
 - `data/reference/stage7/reference_set_manifest_v1.json`: active collection manifest
 - `data/reference/stage7/reference_observations_v1.jsonl`: append-only reference observations
+- `schemas/reference_capture.schema.json`: daily source-capture contract
+- `data/reference/stage7/reference_capture_log_v1.jsonl`: append-only source-day capture evidence
 - `src/runtime/reference_set.py`: read-only construction status
 - `scripts/verify_stage7_2_reference_set.py`: setup verifier
 
 ## Completion rule
 
-Stage 7.2 can be marked DONE only after the full 14-day window has ended, all reference observations have provenance, all eligibility statuses have been adjudicated or explicitly retained as pending according to policy, and the reference set itself is frozen before Stage 7.3 matching begins.
+Stage 7.2 expects 224 source-day capture slots (16 frozen surfaces × 14 days). Each source-day must end as `CAPTURED_COMPLETE` or a documented resolved exception. Stage 7.2 can be marked DONE only after the full 14-day window has ended, all reference observations have provenance, all eligibility statuses have been adjudicated or explicitly retained as pending according to policy, and the reference set itself is frozen before Stage 7.3 matching begins.
