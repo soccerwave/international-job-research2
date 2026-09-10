@@ -32,6 +32,10 @@ class Stage72ReferenceSetConstructionTests(unittest.TestCase):
         self.assertEqual(status["window"]["measurement_days"], 14)
         self.assertEqual(status["expected_source_day_captures"], 224)
         self.assertEqual(status["current_capture_event_count"], 0)
+        self.assertEqual(status["private_storage"]["backend"], "R2")
+        self.assertEqual(status["private_storage"]["encryption"], "AES_256_CBC_PBKDF2")
+        self.assertFalse(status["private_storage"]["git_tracking_allowed"])
+        self.assertFalse(status["private_storage"]["raw_snapshots_allowed"])
 
     def test_acquisition_is_independent(self):
         status = build_reference_construction_status()

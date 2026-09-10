@@ -9,11 +9,9 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from src.runtime.reference_set import (
-    CAPTURE_LOG_PATH,
     CAPTURE_SCHEMA_PATH,
     CORE_MARKETS,
     MANIFEST_PATH,
-    RECORDS_PATH,
     ROSTER_PATH,
     SCHEMA_PATH,
     build_reference_construction_status,
@@ -26,9 +24,11 @@ def main() -> int:
         "roster_file_exists": ROSTER_PATH.exists(),
         "manifest_file_exists": MANIFEST_PATH.exists(),
         "schema_file_exists": SCHEMA_PATH.exists(),
-        "records_file_exists": RECORDS_PATH.exists(),
         "capture_schema_file_exists": CAPTURE_SCHEMA_PATH.exists(),
-        "capture_log_file_exists": CAPTURE_LOG_PATH.exists(),
+        "private_r2_backend": status["private_storage"]["backend"] == "R2",
+        "private_storage_encrypted": status["private_storage"]["encryption"] == "AES_256_CBC_PBKDF2",
+        "private_storage_not_git_tracked": status["private_storage"]["git_tracking_allowed"] is False,
+        "raw_snapshots_forbidden": status["private_storage"]["raw_snapshots_allowed"] is False,
         "sixteen_reference_sources": status["reference_source_count"] == 16,
         "eight_core_markets": status["core_market_count"] == 8,
         "two_sources_per_core_market": status["all_core_markets_have_two_sources"],
@@ -49,6 +49,7 @@ def main() -> int:
         "reference_schema_has_no_pipeline_match_fields": status["schema_forbidden_match_fields_present"] == [],
         "initial_reference_record_count_zero": status["current_record_count"] == 0,
         "initial_capture_event_count_zero": status["current_capture_event_count"] == 0,
+        "storage_migration_guard": status["storage_migration_status"] == "PRIVATE_STORAGE_REQUIRED_BEFORE_FIRST_CAPTURE",
         "expected_source_day_captures_locked": status["expected_source_day_captures"] == 224,
         "completion_quality_gate_locked": status["completion_quality_gate"]
         == "EVERY_SOURCE_DAY_HAS_CAPTURED_COMPLETE_OR_DOCUMENTED_RESOLVED_EXCEPTION",
@@ -73,7 +74,7 @@ def main() -> int:
             "reference_set_status": status["status"],
             "reference_set_frozen": status["reference_set_frozen"],
         },
-        "behavior": "REFERENCE_COLLECTION_SETUP_ONLY",
+        "behavior": "REFERENCE_COLLECTION_SETUP_PRIVATE_STORAGE_ONLY",
         "stage7_2_done": False,
         "stage7_2_done_condition": status["stage7_2_done_condition"],
         "next_action": status["next_action"],

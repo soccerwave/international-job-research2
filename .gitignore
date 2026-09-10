@@ -29,3 +29,7 @@ artifacts/
 Thumbs.db
 .vscode/
 .idea/
+
+# Stage 7 private reference data
+data/reference/stage7/*.jsonl
+data/reference/stage7/*.jsonl.enc
