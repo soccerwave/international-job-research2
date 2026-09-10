@@ -49,10 +49,10 @@
     "scripts/verify_collector_technical_audit.py": "c6d11c22da3760e0296db4cf865f139f37112f08",
     "scripts/verify_v1_freeze.py": "afa3c0d73b040d63b5d3c4971475104568d38a79",
     "src/runtime/live_shards.py": "96fd9b0b0e09b61d26aaec0bee63368138b00f95",
-    "src/runtime/observability.py": "c80af2d8b90eb5ed7ca36b877b2a1ca875624b95",
+    "src/runtime/observability.py": "75164b3280bb241f9cb3e572ee1c2ceeba140e4f",
     "src/runtime/production.py": "8f198fb3d0d3522fc62d9b6ae20bdf8a2200c068",
     "src/runtime/production_reporting.py": "fc3e4dc2da29b322f9309e9751ce602e0d31e403",
-    "src/runtime/production_shards.py": "e5dc5aa7935fa59def419cc4b9696f7ffa52c438",
+    "src/runtime/production_shards.py": "5707d1168ee707b3fb872566d519258fe244ee6a",
     "src/runtime/production_sources.py": "c26f2afc736178134247bcd1442b5eb571c9ea8b",
     "src/runtime/recovery.py": "7e43912b1f73c326731012236821ba0adf2c885c",
     "src/sources/core/cnrs.py": "a06f8c520a33886c1507258046fe5a17a7db37df",
@@ -89,7 +89,9 @@
     "tests/test_phase1_stage5_1_run_observability.py": "733034b6b64aae95eed35b4d729a80abb3cf040d",
     "tests/test_stage10_live_shards.py": "93b9f56e1db6fda5c1fbe67cb0afdf202f73fddb",
     "tests/test_v1_live_bootstrap_fix.py": "d3b6ca624c6b594d14fdc73cf118e12ce781aad2",
-    "tests/test_v1_production.py": "9d41f07dc065dbfc5aee59f63913db341a7658d7"
+    "tests/test_v1_production.py": "9d41f07dc065dbfc5aee59f63913db341a7658d7",
+    "src/runtime/failure_classification.py": "2d41b1d76755c67b12fa8587ffd050100576a33a",
+    "tests/test_phase1_stage5_3_failure_classification.py": "56a088956fc826363bbccb9de8d8cb2d119a115e"
   },
   "automation": {
     "provider": "Cloudflare",
@@ -356,12 +358,28 @@
     "finalizer_summary_field": "run_observability",
     "full_uncapped_runtime_certification": "PENDING",
     "stall_detection": "LIVE_VALIDATED_STAGE_5_2",
-    "failure_taxonomy": "PENDING_STAGE_5_3",
+    "failure_taxonomy": "GITHUB_ACTIONS_VALIDATED_STAGE_5_3",
     "evidence": "docs/runtime/RUN_OBSERVABILITY.md",
     "stall_detection_live_run_id": 34069647415,
     "stall_detection_live_job_id": 101584498312,
     "stall_detection_live_shard": "linkedin-germany-diagnostic",
-    "stall_detection_live_result": "SUCCESS"
+    "stall_detection_live_result": "SUCCESS",
+    "failure_taxonomy_regression_tests": 8,
+    "failure_taxonomy_ci_run_id": 34522562865,
+    "failure_taxonomy_incident_run_id": 34081536685,
+    "failure_taxonomy_classes": [
+      "AUTH_PERMISSION",
+      "RATE_LIMIT",
+      "UPSTREAM_5XX",
+      "TIMEOUT",
+      "NETWORK_TRANSPORT",
+      "BLOCKED_ANTI_BOT",
+      "PARSER_SCHEMA",
+      "CONFIGURATION",
+      "INVALID_ARTIFACT",
+      "MISSING_ARTIFACT",
+      "UNKNOWN"
+    ]
   },
   "public_readiness": {
     "version": 1,

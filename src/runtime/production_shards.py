@@ -11,6 +11,7 @@ from typing import Any
 
 from src.runtime.artifacts import write_shard_bundle
 from src.runtime.contracts import ShardDiagnostic, ShardStatus, utc_now_iso
+from src.runtime.failure_classification import classify_failure
 from src.runtime.live_shards import SHARD_IDS, _validate_rows
 
 from src.runtime.production_sources import production_source_map
@@ -66,6 +67,7 @@ def _source_operation(*, run_id: str, shard_id: str, source_id: str, report_key:
         _runtime_progress(
             "source_error",
             error_type=type(exc).__name__,
+            failure_class=classify_failure(exc),
             error=str(exc)[:1000],
             elapsed_seconds=round(time.monotonic() - started, 2),
             **common,
@@ -148,6 +150,7 @@ def run_production_shard(*, run_id: str, shard_id: str, output_root: Path) -> Sh
                     "elapsed_ms": int((time.monotonic() - source_started) * 1000),
                     "warnings": result_warnings,
                     "error": "",
+                    "failure_class": "",
                 }
             )
             warnings.extend(f"{spec.source_id}: {item}" for item in result_warnings)
@@ -164,6 +167,7 @@ def run_production_shard(*, run_id: str, shard_id: str, output_root: Path) -> Sh
             )
         except Exception as exc:
             message = f"{type(exc).__name__}: {exc}"
+            failure_class = classify_failure(exc)
             errors.append(f"{spec.source_id}: {message}")
             source_results.append(
                 {
@@ -174,6 +178,7 @@ def run_production_shard(*, run_id: str, shard_id: str, output_root: Path) -> Sh
                     "elapsed_ms": int((time.monotonic() - source_started) * 1000),
                     "warnings": [],
                     "error": message,
+                    "failure_class": failure_class,
                 }
             )
             _runtime_progress(
@@ -183,6 +188,7 @@ def run_production_shard(*, run_id: str, shard_id: str, output_root: Path) -> Sh
                 source_id=spec.source_id,
                 report_key=spec.report_key,
                 status="ERROR",
+                failure_class=failure_class,
                 records=0,
                 warning_count=0,
                 elapsed_ms=int((time.monotonic() - source_started) * 1000),

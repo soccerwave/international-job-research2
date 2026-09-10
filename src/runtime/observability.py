@@ -58,6 +58,7 @@ def collect_run_observability(
         elapsed_ms: int,
         warnings: list[str],
         error: str,
+        failure_class: str,
     ) -> None:
         row = source_acc.setdefault(
             key,
@@ -69,6 +70,7 @@ def collect_run_observability(
                 "shard_ids": [],
                 "warnings": [],
                 "errors": [],
+                "failure_classes": set(),
                 "instances": [],
             },
         )
@@ -83,6 +85,8 @@ def collect_run_observability(
                 row["warnings"].append(warning)
         if error and error not in row["errors"]:
             row["errors"].append(error)
+        if failure_class:
+            row["failure_classes"].add(str(failure_class))
         row["instances"].append(
             {
                 "shard_id": shard_id,
@@ -93,6 +97,7 @@ def collect_run_observability(
                 "elapsed_ms": int(elapsed_ms or 0),
                 "warning_count": len(warnings),
                 "error": error,
+                "failure_class": str(failure_class or ""),
             }
         )
 
@@ -115,6 +120,7 @@ def collect_run_observability(
                     "error_count": 1,
                     "warnings": [],
                     "errors": ["MISSING_SHARD_ARTIFACT"],
+                    "failure_classes": ["MISSING_ARTIFACT"],
                 }
             )
             continue
@@ -137,6 +143,7 @@ def collect_run_observability(
                     "error_count": 1,
                     "warnings": [],
                     "errors": [f"INVALID_SHARD_ARTIFACT: {type(exc).__name__}: {exc}"],
+                    "failure_classes": ["INVALID_ARTIFACT"],
                 }
             )
             continue
@@ -159,6 +166,7 @@ def collect_run_observability(
                 "error_count": len(shard_errors),
                 "warnings": shard_warnings,
                 "errors": shard_errors,
+                "failure_classes": sorted({str(item.get("failure_class") or "") for item in ((diagnostics.get("metadata") or {}).get("source_results") or []) if item.get("failure_class")}),
             }
         )
 
@@ -178,6 +186,7 @@ def collect_run_observability(
                     elapsed_ms=int(item.get("elapsed_ms") or 0),
                     warnings=item_warnings,
                     error=str(item.get("error") or ""),
+                    failure_class=str(item.get("failure_class") or ""),
                 )
         else:
             for source_id in manifest.source_ids:
@@ -196,6 +205,7 @@ def collect_run_observability(
                     elapsed_ms=int(diagnostics.get("elapsed_ms") or 0),
                     warnings=shard_warnings,
                     error="; ".join(shard_errors),
+                    failure_class="UNKNOWN" if shard_errors else "",
                 )
 
     source_rows: list[dict[str, Any]] = []
@@ -213,12 +223,21 @@ def collect_run_observability(
                 "error_count": len(row["errors"]),
                 "warnings": row["warnings"],
                 "errors": row["errors"],
+                "failure_classes": sorted(row["failure_classes"]),
                 "instances": sorted(row["instances"], key=lambda item: (item["shard_id"], item["source_id"])),
             }
         )
 
     shard_status_counts = Counter(row["status"] for row in shard_rows)
     source_status_counts = Counter(row["status"] for row in source_rows)
+    failure_class_counts = Counter(
+        failure_class
+        for row in source_rows
+        for failure_class in row.get("failure_classes", [])
+    )
+    for row in shard_rows:
+        if row["status"] in {"MISSING", "ERROR"} and not row.get("source_ids"):
+            failure_class_counts.update(row.get("failure_classes", []))
     return {
         "version": 1,
         "run_id": run_id,
@@ -228,6 +247,7 @@ def collect_run_observability(
         "unexpected_shards": unexpected,
         "shard_status_counts": dict(sorted(shard_status_counts.items())),
         "source_status_counts": dict(sorted(source_status_counts.items())),
+        "failure_class_counts": dict(sorted(failure_class_counts.items())),
         "totals": {
             "records_observed": sum(int(row["records_observed"]) for row in shard_rows),
             "records_emitted": sum(int(row["records_emitted"]) for row in shard_rows),

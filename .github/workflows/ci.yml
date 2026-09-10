@@ -32,7 +32,7 @@ jobs:
       - name: Runtime import sanity
         run: >-
           python -c "import src.runtime.production_shards, src.runtime.production,
-          src.runtime.production_sources, src.runtime.observability, src.runtime.recovery;
+          src.runtime.production_sources, src.runtime.observability, src.runtime.failure_classification, src.runtime.recovery;
           print('runtime imports OK')"
 
       - name: Production runtime tests
@@ -40,6 +40,7 @@ jobs:
           python -m unittest -v
           tests.test_v1_production
           tests.test_phase1_stage5_2_stall_diagnostics
+          tests.test_phase1_stage5_3_failure_classification
 
       - name: Verify frozen stages
         run: |
