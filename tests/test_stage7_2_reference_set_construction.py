@@ -26,9 +26,9 @@ class Stage72ReferenceSetConstructionTests(unittest.TestCase):
         self.assertEqual(status["status"], "ACTIVE_COLLECTION")
         self.assertTrue(status["source_roster_frozen"])
         self.assertFalse(status["reference_set_frozen"])
-        self.assertEqual(status["window"]["start_date"], "2026-09-10")
-        self.assertEqual(status["window"]["end_date"], "2026-09-23")
-        self.assertEqual(status["window"]["capture_grace_end_date"], "2026-09-25")
+        self.assertEqual(status["window"]["start_date"], "2026-09-11")
+        self.assertEqual(status["window"]["end_date"], "2026-09-24")
+        self.assertEqual(status["window"]["capture_grace_end_date"], "2026-09-26")
         self.assertEqual(status["window"]["measurement_days"], 14)
 
     def test_acquisition_is_independent(self):
