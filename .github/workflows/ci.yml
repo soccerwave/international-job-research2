@@ -36,7 +36,10 @@ jobs:
           print('runtime imports OK')"
 
       - name: Production runtime tests
-        run: python -m unittest -v tests.test_v1_production
+        run: >-
+          python -m unittest -v
+          tests.test_v1_production
+          tests.test_phase1_stage5_2_stall_diagnostics
 
       - name: Verify frozen stages
         run: |

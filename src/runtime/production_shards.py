@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import json
 import os
+import sys
+import threading
 import time
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +19,67 @@ from src.sources.shared.pagination import capture_coverage
 PRODUCTION_SHARD_IDS = SHARD_IDS
 PRODUCER_VERSION = "V1.1_PAGINATED_DISCOVERY"
 DEFAULT_PRODUCTION_MAX_JOBS_PER_SOURCE = None
+PRODUCTION_HEARTBEAT_SECONDS = 30
+_PROGRESS_LOCK = threading.Lock()
+
+
+def _runtime_progress(event: str, **fields: Any) -> None:
+    """Emit flushed source-lifecycle diagnostics without records, credentials, or environment dumps."""
+    entry = {"timestamp": utc_now_iso(), "event": event, **fields}
+    line = json.dumps(entry, ensure_ascii=False, default=str)
+    with _PROGRESS_LOCK:
+        print("[production] " + line, file=sys.stderr, flush=True)
+        raw_path = str(os.environ.get("PRODUCTION_PROGRESS_PATH") or "").strip()
+        if raw_path:
+            target = Path(raw_path)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with target.open("a", encoding="utf-8") as handle:
+                handle.write(line + "\n")
+                handle.flush()
+
+
+@contextmanager
+def _source_operation(*, run_id: str, shard_id: str, source_id: str, report_key: str):
+    started = time.monotonic()
+    done = threading.Event()
+    common = {
+        "run_id": run_id,
+        "shard_id": shard_id,
+        "source_id": source_id,
+        "report_key": report_key,
+    }
+    _runtime_progress("source_start", **common)
+
+    def heartbeat() -> None:
+        while not done.wait(PRODUCTION_HEARTBEAT_SECONDS):
+            _runtime_progress(
+                "source_waiting",
+                elapsed_seconds=round(time.monotonic() - started, 2),
+                **common,
+            )
+
+    thread = threading.Thread(target=heartbeat, daemon=True)
+    thread.start()
+    try:
+        yield
+    except Exception as exc:
+        _runtime_progress(
+            "source_error",
+            error_type=type(exc).__name__,
+            error=str(exc)[:1000],
+            elapsed_seconds=round(time.monotonic() - started, 2),
+            **common,
+        )
+        raise
+    else:
+        _runtime_progress(
+            "source_collector_done",
+            elapsed_seconds=round(time.monotonic() - started, 2),
+            **common,
+        )
+    finally:
+        done.set()
+        thread.join()
 
 
 def production_limit(default=None) -> int | None:
@@ -50,8 +115,14 @@ def run_production_shard(*, run_id: str, shard_id: str, output_root: Path) -> Sh
     for spec in specs[shard_id]:
         source_started = time.monotonic()
         try:
-            with capture_coverage() as coverage:
-                rows = spec.collector()
+            with _source_operation(
+                run_id=run_id,
+                shard_id=shard_id,
+                source_id=spec.source_id,
+                report_key=spec.report_key,
+            ):
+                with capture_coverage() as coverage:
+                    rows = spec.collector()
             _validate_rows(spec.source_id, rows)
             records.extend(rows)
             result_warnings = [
@@ -80,6 +151,17 @@ def run_production_shard(*, run_id: str, shard_id: str, output_root: Path) -> Sh
                 }
             )
             warnings.extend(f"{spec.source_id}: {item}" for item in result_warnings)
+            _runtime_progress(
+                "source_done",
+                run_id=run_id,
+                shard_id=shard_id,
+                source_id=spec.source_id,
+                report_key=spec.report_key,
+                status="PARTIAL" if result_warnings else "OK",
+                records=len(rows),
+                warning_count=len(result_warnings),
+                elapsed_ms=int((time.monotonic() - source_started) * 1000),
+            )
         except Exception as exc:
             message = f"{type(exc).__name__}: {exc}"
             errors.append(f"{spec.source_id}: {message}")
@@ -93,6 +175,17 @@ def run_production_shard(*, run_id: str, shard_id: str, output_root: Path) -> Sh
                     "warnings": [],
                     "error": message,
                 }
+            )
+            _runtime_progress(
+                "source_done",
+                run_id=run_id,
+                shard_id=shard_id,
+                source_id=spec.source_id,
+                report_key=spec.report_key,
+                status="ERROR",
+                records=0,
+                warning_count=0,
+                elapsed_ms=int((time.monotonic() - source_started) * 1000),
             )
 
     success_count = sum(item["status"] == "OK" for item in source_results)
