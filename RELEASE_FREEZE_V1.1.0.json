@@ -105,7 +105,11 @@
     "src/runtime/coverage_mapping.py": "036a31e37ab0f60398517c5d7867746f6289ceb7",
     "scripts/verify_stage6_2_coverage_mapping.py": "936c5b780c625dcdcff3bbf22956ab34157accf3",
     "tests/test_stage6_2_coverage_mapping.py": "cd7f0b6e68b9a7c56a10311fc724fc7f47b8a34b",
-    "docs/runtime/COVERAGE_MAPPING_V1.md": "1f093d0436949cae2f9ad03908036218dde7f191"
+    "docs/runtime/COVERAGE_MAPPING_V1.md": "1f093d0436949cae2f9ad03908036218dde7f191",
+    "src/runtime/structural_completeness.py": "4ffa33086c531d7bfcb96076e6c58ee959051c81",
+    "scripts/verify_stage6_3_structural_completeness.py": "1ad5f8b702c86ebb70578a0107d980f3e95f0848",
+    "tests/test_stage6_3_structural_completeness.py": "94314eb328e2f58341504aeb96101c0cae44782e",
+    "docs/runtime/STRUCTURAL_COMPLETENESS_V1.md": "85cbd7cfc30b8956f902d2bc6a2494f62df9d23d"
   },
   "automation": {
     "provider": "Cloudflare",
@@ -493,6 +497,20 @@
       "5": 2
     },
     "all_explicit_countries_have_multi_board_overlap": true,
-    "coverage_mapping_evidence": "docs/runtime/COVERAGE_MAPPING_V1.md"
+    "coverage_mapping_evidence": "docs/runtime/COVERAGE_MAPPING_V1.md",
+    "structural_completeness": "GITHUB_ACTIONS_VALIDATED_STAGE_6_3",
+    "structural_completeness_ci_run_id": 34526560287,
+    "structural_completeness_profile": "STRUCTURAL_COMPLETENESS_CHECKS",
+    "structural_completeness_semantics": "STRUCTURAL_AUDIT_ONLY_NO_GAP_VERDICT",
+    "target_countries_without_explicit_wiring": 0,
+    "unwired_registered_tenant_count": 0,
+    "unwired_linkedin_partition_count": 0,
+    "portal_collector_surface_count": 6,
+    "structural_review_finding_count": 6,
+    "structural_info_finding_count": 3,
+    "unwired_existing_collector_source_ids": [
+      "uniroles_au"
+    ],
+    "structural_completeness_evidence": "docs/runtime/STRUCTURAL_COMPLETENESS_V1.md"
   }
 }
