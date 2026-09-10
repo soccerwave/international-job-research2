@@ -4,9 +4,9 @@ Status: ACTIVE_COLLECTION. Stage 7.2 is not complete until the prospective windo
 
 ## Window
 
-- Start: 2026-09-10
-- End: 2026-09-23
-- Capture grace end: 2026-09-25
+- Start: 2026-09-11
+- End: 2026-09-24
+- Capture grace end: 2026-09-26
 - Cadence: daily
 - Timezone: Europe/Madrid
 
