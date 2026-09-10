@@ -95,7 +95,9 @@
     ".github/workflows/test-stage5-4-live-artifact-durability.yml": "480e37c1e29de522945eaeddcdd5aba40e8c5be7",
     "tests/test_phase1_stage5_4_artifact_durability.py": "8275087a5ccdb72be651f378ffcd6f71506ff28f",
     "src/runtime/anomaly_detection.py": "5c06c603c440f9d7bb65a07f4293e713a09a9734",
-    "tests/test_phase1_stage5_5_runtime_anomaly_detection.py": "7c2ca4d53dcaee58317dc7ac45cba20a48e32816"
+    "tests/test_phase1_stage5_5_runtime_anomaly_detection.py": "7c2ca4d53dcaee58317dc7ac45cba20a48e32816",
+    "scripts/verify_stage5_observability.py": "eee783e4a292b3345c65244953fc6e7a386d2c86",
+    "tests/test_phase1_stage5_6_observability_certification.py": "a676208778c2ffe72b023df8c9cd98c4866bacbd"
   },
   "automation": {
     "provider": "Cloudflare",
@@ -401,7 +403,22 @@
       "ORPHAN_SOURCE_DONE",
       "LIFECYCLE_SOURCE_ERROR",
       "INCOMPLETE_SOURCE_LIFECYCLE"
-    ]
+    ],
+    "observability_certification": "GITHUB_ACTIONS_VALIDATED_STAGE_5_6",
+    "observability_certification_ci_run_id": 34524510925,
+    "observability_certification_profile": "STAGE_5_OBSERVABILITY_CERTIFICATION",
+    "observability_certification_behavior": "READ_ONLY_CERTIFICATION",
+    "stage5_status": "DONE",
+    "stage5_completed_substages": [
+      "5.1",
+      "5.2",
+      "5.3",
+      "5.4",
+      "5.5",
+      "5.6"
+    ],
+    "full_uncapped_runtime_reference_run_id": 34516148698,
+    "full_uncapped_runtime_reference_result": "SUCCESS"
   },
   "public_readiness": {
     "version": 1,
