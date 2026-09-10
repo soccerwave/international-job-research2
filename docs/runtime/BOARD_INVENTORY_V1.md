@@ -1,6 +1,6 @@
 # Stage 6.1 Current Board Inventory
 
-Status: implementation candidate pending CI and freeze closure.
+Status: GitHub Actions validated for Stage 6.1; freeze closure pending.
 
 This inventory describes only the sources and geographies explicitly wired into the current production configuration. It is not a claim that each board is complete in practice. Actual coverage, overlap, blind spots, and missing boards are deferred to later Stage 6 steps.
 
