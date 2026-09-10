@@ -15,7 +15,7 @@
     "evidence": "docs/runtime/COLLECTION_V1.1.md"
   },
   "protected_git_blobs": {
-    ".github/workflows/production.yml": "ad55882be5dcdccca7d9b284928b44e1b4b71a60",
+    ".github/workflows/production.yml": "cb032a6a89ef9c5da282961c85d975e06c010c19",
     ".github/workflows/publish-control-plane-report.yml": "24c5fb7b5793eb1b5e759df6829d8ececa083ddb",
     ".github/workflows/recover-production-state.yml": "fe39294ebabf59a0ba8d2f08f1086d88a91578ad",
     ".github/workflows/test-public-readiness.yml": "433f69c01b32e68286b12a997e4269185c1cf935",
@@ -91,7 +91,9 @@
     "tests/test_v1_live_bootstrap_fix.py": "d3b6ca624c6b594d14fdc73cf118e12ce781aad2",
     "tests/test_v1_production.py": "9d41f07dc065dbfc5aee59f63913db341a7658d7",
     "src/runtime/failure_classification.py": "2d41b1d76755c67b12fa8587ffd050100576a33a",
-    "tests/test_phase1_stage5_3_failure_classification.py": "56a088956fc826363bbccb9de8d8cb2d119a115e"
+    "tests/test_phase1_stage5_3_failure_classification.py": "56a088956fc826363bbccb9de8d8cb2d119a115e",
+    ".github/workflows/test-stage5-4-live-artifact-durability.yml": "480e37c1e29de522945eaeddcdd5aba40e8c5be7",
+    "tests/test_phase1_stage5_4_artifact_durability.py": "8275087a5ccdb72be651f378ffcd6f71506ff28f"
   },
   "automation": {
     "provider": "Cloudflare",
@@ -379,7 +381,12 @@
       "INVALID_ARTIFACT",
       "MISSING_ARTIFACT",
       "UNKNOWN"
-    ]
+    ],
+    "artifact_durability": "LIVE_VALIDATED_STAGE_5_4",
+    "artifact_durability_regression_tests": 3,
+    "artifact_durability_live_run_id": 34523079452,
+    "artifact_durability_live_artifact_id": 10170434966,
+    "artifact_durability_live_payload": "DIAGNOSTICS_ONLY_ENCRYPT_UPLOAD_DOWNLOAD_DECRYPT"
   },
   "public_readiness": {
     "version": 1,
