@@ -32,7 +32,7 @@ jobs:
       - name: Runtime import sanity
         run: >-
           python -c "import src.runtime.production_shards, src.runtime.production,
-          src.runtime.production_sources, src.runtime.board_inventory, src.runtime.coverage_mapping, src.runtime.structural_completeness, src.runtime.observability, src.runtime.failure_classification, src.runtime.anomaly_detection, src.runtime.recovery;
+          src.runtime.production_sources, src.runtime.board_inventory, src.runtime.coverage_mapping, src.runtime.structural_completeness, src.runtime.gap_register, src.runtime.observability, src.runtime.failure_classification, src.runtime.anomaly_detection, src.runtime.recovery;
           print('runtime imports OK')"
 
       - name: Production runtime tests
@@ -47,6 +47,7 @@ jobs:
           tests.test_stage6_1_current_board_inventory
           tests.test_stage6_2_coverage_mapping
           tests.test_stage6_3_structural_completeness
+          tests.test_stage6_4_evidence_gap_register
 
       - name: Stage 5 observability certification
         run: python scripts/verify_stage5_observability.py
@@ -59,6 +60,9 @@ jobs:
 
       - name: Stage 6.3 structural completeness
         run: python scripts/verify_stage6_3_structural_completeness.py
+
+      - name: Stage 6.4 evidence gap register
+        run: python scripts/verify_stage6_4_gap_register.py
 
       - name: Verify frozen stages
         run: |
