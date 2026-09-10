@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:international-academic-job-search:reference-vacancy:1.0.0",
+  "title": "Independent Recall Reference Vacancy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "reference_id",
+    "reference_source_id",
+    "reference_url",
+    "observed_at",
+    "title",
+    "institution",
+    "country_code",
+    "posted_at",
+    "deadline_at",
+    "role_family_or_pending",
+    "eligibility_status",
+    "eligibility_reason"
+  ],
+  "properties": {
+    "reference_id": {
+      "type": "string",
+      "minLength": 3
+    },
+    "reference_source_id": {
+      "type": "string",
+      "minLength": 3
+    },
+    "reference_url": {
+      "type": "string",
+      "format": "uri"
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "institution": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "country_code": {
+      "type": "string",
+      "pattern": "^[A-Z]{2}$"
+    },
+    "posted_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "deadline_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "role_family_or_pending": {
+      "enum": [
+        "POSTDOC",
+        "RESEARCH_FELLOW_POSTDOC",
+        "ASSISTANT_PROFESSOR",
+        "LECTURER",
+        "RESEARCH_ASSISTANT_PROFESSOR",
+        "TENURE_TRACK",
+        "JUNIOR_PROFESSOR",
+        "RESEARCH_SCIENTIST",
+        "SCIENTIFIC_PROJECT_MANAGER",
+        "RESEARCH_PROJECT_MANAGER",
+        "RESEARCH_PROGRAMME_MANAGER",
+        "OTHER_RESEARCH",
+        "OUT_OF_SCOPE",
+        "PENDING_ADJUDICATION"
+      ]
+    },
+    "eligibility_status": {
+      "enum": [
+        "ELIGIBLE_PRIMARY",
+        "ELIGIBLE_OPPORTUNISTIC",
+        "OUT_OF_SCOPE",
+        "PENDING_ADJUDICATION"
+      ]
+    },
+    "eligibility_reason": {
+      "type": "string",
+      "minLength": 1
+    },
+    "evidence_note": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "raw_snapshot_fingerprint": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}
