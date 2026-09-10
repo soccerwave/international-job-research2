@@ -41,6 +41,7 @@ jobs:
           tests.test_v1_production
           tests.test_phase1_stage5_2_stall_diagnostics
           tests.test_phase1_stage5_3_failure_classification
+          tests.test_phase1_stage5_4_artifact_durability
 
       - name: Verify frozen stages
         run: |
