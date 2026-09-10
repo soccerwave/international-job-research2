@@ -116,7 +116,11 @@
     "docs/runtime/GAP_REGISTER_V1.md": "bbcd15ee468a84e490de3ffc40de25f39dfee18a",
     "scripts/verify_stage6_board_completeness.py": "5abadb202c46c215f96d6d2f2137e7b774508878",
     "tests/test_stage6_5_board_completeness_certification.py": "7c611174906b111413ddda2e15718399d3f0b4cb",
-    "docs/runtime/BOARD_COMPLETENESS_CERTIFICATION_V1.md": "197dcc2ea0b50328d2ca007dec166b3f220a76b8"
+    "docs/runtime/BOARD_COMPLETENESS_CERTIFICATION_V1.md": "197dcc2ea0b50328d2ca007dec166b3f220a76b8",
+    "src/runtime/recall_design.py": "37fa0127ff4706f00a22781e074360481a39deb9",
+    "scripts/verify_stage7_1_recall_design.py": "fd0644672dfe9d715ab117002c294778e77c2ac2",
+    "tests/test_stage7_1_recall_measurement_design.py": "2a3cb0e89a625aa428650cc914dd03eeb372a850",
+    "docs/runtime/RECALL_MEASUREMENT_DESIGN_V1.md": "9615f03d5ad7b806b8b595c5b31d44192df041c7"
   },
   "automation": {
     "provider": "Cloudflare",
@@ -547,5 +551,24 @@
     "stage6_scope": "BOARD_COMPLETENESS_STRUCTURE_ONLY",
     "next_stage": "STAGE_7_RECALL_MEASUREMENT",
     "board_completeness_certification_evidence": "docs/runtime/BOARD_COMPLETENESS_CERTIFICATION_V1.md"
+  },
+  "recall_measurement": {
+    "version": 1,
+    "stage7_status": "IN_PROGRESS",
+    "recall_measurement_design": "GITHUB_ACTIONS_VALIDATED_STAGE_7_1",
+    "recall_measurement_design_ci_run_id": 34528784505,
+    "recall_measurement_design_profile": "RECALL_MEASUREMENT_DESIGN",
+    "recall_measurement_design_semantics": "DESIGN_ONLY_NO_RECALL_RESULT",
+    "primary_metric": "END_TO_END_VACANCY_RECALL",
+    "primary_unit": "UNIQUE_VACANCY",
+    "primary_market_count": 8,
+    "opportunistic_market_count": 5,
+    "primary_role_family_count": 7,
+    "measurement_days": 14,
+    "pipeline_capture_grace_hours": 48,
+    "reference_set_independence": "PIPELINE_OUTPUT_AND_PIPELINE_COLLECTOR_CODE_FORBIDDEN",
+    "source_changes_allowed_before_stage8": false,
+    "next_substage": "STAGE_7_2_REFERENCE_SET_CONSTRUCTION",
+    "evidence": "docs/runtime/RECALL_MEASUREMENT_DESIGN_V1.md"
   }
 }
