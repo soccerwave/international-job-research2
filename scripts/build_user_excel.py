@@ -5,12 +5,21 @@ import json
 from collections import Counter
 from pathlib import Path
 
-from src.evaluation.calibrated_e021 import EVALUATOR_VERSION, with_calibrated_evaluation
+from src.evaluation.calibrated_e021 import EVALUATOR_VERSION, evaluate_calibrated, with_calibrated_evaluation
 from src.reporting.report import record_to_row
 from src.reporting.user_excel import build_review_rows, build_user_rows, build_user_xlsx, load_canonical_records
 
 ACTIONABLE = {"STRONG_APPLY", "APPLY", "REVIEW"}
 CHANGE_EVENTS = {"NEW", "MATERIALLY_CHANGED", "REOPENED"}
+
+
+def _calibrated_report_view(record: dict) -> dict:
+    """Attach E0.2.1 evaluation without deep-copying the immutable canonical payload."""
+    clone = dict(record)
+    raw_extra = dict(record.get("raw_extra") or {})
+    raw_extra["evaluation"] = evaluate_calibrated(record)
+    clone["raw_extra"] = raw_extra
+    return clone
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -84,7 +93,7 @@ def build_user_summary(
 def main() -> int:
     args = build_parser().parse_args()
     records = load_canonical_records(args.records)
-    calibrated_records = [with_calibrated_evaluation(record) for record in records]
+    calibrated_records = [_calibrated_report_view(record) for record in records]
     rows = build_user_rows(calibrated_records)
     review_rows = build_review_rows(calibrated_records)
     build_user_xlsx(calibrated_records, args.output, rows=rows, review_rows=review_rows)
