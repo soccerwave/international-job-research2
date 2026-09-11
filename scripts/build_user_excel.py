@@ -78,8 +78,9 @@ def build_user_summary(records: list[dict], base_summary: dict) -> dict:
 def main() -> int:
     args = build_parser().parse_args()
     records = load_canonical_records(args.records)
-    rows = build_user_rows(records)
-    build_user_xlsx(records, args.output)
+    calibrated_records = [with_calibrated_evaluation(record) for record in records]
+    rows = build_user_rows(calibrated_records)
+    build_user_xlsx(calibrated_records, args.output)
     counts: dict[str, int] = {}
     for row in rows:
         key = row["recommendation"]
@@ -90,7 +91,7 @@ def main() -> int:
         if not args.base_summary or not args.summary_out:
             raise SystemExit("--base-summary and --summary-out must be supplied together")
         base_summary = json.loads(args.base_summary.read_text(encoding="utf-8"))
-        user_summary = build_user_summary(records, base_summary)
+        user_summary = build_user_summary(calibrated_records, base_summary)
         args.summary_out.parent.mkdir(parents=True, exist_ok=True)
         args.summary_out.write_text(json.dumps(user_summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         summary_path = str(args.summary_out)
