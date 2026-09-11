@@ -126,7 +126,7 @@
     "schemas/reference_capture.schema.json": "5ef7f53a0bf0b0f72e70c9888d8f4fa51c40213e",
     "src/runtime/reference_set.py": "21627e0a4eb9118e26bfbab51a53b3a6360df653",
     "scripts/verify_stage7_2_reference_set.py": "d7baa47aac392688022c0285b56f6b02667f3a89",
-    "tests/test_stage7_2_reference_set_construction.py": "a076cbbb50b9523029af146941d812adce9bb54c",
+    "tests/test_stage7_2_reference_set_construction.py": "0cc875e2e6605ca048ebf4b64661fc1f4e726eef",
     "docs/runtime/REFERENCE_SET_CONSTRUCTION_V1.md": "74eb549763028fa37b01b78ef47910e7672dd9d7",
     ".gitignore": "e472df420a0f10f9fc4efb418ed3d27e9553a897",
     "data/reference/stage7/reference_set_manifest_v1.json": "51acd441a099071f612b56591d0c9659b88c2db2",
