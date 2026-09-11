@@ -288,10 +288,18 @@ def build_review_rows(records: Iterable[dict[str, Any]]) -> list[dict[str, Any]]
     return rows
 
 
-def build_user_xlsx(records: Iterable[dict[str, Any]], output_path: Path) -> Path:
+def build_user_xlsx(
+    records: Iterable[dict[str, Any]],
+    output_path: Path,
+    *,
+    rows: list[dict[str, Any]] | None = None,
+    review_rows: list[dict[str, Any]] | None = None,
+) -> Path:
     records = list(records)
-    rows = build_user_rows(records)
-    review_rows = build_review_rows(records)
+    if rows is None:
+        rows = build_user_rows(records)
+    if review_rows is None:
+        review_rows = build_review_rows(records)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     workbook = xlsxwriter.Workbook(output_path)
