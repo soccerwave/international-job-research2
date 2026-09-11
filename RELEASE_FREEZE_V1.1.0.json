@@ -132,7 +132,7 @@
     "data/reference/stage7/reference_set_manifest_v1.json": "c6a3c3a62015948112d829f8c0b68a59c60eab6d",
     "docs/security/PUBLIC_READINESS.md": "dd2a7948788b7b31aa7758b9321a7c14e346300c",
     "src/reporting/user_excel.py": "32552ac28dda6f8c9e74d3b0374145536379f722",
-    "scripts/build_user_excel.py": "e518b3f9fa4d6fb40f1709a9b8e16715e6a8bf00",
+    "scripts/build_user_excel.py": "ac50a70b03d4abeaa86dd9528add7b46457d5f93",
     "scripts/check_stage7_reference_storage.py": "6bd9424a6e569c9083275fe6868b17f674fdde88",
     ".github/workflows/test-stage7-2-reference-storage.yml": "a971a1242c15f5135399e6a9bfb4c59898aa128d",
     ".github/workflows/test-publisher-build-performance.yml": "8395a7f991f4a183e27e9ab33a1176b8682a21b2"
@@ -628,7 +628,7 @@
     "publisher_timeout_incident_run_id": 34564261302,
     "publisher_source_production_run_id": 34560575563,
     "publisher_incident_stage": "BUILD_CLEAN_USER_EXCEL",
-    "publisher_root_fix": "REUSE_SINGLE_E021_CALIBRATION_AND_SINGLE_REVIEW_ROW_BUILD",
+    "publisher_root_fix": "REUSE_SINGLE_E021_CALIBRATION_SINGLE_REVIEW_ROW_BUILD_AND_SHALLOW_REPORT_VIEW",
     "publisher_live_performance_validation": "PENDING_PR_REPLAY"
   }
 }
