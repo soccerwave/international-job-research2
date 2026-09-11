@@ -30,7 +30,8 @@ def build_user_summary(records: list[dict], base_summary: dict) -> dict:
     low_priority = 0
 
     for record in records:
-        calibrated = with_calibrated_evaluation(record)
+        evaluation = ((record.get("raw_extra") or {}).get("evaluation") or {})
+        calibrated = record if str(evaluation.get("evaluator_version") or "") == EVALUATOR_VERSION else with_calibrated_evaluation(record)
         row = record_to_row(calibrated)
         priority = str(row.get("recommendation") or "REVIEW").upper()
         lifecycle = str(row.get("lifecycle_status") or "UNKNOWN").upper()
