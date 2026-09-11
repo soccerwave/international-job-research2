@@ -51,6 +51,7 @@ jobs:
           tests.test_stage6_5_board_completeness_certification
           tests.test_stage7_1_recall_measurement_design
           tests.test_stage7_2_reference_set_construction
+          tests.test_stage7_2_reference_capture
 
       - name: Stage 5 observability certification
         run: python scripts/verify_stage5_observability.py

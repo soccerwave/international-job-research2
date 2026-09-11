@@ -33,7 +33,7 @@ The roster contains 16 public reference surfaces: two per core market.
 
 The roster deliberately mixes surfaces already directly represented in production with external or unwired surfaces. This allows Stage 7 to measure both collector/discovery misses and source-coverage misses without changing production first.
 
-Raw reference observations and daily capture logs are not tracked in the public Git repository. They must be encrypted before persistence to the private R2 backend. Git may retain only schemas, the frozen roster, the non-sensitive manifest, aggregate counts, dataset digests, and certification evidence. Raw page snapshots are not retained.
+Raw reference observations and daily capture logs are not tracked in the public Git repository. They are acquired by a dedicated independent Playwright/Chromium workflow that does not import or invoke production collectors, then encrypted with AES-256-CBC/PBKDF2 before persistence to the private R2 backend. Git may retain only schemas, the frozen roster, the non-sensitive manifest, aggregate counts, dataset digests, and certification evidence. Raw page snapshots are not retained; only cryptographic page fingerprints may be retained as provenance.
 
 `Uni Roles Australia` is included as a known unwired reference surface because Stage 6 registered `uniroles_au` as a structural wiring gap. Including it in the reference roster does not authorize adding it to production.
 
@@ -47,7 +47,16 @@ Raw reference observations and daily capture logs are not tracked in the public 
 - private encrypted R2 object `stage7/reference/v1/reference_capture_log_v1.jsonl.enc`: append-only source-day capture evidence
 - `src/runtime/reference_set.py`: read-only construction status
 - `scripts/verify_stage7_2_reference_set.py`: setup verifier
+- `scripts/capture_stage7_reference.py`: independent browser acquisition and encrypted R2 persistence
+- `.github/workflows/stage7-reference-capture.yml`: daily 08:00 Europe/Madrid capture schedule during the frozen window
+- `tests/test_stage7_2_reference_capture.py`: independent capture helper tests
 
 ## Completion rule
 
 Stage 7.2 expects 224 source-day capture slots (16 frozen surfaces × 14 days). Each source-day must end as `CAPTURED_COMPLETE` or a documented resolved exception. Stage 7.2 can be marked DONE only after the full 14-day window has ended, all reference observations have provenance, all eligibility statuses have been adjudicated or explicitly retained as pending according to policy, and the reference set itself is frozen before Stage 7.3 matching begins.
+
+## Daily execution semantics
+
+The live reference capture is separate from production. It uses the frozen 16-surface roster, a headless Chromium browser, broad vacancy-like anchor capture, and at most five generic pagination hops per surface. Because generic pagination cannot prove exhaustive board coverage, a technically successful browser capture is recorded as `CAPTURED_PARTIAL` unless a stronger completeness claim is separately certified. Blocked, unavailable, empty-parser, and retry-required states are preserved explicitly rather than silently treated as complete.
+
+Each source-day has one canonical capture ID. The encrypted R2 observation object is deduplicated by stable reference vacancy ID, while the encrypted capture log retains source-day provenance. The workflow is scheduled for 08:00 Europe/Madrid during September 2026 by running at 06:00 UTC and the capture script itself refuses to collect outside the frozen 11 to 24 September window.

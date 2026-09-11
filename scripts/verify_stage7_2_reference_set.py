@@ -49,7 +49,7 @@ def main() -> int:
         "reference_schema_has_no_pipeline_match_fields": status["schema_forbidden_match_fields_present"] == [],
         "initial_reference_record_count_zero": status["current_record_count"] == 0,
         "initial_capture_event_count_zero": status["current_capture_event_count"] == 0,
-        "storage_migration_guard": status["storage_migration_status"] == "PRIVATE_STORAGE_REQUIRED_BEFORE_FIRST_CAPTURE",
+        "storage_migration_guard": status["storage_migration_status"] == "LIVE_PRIVATE_R2_CAPTURE_IMPLEMENTED_PENDING_VALIDATION",
         "expected_source_day_captures_locked": status["expected_source_day_captures"] == 224,
         "completion_quality_gate_locked": status["completion_quality_gate"]
         == "EVERY_SOURCE_DAY_HAS_CAPTURED_COMPLETE_OR_DOCUMENTED_RESOLVED_EXCEPTION",

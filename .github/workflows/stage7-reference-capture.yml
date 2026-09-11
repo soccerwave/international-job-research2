@@ -1,0 +1,55 @@
+name: Stage 7.2 Independent Reference Capture
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/capture_stage7_reference.py'
+      - '.github/workflows/stage7-reference-capture.yml'
+      - 'config/reference/stage7_reference_roster_v1.json'
+      - 'schemas/reference_vacancy.schema.json'
+      - 'schemas/reference_capture.schema.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stage7-2-independent-reference-capture
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_BUCKET: ${{ vars.R2_BUCKET }}
+      R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+      ARTIFACT_ENCRYPTION_KEY: ${{ secrets.ARTIFACT_ENCRYPTION_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install reference-capture dependencies
+        run: |
+          python -m pip install --disable-pip-version-check -r requirements.txt -r requirements-cloud.txt
+          python -m pip install --disable-pip-version-check playwright==1.55.0
+          python -m playwright install --with-deps chromium
+      - name: Require private storage credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${R2_ACCOUNT_ID:-}"
+          test -n "${R2_ACCESS_KEY_ID:-}"
+          test -n "${R2_SECRET_ACCESS_KEY:-}"
+          test -n "${R2_BUCKET:-}"
+          test -n "${R2_ENDPOINT:-}"
+          test -n "${ARTIFACT_ENCRYPTION_KEY:-}"
+      - name: Capture frozen Stage 7.2 reference surfaces and persist encrypted R2 evidence
+        run: python scripts/capture_stage7_reference.py
