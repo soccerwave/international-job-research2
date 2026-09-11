@@ -29,13 +29,13 @@
   },
   "source_roster_frozen": true,
   "reference_set_frozen": false,
-  "current_record_count": 0,
+  "current_record_count": 293,
   "final_freeze_condition": "WINDOW_ENDED_AND_REFERENCE_ELIGIBILITY_ADJUDICATED",
   "stage7_2_done_condition": "REFERENCE_SET_FROZEN_WITH_COMPLETE_WINDOW_PROVENANCE",
-  "next_action": "RUN_DAY1_INDEPENDENT_BROWSER_CAPTURE_AND_VERIFY_ENCRYPTED_R2_OBJECTS",
+  "next_action": "CONTINUE_DAILY_INDEPENDENT_CAPTURE_THROUGH_2026-09-24",
   "capture_schema_path": "schemas/reference_capture.schema.json",
   "expected_source_day_captures": 224,
-  "current_capture_event_count": 0,
+  "current_capture_event_count": 16,
   "completion_quality_gate": "EVERY_SOURCE_DAY_HAS_CAPTURED_COMPLETE_OR_DOCUMENTED_RESOLVED_EXCEPTION",
   "private_storage": {
     "backend": "R2",
@@ -55,5 +55,21 @@
       "certification_evidence"
     ]
   },
-  "storage_migration_status": "LIVE_PRIVATE_R2_CAPTURE_IMPLEMENTED_PENDING_VALIDATION"
+  "storage_migration_status": "LIVE_PRIVATE_R2_CAPTURE_VALIDATED",
+  "live_validation": {
+    "workflow_run_id": 34591889595,
+    "first_attempt_result": "PASS",
+    "idempotency_rerun_result": "PASS",
+    "first_capture_date": "2026-09-11",
+    "first_capture_events": 16,
+    "first_unique_observations": 293,
+    "first_capture_status_counts": {
+      "ACCESS_BLOCKED": 2,
+      "CAPTURED_PARTIAL": 14
+    },
+    "observations_encrypted_bytes": 237376,
+    "capture_log_encrypted_bytes": 8768,
+    "idempotency_rerun_pending_sources": 0,
+    "idempotency_rerun_new_capture_events": 0
+  }
 }
