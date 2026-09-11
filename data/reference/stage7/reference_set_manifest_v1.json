@@ -18,14 +18,21 @@
     "pipeline_output_allowed": false,
     "pipeline_collector_code_allowed": false,
     "comparison_with_pipeline_allowed_before_reference_freeze": false,
-    "reference_eligibility_must_be_frozen_before_matching": true
+    "reference_eligibility_must_be_frozen_before_matching": true,
+    "execution_backend": "GITHUB_ACTIONS_HEADLESS_BROWSER",
+    "browser_engine": "PLAYWRIGHT_CHROMIUM",
+    "schedule_local_time": "08:00",
+    "schedule_timezone": "Europe/Madrid",
+    "source_day_idempotency": "ONE_CANONICAL_CAPTURE_ID_PER_SOURCE_PER_DATE",
+    "generic_pagination_page_cap": 5,
+    "default_success_status": "CAPTURED_PARTIAL_UNTIL_COMPLETENESS_CERTIFIED"
   },
   "source_roster_frozen": true,
   "reference_set_frozen": false,
   "current_record_count": 0,
   "final_freeze_condition": "WINDOW_ENDED_AND_REFERENCE_ELIGIBILITY_ADJUDICATED",
   "stage7_2_done_condition": "REFERENCE_SET_FROZEN_WITH_COMPLETE_WINDOW_PROVENANCE",
-  "next_action": "CAPTURE_REFERENCE_OBSERVATIONS_TO_ENCRYPTED_PRIVATE_R2_ONLY",
+  "next_action": "RUN_DAY1_INDEPENDENT_BROWSER_CAPTURE_AND_VERIFY_ENCRYPTED_R2_OBJECTS",
   "capture_schema_path": "schemas/reference_capture.schema.json",
   "expected_source_day_captures": 224,
   "current_capture_event_count": 0,
@@ -48,5 +55,5 @@
       "certification_evidence"
     ]
   },
-  "storage_migration_status": "PRIVATE_STORAGE_REQUIRED_BEFORE_FIRST_CAPTURE"
+  "storage_migration_status": "LIVE_PRIVATE_R2_CAPTURE_IMPLEMENTED_PENDING_VALIDATION"
 }
