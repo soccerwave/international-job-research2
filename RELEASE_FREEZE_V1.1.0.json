@@ -16,7 +16,7 @@
   },
   "protected_git_blobs": {
     ".github/workflows/production.yml": "cb032a6a89ef9c5da282961c85d975e06c010c19",
-    ".github/workflows/publish-control-plane-report.yml": "24c5fb7b5793eb1b5e759df6829d8ececa083ddb",
+    ".github/workflows/publish-control-plane-report.yml": "6a5cad83252cc74da34e8c0704d6615e86077a92",
     ".github/workflows/recover-production-state.yml": "fe39294ebabf59a0ba8d2f08f1086d88a91578ad",
     ".github/workflows/test-public-readiness.yml": "433f69c01b32e68286b12a997e4269185c1cf935",
     "CHANGELOG.md": "6d363e097752514a081ee92939faca5993f02c0e",
@@ -658,6 +658,7 @@
     "publisher_build_elapsed_seconds": 451,
     "publisher_live_fixture_records_observed": 12778,
     "publisher_live_rows": 232,
-    "publisher_live_review_more_rows": 9408
+    "publisher_live_review_more_rows": 9408,
+    "manual_publisher_telegram_fix": "ALLOW_WORKFLOW_DISPATCH_DELIVERY"
   }
 }
