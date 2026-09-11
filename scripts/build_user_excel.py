@@ -22,7 +22,12 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def build_user_summary(records: list[dict], base_summary: dict) -> dict:
+def build_user_summary(
+    records: list[dict],
+    base_summary: dict,
+    *,
+    review_rows: list[dict] | None = None,
+) -> dict:
     recommendation_counts: Counter[str] = Counter()
     current_actionable = 0
     today_actionable = 0
@@ -67,7 +72,7 @@ def build_user_summary(records: list[dict], base_summary: dict) -> dict:
         "audit_workbook_preserves_e0_1": True,
         "clean_excel_contains": ["STRONG_APPLY", "APPLY", "REVIEW"],
     }
-    additional = build_review_rows(records)
+    additional = review_rows if review_rows is not None else build_review_rows(records)
     summary["review_more_count"] = len(additional)
     summary["review_more_types"] = dict(Counter(row["review_type"] for row in additional))
     summary["review_more_changes"] = sum(row["seen_status"] in CHANGE_EVENTS for row in additional)
@@ -81,7 +86,8 @@ def main() -> int:
     records = load_canonical_records(args.records)
     calibrated_records = [with_calibrated_evaluation(record) for record in records]
     rows = build_user_rows(calibrated_records)
-    build_user_xlsx(calibrated_records, args.output)
+    review_rows = build_review_rows(calibrated_records)
+    build_user_xlsx(calibrated_records, args.output, rows=rows, review_rows=review_rows)
     counts: dict[str, int] = {}
     for row in rows:
         key = row["recommendation"]
@@ -92,7 +98,7 @@ def main() -> int:
         if not args.base_summary or not args.summary_out:
             raise SystemExit("--base-summary and --summary-out must be supplied together")
         base_summary = json.loads(args.base_summary.read_text(encoding="utf-8"))
-        user_summary = build_user_summary(calibrated_records, base_summary)
+        user_summary = build_user_summary(calibrated_records, base_summary, review_rows=review_rows)
         args.summary_out.parent.mkdir(parents=True, exist_ok=True)
         args.summary_out.write_text(json.dumps(user_summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         summary_path = str(args.summary_out)
@@ -105,7 +111,7 @@ def main() -> int:
                 "summary": summary_path,
                 "evaluator_version": EVALUATOR_VERSION,
                 "rows": len(rows),
-                "review_more_rows": len(build_review_rows(records)),
+                "review_more_rows": len(review_rows),
                 "sheets": ["JOBS", "REVIEW_MORE"],
                 "priorities": counts,
                 "columns": ["Priority", "Title", "Country", "Role", "Institution", "City", "Deadline", "Link"],
