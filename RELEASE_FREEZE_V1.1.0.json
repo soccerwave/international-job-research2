@@ -125,7 +125,7 @@
     "schemas/reference_vacancy.schema.json": "b3a240da978e8241d80904905ac4e2827e74aee4",
     "schemas/reference_capture.schema.json": "5ef7f53a0bf0b0f72e70c9888d8f4fa51c40213e",
     "src/runtime/reference_set.py": "21627e0a4eb9118e26bfbab51a53b3a6360df653",
-    "scripts/verify_stage7_2_reference_set.py": "a2d2b24bffb980d702594d37ea7344b20f991e0c",
+    "scripts/verify_stage7_2_reference_set.py": "4bf525a4fd2bd3c391599f5dfd1d4e0c596cac75",
     "tests/test_stage7_2_reference_set_construction.py": "a076cbbb50b9523029af146941d812adce9bb54c",
     "docs/runtime/REFERENCE_SET_CONSTRUCTION_V1.md": "62aa5b77d94424a81e8dbd43bc3b4be6da2adc35",
     ".gitignore": "e472df420a0f10f9fc4efb418ed3d27e9553a897",
