@@ -1,0 +1,31 @@
+name: Stage 7.2 Reference Storage Check
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/check_stage7_reference_storage.py'
+      - '.github/workflows/test-stage7-2-reference-storage.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-reference-storage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_BUCKET: ${{ vars.R2_BUCKET }}
+      R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install R2 dependency
+        run: python -m pip install --disable-pip-version-check -r requirements-cloud.txt
+      - name: Check Stage 7.2 encrypted R2 objects read-only
+        run: python scripts/check_stage7_reference_storage.py

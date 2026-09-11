@@ -8,7 +8,7 @@ from typing import Any, Iterable
 
 import xlsxwriter
 
-from src.evaluation.calibrated_e021 import with_calibrated_evaluation
+from src.evaluation.calibrated_e021 import EVALUATOR_VERSION as CALIBRATED_EVALUATOR_VERSION, with_calibrated_evaluation
 from src.evaluation.recall_first_e11 import evaluate_recall_first_e11
 from src.reporting.report import record_to_row
 
@@ -186,12 +186,19 @@ def _clean_city(record: dict[str, Any], fallback: Any) -> str:
     return candidate if 1 <= len(candidate) <= 60 else ""
 
 
+def _ensure_calibrated(record: dict[str, Any]) -> dict[str, Any]:
+    evaluation = ((record.get("raw_extra") or {}).get("evaluation") or {})
+    if str(evaluation.get("evaluator_version") or "") == CALIBRATED_EVALUATOR_VERSION:
+        return record
+    return with_calibrated_evaluation(record)
+
+
 def build_user_rows(records: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for record in records:
         if _excluded_operational_role(record):
             continue
-        calibrated_record = with_calibrated_evaluation(record)
+        calibrated_record = _ensure_calibrated(record)
         row = record_to_row(calibrated_record)
         priority = str(row.get("recommendation") or "").upper()
         lifecycle = str(row.get("lifecycle_status") or "UNKNOWN").upper()
@@ -281,10 +288,18 @@ def build_review_rows(records: Iterable[dict[str, Any]]) -> list[dict[str, Any]]
     return rows
 
 
-def build_user_xlsx(records: Iterable[dict[str, Any]], output_path: Path) -> Path:
+def build_user_xlsx(
+    records: Iterable[dict[str, Any]],
+    output_path: Path,
+    *,
+    rows: list[dict[str, Any]] | None = None,
+    review_rows: list[dict[str, Any]] | None = None,
+) -> Path:
     records = list(records)
-    rows = build_user_rows(records)
-    review_rows = build_review_rows(records)
+    if rows is None:
+        rows = build_user_rows(records)
+    if review_rows is None:
+        review_rows = build_review_rows(records)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     workbook = xlsxwriter.Workbook(output_path)

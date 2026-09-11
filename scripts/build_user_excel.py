@@ -5,12 +5,21 @@ import json
 from collections import Counter
 from pathlib import Path
 
-from src.evaluation.calibrated_e021 import EVALUATOR_VERSION, with_calibrated_evaluation
+from src.evaluation.calibrated_e021 import EVALUATOR_VERSION, evaluate_calibrated, with_calibrated_evaluation
 from src.reporting.report import record_to_row
 from src.reporting.user_excel import build_review_rows, build_user_rows, build_user_xlsx, load_canonical_records
 
 ACTIONABLE = {"STRONG_APPLY", "APPLY", "REVIEW"}
 CHANGE_EVENTS = {"NEW", "MATERIALLY_CHANGED", "REOPENED"}
+
+
+def _calibrated_report_view(record: dict) -> dict:
+    """Attach E0.2.1 evaluation without deep-copying the immutable canonical payload."""
+    clone = dict(record)
+    raw_extra = dict(record.get("raw_extra") or {})
+    raw_extra["evaluation"] = evaluate_calibrated(record)
+    clone["raw_extra"] = raw_extra
+    return clone
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -22,7 +31,12 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def build_user_summary(records: list[dict], base_summary: dict) -> dict:
+def build_user_summary(
+    records: list[dict],
+    base_summary: dict,
+    *,
+    review_rows: list[dict] | None = None,
+) -> dict:
     recommendation_counts: Counter[str] = Counter()
     current_actionable = 0
     today_actionable = 0
@@ -30,7 +44,8 @@ def build_user_summary(records: list[dict], base_summary: dict) -> dict:
     low_priority = 0
 
     for record in records:
-        calibrated = with_calibrated_evaluation(record)
+        evaluation = ((record.get("raw_extra") or {}).get("evaluation") or {})
+        calibrated = record if str(evaluation.get("evaluator_version") or "") == EVALUATOR_VERSION else with_calibrated_evaluation(record)
         row = record_to_row(calibrated)
         priority = str(row.get("recommendation") or "REVIEW").upper()
         lifecycle = str(row.get("lifecycle_status") or "UNKNOWN").upper()
@@ -66,7 +81,7 @@ def build_user_summary(records: list[dict], base_summary: dict) -> dict:
         "audit_workbook_preserves_e0_1": True,
         "clean_excel_contains": ["STRONG_APPLY", "APPLY", "REVIEW"],
     }
-    additional = build_review_rows(records)
+    additional = review_rows if review_rows is not None else build_review_rows(records)
     summary["review_more_count"] = len(additional)
     summary["review_more_types"] = dict(Counter(row["review_type"] for row in additional))
     summary["review_more_changes"] = sum(row["seen_status"] in CHANGE_EVENTS for row in additional)
@@ -78,8 +93,10 @@ def build_user_summary(records: list[dict], base_summary: dict) -> dict:
 def main() -> int:
     args = build_parser().parse_args()
     records = load_canonical_records(args.records)
-    rows = build_user_rows(records)
-    build_user_xlsx(records, args.output)
+    calibrated_records = [_calibrated_report_view(record) for record in records]
+    rows = build_user_rows(calibrated_records)
+    review_rows = build_review_rows(calibrated_records)
+    build_user_xlsx(calibrated_records, args.output, rows=rows, review_rows=review_rows)
     counts: dict[str, int] = {}
     for row in rows:
         key = row["recommendation"]
@@ -90,7 +107,7 @@ def main() -> int:
         if not args.base_summary or not args.summary_out:
             raise SystemExit("--base-summary and --summary-out must be supplied together")
         base_summary = json.loads(args.base_summary.read_text(encoding="utf-8"))
-        user_summary = build_user_summary(records, base_summary)
+        user_summary = build_user_summary(calibrated_records, base_summary, review_rows=review_rows)
         args.summary_out.parent.mkdir(parents=True, exist_ok=True)
         args.summary_out.write_text(json.dumps(user_summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         summary_path = str(args.summary_out)
@@ -103,7 +120,7 @@ def main() -> int:
                 "summary": summary_path,
                 "evaluator_version": EVALUATOR_VERSION,
                 "rows": len(rows),
-                "review_more_rows": len(build_review_rows(records)),
+                "review_more_rows": len(review_rows),
                 "sheets": ["JOBS", "REVIEW_MORE"],
                 "priorities": counts,
                 "columns": ["Priority", "Title", "Country", "Role", "Institution", "City", "Deadline", "Link"],
