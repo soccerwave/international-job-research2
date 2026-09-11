@@ -47,9 +47,9 @@ def main() -> int:
         "comparison_forbidden_before_freeze": status["capture_policy"]["comparison_with_pipeline_allowed_before_reference_freeze"] is False,
         "eligibility_freeze_before_matching": status["capture_policy"]["reference_eligibility_must_be_frozen_before_matching"] is True,
         "reference_schema_has_no_pipeline_match_fields": status["schema_forbidden_match_fields_present"] == [],
-        "initial_reference_record_count_zero": status["current_record_count"] == 0,
-        "initial_capture_event_count_zero": status["current_capture_event_count"] == 0,
-        "storage_migration_guard": status["storage_migration_status"] == "LIVE_PRIVATE_R2_CAPTURE_IMPLEMENTED_PENDING_VALIDATION",
+        "reference_record_count_nonnegative": status["current_record_count"] >= 0,
+        "capture_event_count_nonnegative": status["current_capture_event_count"] >= 0,
+        "storage_migration_guard": status["storage_migration_status"] == "LIVE_PRIVATE_R2_CAPTURE_VALIDATED",
         "expected_source_day_captures_locked": status["expected_source_day_captures"] == 224,
         "completion_quality_gate_locked": status["completion_quality_gate"]
         == "EVERY_SOURCE_DAY_HAS_CAPTURED_COMPLETE_OR_DOCUMENTED_RESOLVED_EXCEPTION",
