@@ -156,7 +156,7 @@ jobs:
             --commit '${{ steps.source.outputs.head_sha }}' \
             --manifest-out control-plane-publish-evidence.json
       - name: Deliver clean report after a manual production run
-        if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.event == 'workflow_dispatch' }}
+        if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'workflow_dispatch') }}
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_IDS: ${{ secrets.TELEGRAM_CHAT_IDS }}
