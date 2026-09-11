@@ -620,15 +620,23 @@
     "reference_public_git_jsonl_tracked": false,
     "reference_storage_logical_prefix": "stage7/reference/v1/",
     "reference_storage_migration_status": "PRIVATE_STORAGE_REQUIRED_BEFORE_FIRST_CAPTURE",
-    "reference_storage_live_verification": "PENDING_PR_R2_READ_ONLY_CHECK",
+    "reference_storage_live_verification": "R2_READ_ONLY_CHECK_RUN_34589261022_EMPTY",
     "reference_capture_automation_schedule": "2026-09-12_THROUGH_2026-09-24_08:00_EUROPE_MADRID",
-    "reference_capture_automation_reenabled": true
+    "reference_capture_automation_reenabled": true,
+    "reference_storage_day1_expected_objects_exist": false,
+    "reference_storage_day1_unexpected_object_count": 0,
+    "reference_day1_capture_persisted": false,
+    "reference_day1_capture_issue": "AUTOMATION_TRIGGERED_BUT_NO_STAGE7_R2_OBJECTS_CREATED"
   },
   "control_plane_reporting": {
     "publisher_timeout_incident_run_id": 34564261302,
     "publisher_source_production_run_id": 34560575563,
     "publisher_incident_stage": "BUILD_CLEAN_USER_EXCEL",
     "publisher_root_fix": "REUSE_SINGLE_E021_CALIBRATION_SINGLE_REVIEW_ROW_BUILD_AND_SHALLOW_REPORT_VIEW",
-    "publisher_live_performance_validation": "PENDING_PR_REPLAY"
+    "publisher_live_performance_validation": "PASS_RUN_34589877206",
+    "publisher_build_elapsed_seconds": 451,
+    "publisher_live_fixture_records_observed": 12778,
+    "publisher_live_rows": 232,
+    "publisher_live_review_more_rows": 9408
   }
 }
