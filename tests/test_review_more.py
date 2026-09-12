@@ -46,19 +46,27 @@ class ReviewMoreTests(unittest.TestCase):
         detail = record(priority="SKIP", title="Generic research position", full_jd="Unclassified subject. " * 30)
         closed = record(priority="SKIP", title="Closed role", lifecycle="CLOSED", full_jd="Unclassified subject. " * 30)
         hidden = record(priority="SKIP", title="Other role", full_jd="Unclassified subject. " * 30)
-        records = [jobs, rescue, detail, closed, hidden]
+        seen_again = record(priority="SKIP", title="Seen rescue", full_jd="Unclassified subject. " * 30)
+        rescue["raw_extra"]["state"]["seen_status"] = "NEW"
+        detail["raw_extra"]["state"]["seen_status"] = "MATERIALLY_CHANGED"
+        closed["raw_extra"]["state"]["seen_status"] = "NEW"
+        hidden["raw_extra"]["state"]["seen_status"] = "NEW"
+        seen_again["raw_extra"]["state"]["seen_status"] = "SEEN"
+        records = [jobs, rescue, detail, closed, hidden, seen_again]
         before = copy.deepcopy(records)
         baseline = build_user_rows(records)
         self.assertEqual([r["title"] for r in baseline], [jobs["position"]["title_raw"]])
         def route(r):
             return {"operational_route": {
                 "Generic fellowship": "JOBS", "Generic research position": "NEEDS_DETAIL_REVIEW",
-                "Closed role": "JOBS", "Other role": "HIDDEN",
+                "Closed role": "JOBS", "Other role": "HIDDEN", "Seen rescue": "JOBS",
             }.get(r["position"]["title_raw"], "HIDDEN")}
         with patch("src.reporting.user_excel.evaluate_recall_first_e11", side_effect=route):
             rows = build_review_rows(records)
             self.assertEqual({r["review_type"] for r in rows}, {"RESCUE_REVIEW", "NEEDS_DETAIL_REVIEW"})
             self.assertEqual(len(rows), 2)
+            self.assertEqual({r["seen_status"] for r in rows}, {"NEW", "MATERIALLY_CHANGED"})
+            self.assertNotIn("Seen rescue", {r["title"] for r in rows})
             self.assertFalse({r["title"] for r in baseline} & {r["title"] for r in rows})
             summary = build_user_summary(records, {"run_id": "test"})
             self.assertEqual(summary["review_more_count"], 2)
