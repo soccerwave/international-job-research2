@@ -28,7 +28,7 @@ jobs:
     timeout-minutes: 60
     env:
       SOURCE_RUN_ID: ${{ inputs.source_run_id }}
-      PRODUCTION_RUN_ID: prod-recovery-${{ github.run_id }}-${{ github.run_attempt }}
+      PRODUCTION_RUN_ID: prod-${{ inputs.source_run_id }}-1
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
       R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
