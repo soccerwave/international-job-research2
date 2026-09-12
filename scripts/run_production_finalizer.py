@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import argparse
-import functools
 import json
 import sys
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -12,7 +10,6 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-import src.runtime.preprod as preprod_runtime
 from src.runtime.observability import collect_run_observability
 from src.runtime.production import run_production_finalization
 from src.runtime.production_reporting import rebuild_fresh_bootstrap_report
@@ -22,37 +19,6 @@ from src.state.r2_store import R2StateStore
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
-
-
-def _install_phase_timing() -> None:
-    phase_targets = {
-        "fanin": "finalize_run",
-        "source_diagnostics": "collect_source_diagnostics",
-        "canonicalization": "canonicalize_records",
-        "evaluation": "evaluate_canonical_records",
-        "schema_validation": "_validate_canonical",
-        "state_persistence": "persist_preprod_state",
-        "report_payload": "build_reporting_payload",
-        "xlsx_build": "build_xlsx",
-        "report_summary_write": "write_summary_json",
-    }
-    for phase, name in phase_targets.items():
-        original = getattr(preprod_runtime, name)
-
-        @functools.wraps(original)
-        def timed(*args, __phase=phase, __original=original, **kwargs):
-            started = time.perf_counter()
-            try:
-                return __original(*args, **kwargs)
-            finally:
-                elapsed = time.perf_counter() - started
-                print(
-                    f"[finalizer_timing] phase={__phase} elapsed_seconds={elapsed:.3f}",
-                    file=sys.stderr,
-                    flush=True,
-                )
-
-        setattr(preprod_runtime, name, timed)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -82,9 +48,6 @@ def main() -> int:
     output_root = Path(args.output_root)
     artifact_root = Path(args.artifact_root)
     store = R2StateStore.from_env(prefix="")
-    _install_phase_timing()
-    started = time.perf_counter()
-    print("[finalizer_timing] phase=production_finalization_start", file=sys.stderr, flush=True)
     result = run_production_finalization(
         run_id=args.run_id,
         artifact_root=artifact_root,
@@ -95,21 +58,10 @@ def main() -> int:
         allow_bootstrap=args.allow_bootstrap,
         strict_release=args.strict_release,
     )
-    print(
-        f"[finalizer_timing] phase=production_finalization_done elapsed_seconds={time.perf_counter() - started:.3f}",
-        file=sys.stderr,
-        flush=True,
-    )
-    observability_started = time.perf_counter()
     result["run_observability"] = collect_run_observability(
         run_id=args.run_id,
         artifact_root=artifact_root,
         expected_shards=PRODUCTION_SHARD_IDS,
-    )
-    print(
-        f"[finalizer_timing] phase=run_observability_done elapsed_seconds={time.perf_counter() - observability_started:.3f}",
-        file=sys.stderr,
-        flush=True,
     )
     if (
         result.get("status") != "STRICT_PREFLIGHT_FAILED"
