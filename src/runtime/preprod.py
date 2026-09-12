@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import json
-import sys
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -26,11 +24,6 @@ VACANCY_VALIDATOR = Draft202012Validator(VACANCY_SCHEMA)
 
 def _json_bytes(payload: Any) -> bytes:
     return (json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode("utf-8")
-
-
-def _emit_phase_timing(*, run_id: str, phase: str, started_at: float, **details: Any) -> None:
-    payload = {"event": "finalizer_phase_timing", "run_id": run_id, "phase": phase, "elapsed_seconds": round(time.perf_counter() - started_at, 3), **details}
-    print("[finalizer_timing] " + json.dumps(payload, ensure_ascii=False, sort_keys=True), file=sys.stderr, flush=True)
 
 
 def _parse_iso(value: str) -> datetime:
@@ -284,13 +277,8 @@ def run_preprod_finalization(
     expected = list(dict.fromkeys(expected_shards or []))
     missing_shards = [shard for shard in expected if shard not in present_shards]
 
-    phase_started = time.perf_counter()
     fanin = finalize_run(run_id=run_id, artifact_root=artifact_root, output_root=output_root)
-    _emit_phase_timing(run_id=run_id, phase="fanin", started_at=phase_started, fanin_status=fanin.status.value)
-
-    phase_started = time.perf_counter()
     source_diagnostics = collect_source_diagnostics(run_id=run_id, artifact_root=artifact_root)
-    _emit_phase_timing(run_id=run_id, phase="source_diagnostics", started_at=phase_started, sources=len(source_diagnostics))
     for shard in missing_shards:
         source_diagnostics[f"shard::{shard}"] = {
             "status": "ERROR",
@@ -322,28 +310,13 @@ def run_preprod_finalization(
         atomic_create_bytes(preprod_dir / "preprod_summary.json", _json_bytes(summary))
         return summary
 
-    phase_started = time.perf_counter()
     raw_records = _load_fanin_records(run_id=run_id, output_root=output_root)
-    _emit_phase_timing(run_id=run_id, phase="load_fanin_records", started_at=phase_started, raw_records=len(raw_records))
-
-    phase_started = time.perf_counter()
     canonical, canonical_summary = canonicalize_records(raw_records)
-    _emit_phase_timing(run_id=run_id, phase="canonicalization", started_at=phase_started, canonical_records=len(canonical))
-
-    phase_started = time.perf_counter()
     for record in canonical:
         apply_central_availability(record, observed_at=observed_at)
-    _emit_phase_timing(run_id=run_id, phase="availability", started_at=phase_started, records=len(canonical))
-
-    phase_started = time.perf_counter()
     evaluate_canonical_records(canonical)
-    _emit_phase_timing(run_id=run_id, phase="evaluation", started_at=phase_started, records=len(canonical))
-
-    phase_started = time.perf_counter()
     _validate_canonical(canonical)
-    _emit_phase_timing(run_id=run_id, phase="schema_validation", started_at=phase_started, records=len(canonical))
 
-    phase_started = time.perf_counter()
     state_result, state_projection = persist_preprod_state(
         canonical,
         state_backend=state_backend,
@@ -353,9 +326,7 @@ def run_preprod_finalization(
         r2_store=r2_store,
         allow_bootstrap=allow_bootstrap,
     )
-    _emit_phase_timing(run_id=run_id, phase="state_persistence", started_at=phase_started, records=len(canonical))
 
-    phase_started = time.perf_counter()
     payload = build_reporting_payload(
         canonical,
         run_id=run_id,
@@ -363,15 +334,8 @@ def run_preprod_finalization(
         state_summary=state_result.summary,
         source_diagnostics=source_diagnostics,
     )
-    _emit_phase_timing(run_id=run_id, phase="report_payload", started_at=phase_started, audit_rows=len(payload["audit"]))
-
-    phase_started = time.perf_counter()
     report_path = build_xlsx(payload, preprod_dir / "academic_job_report.xlsx")
-    _emit_phase_timing(run_id=run_id, phase="xlsx_build", started_at=phase_started, audit_rows=len(payload["audit"]))
-
-    phase_started = time.perf_counter()
     report_summary_path = write_summary_json(payload, preprod_dir / "report_summary.json")
-    _emit_phase_timing(run_id=run_id, phase="report_summary_write", started_at=phase_started)
 
     if state_result.summary.get("records_observed") != len(canonical):
         raise RuntimeError("State/report integration mismatch: state records_observed != canonical records")
