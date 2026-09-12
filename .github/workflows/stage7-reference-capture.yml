@@ -2,7 +2,7 @@ name: Stage 7.2 Independent Reference Capture
 
 on:
   schedule:
-    - cron: '0 6 * * *'
+    - cron: '7 6 * * *'
   push:
     branches: [main]
     paths:
