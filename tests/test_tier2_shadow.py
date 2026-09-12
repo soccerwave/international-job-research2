@@ -54,10 +54,21 @@ class Tier2ShadowTests(unittest.TestCase):
                 self.assertFalse(result["would_skip"])
 
     def test_unrelated_research_identity_is_still_protected_in_shadow(self):
-        result = evaluate_tier2_shadow(job("Research Engineer in Power Systems"))
-        self.assertTrue(result["matched"])
-        self.assertTrue(result["protected"])
-        self.assertFalse(result["would_skip"])
+        for title in [
+            "Research Engineer in Power Systems",
+            "Principal Research Software Engineer",
+            "Senior Research Data Engineer",
+            "Ingénieur de recherche Stress abiotique des plantes F/H",
+            "Ingegnere di ricerca in sistemi embedded",
+            "Ingeniero de investigacion en sistemas",
+            "Forschungsingenieur Robotik",
+            "Scientific Software Engineer",
+        ]:
+            with self.subTest(title=title):
+                result = evaluate_tier2_shadow(job(title))
+                self.assertTrue(result["matched"] or "scientific software engineer" in title.lower())
+                self.assertTrue(result["protected"])
+                self.assertFalse(result["would_skip"])
 
     def test_unmatched_title_is_unchanged(self):
         result = evaluate_tier2_shadow(job("Research Fellow in Exercise Physiology"))

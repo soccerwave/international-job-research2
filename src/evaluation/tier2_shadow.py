@@ -13,7 +13,10 @@ _PROTECTED_RESEARCH_IDENTITY = re.compile(
     r"\b(?:post\s*-?\s*doc(?:toral)?|postdoctoral|post-doctoral|research\s+fellow|"
     r"research\s+associate|assistant\s+professor|research\s+assistant\s+professor|"
     r"lecturer|tenure\s*-?\s*track|junior\s+profess(?:or|orship)|juniorprofessor|"
-    r"research\s+scientist|scientific\s+researcher|researcher|research\s+engineer|"
+    r"research\s+scientist|scientific\s+researcher|researcher|"
+    r"(?:principal\s+|senior\s+)?research(?:\s+[a-z][a-z0-9-]*){0,3}\s+(?:engineer|data\s+scientist|data\s+engineer)|"
+    r"scientific(?:\s+software|\s+data)?\s+engineer|ingenieur\s+de\s+recherche|"
+    r"ingegnere\s+di\s+ricerca|ingenier[oa]\s+de\s+investigacion|forschungsingenieur(?:in)?|"
     r"research\s+data\s+scientist|doctoral\s+researcher|phd\s+(?:candidate|researcher)|"
     r"universit[aä]tsassistent.{0,20}postdoc|university\s+assistant.{0,20}postdoc)\b",
     re.I,
