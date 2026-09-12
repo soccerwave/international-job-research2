@@ -98,23 +98,55 @@ def _same_vacancy_cached(a: dict[str, Any], b: dict[str, Any]) -> bool:
 def canonicalize_records(records: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     features = {id(record): _features(record) for record in records}
     clusters: list[list[dict[str, Any]]] = []
+
+    # Cluster metadata supports only fast rejections that are already mandatory
+    # rejection conditions in the legacy matcher. None of these conditions can
+    # create a new merge or suppress a pair that legacy could accept.
     cluster_countries: list[set[str]] = []
     cluster_has_unknown_country: list[bool] = []
+    cluster_source_keys: list[set[str]] = []
+    cluster_source_ids: list[dict[str, set[str]]] = []
+    cluster_has_missing_source_id: list[dict[str, bool]] = []
+    cluster_refs: list[set[str]] = []
+    cluster_has_empty_refs: list[bool] = []
 
     for incoming in records:
         incoming_features = features[id(incoming)]
         incoming_country = incoming_features["country"]
+        incoming_source_key = incoming_features["source_key"]
+        incoming_source_id = incoming_features["source_job_id"]
+        incoming_refs = incoming_features["refs"]
         match_index: int | None = None
 
         for index, cluster in enumerate(clusters):
-            # This is a semantics-preserving fast rejection only. The legacy matcher
-            # always returns False when both records have known, different countries.
-            # If any member of a cluster has unknown country, we must retain that
-            # cluster because the unknown-country member could still match incoming.
+            # Legacy rejects every pair with known, different countries.
             if (
                 incoming_country
                 and not cluster_has_unknown_country[index]
                 and incoming_country not in cluster_countries[index]
+            ):
+                continue
+
+            # Legacy rejects same-source pairs when both source_job_id values are
+            # present and distinct. This cluster-level rejection is safe only when
+            # every cluster member comes from that same source, every member has an
+            # id, and none of those ids equals the incoming id.
+            if (
+                incoming_source_key
+                and incoming_source_id
+                and cluster_source_keys[index] == {incoming_source_key}
+                and not cluster_has_missing_source_id[index].get(incoming_source_key, False)
+                and incoming_source_id not in cluster_source_ids[index].get(incoming_source_key, set())
+            ):
+                continue
+
+            # Legacy rejects a pair when both records have reference tokens and the
+            # token sets are disjoint. This is safe at cluster level only when every
+            # member has at least one reference token.
+            if (
+                incoming_refs
+                and not cluster_has_empty_refs[index]
+                and incoming_refs.isdisjoint(cluster_refs[index])
             ):
                 continue
 
@@ -129,12 +161,37 @@ def canonicalize_records(records: list[dict[str, Any]]) -> tuple[list[dict[str, 
             clusters.append([incoming])
             cluster_countries.append({incoming_country} if incoming_country else set())
             cluster_has_unknown_country.append(not bool(incoming_country))
+            cluster_source_keys.append({incoming_source_key} if incoming_source_key else set())
+            cluster_source_ids.append(
+                {incoming_source_key: {incoming_source_id}}
+                if incoming_source_key and incoming_source_id
+                else {}
+            )
+            cluster_has_missing_source_id.append(
+                {incoming_source_key: not bool(incoming_source_id)}
+                if incoming_source_key
+                else {}
+            )
+            cluster_refs.append(set(incoming_refs))
+            cluster_has_empty_refs.append(not bool(incoming_refs))
         else:
             clusters[match_index].append(incoming)
             if incoming_country:
                 cluster_countries[match_index].add(incoming_country)
             else:
                 cluster_has_unknown_country[match_index] = True
+
+            if incoming_source_key:
+                cluster_source_keys[match_index].add(incoming_source_key)
+                if incoming_source_id:
+                    cluster_source_ids[match_index].setdefault(incoming_source_key, set()).add(incoming_source_id)
+                else:
+                    cluster_has_missing_source_id[match_index][incoming_source_key] = True
+
+            if incoming_refs:
+                cluster_refs[match_index].update(incoming_refs)
+            else:
+                cluster_has_empty_refs[match_index] = True
 
     canonical = [legacy._merge_group(cluster) for cluster in clusters]
     cross_source_clusters = 0
