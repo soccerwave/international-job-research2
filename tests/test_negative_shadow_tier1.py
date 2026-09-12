@@ -1,6 +1,7 @@
 import unittest
 
 from src.evaluation.negative_shadow_tier1 import evaluate_negative_shadow
+from scripts.build_user_excel import apply_tier1_report_filter
 
 
 def job(title: str) -> dict:
@@ -62,6 +63,27 @@ class Tier1NegativeShadowTests(unittest.TestCase):
         result = evaluate_negative_shadow(job("Research Fellow in Exercise Physiology"))
         self.assertFalse(result["matched"])
         self.assertFalse(result["would_skip"])
+
+    def test_active_report_filter_removes_only_audited_tier1_matches(self):
+        titles = [
+            "Business Analyst - Credit Risk Stress Testing",
+            "Nauczyciel matematyki",
+            "Assistenzarzt Geriatrie in der Rehabilitation",
+            "Institute Administrator",
+            "Sales Manager",
+            "Postdoctoral Research Fellow in Credit Risk Stress Testing",
+            "Research Fellow in Exercise Physiology",
+        ]
+        records = [job(title) for title in titles]
+        kept = apply_tier1_report_filter(records)
+        kept_titles = [item["position"]["title_raw"] for item in kept]
+        self.assertEqual(
+            kept_titles,
+            [
+                "Postdoctoral Research Fellow in Credit Risk Stress Testing",
+                "Research Fellow in Exercise Physiology",
+            ],
+        )
 
 
 if __name__ == "__main__":
