@@ -1,1 +1,0 @@
-This note is not part of the canonicalizer benchmark and can be removed after validation.
