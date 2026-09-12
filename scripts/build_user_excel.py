@@ -16,12 +16,8 @@ CHANGE_EVENTS = {"NEW", "MATERIALLY_CHANGED", "REOPENED"}
 
 
 def apply_tier1_report_filter(records: list[dict]) -> list[dict]:
-    """Remove only audited Tier-1 non-target occupations from the user-facing report."""
+    """Remove audited Tier-1 rules plus the activated-safe Tier-2 subsets."""
     return [record for record in records if not evaluate_negative_shadow(record).get("would_skip") and not evaluate_tier2_shadow(record).get("would_filter")]
-
-
-def apply_tier2_active_report_filter(records: list[dict]) -> list[dict]:
-    return [record for record in records if not evaluate_tier2_shadow(record).get("would_filter")]
 
 
 def _calibrated_report_view(record: dict) -> dict:
