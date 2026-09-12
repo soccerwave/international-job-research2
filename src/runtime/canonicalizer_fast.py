@@ -98,21 +98,43 @@ def _same_vacancy_cached(a: dict[str, Any], b: dict[str, Any]) -> bool:
 def canonicalize_records(records: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     features = {id(record): _features(record) for record in records}
     clusters: list[list[dict[str, Any]]] = []
+    cluster_countries: list[set[str]] = []
+    cluster_has_unknown_country: list[bool] = []
 
     for incoming in records:
         incoming_features = features[id(incoming)]
+        incoming_country = incoming_features["country"]
         match_index: int | None = None
+
         for index, cluster in enumerate(clusters):
+            # This is a semantics-preserving fast rejection only. The legacy matcher
+            # always returns False when both records have known, different countries.
+            # If any member of a cluster has unknown country, we must retain that
+            # cluster because the unknown-country member could still match incoming.
+            if (
+                incoming_country
+                and not cluster_has_unknown_country[index]
+                and incoming_country not in cluster_countries[index]
+            ):
+                continue
+
             if any(
                 _same_vacancy_cached(features[id(existing)], incoming_features)
                 for existing in cluster
             ):
                 match_index = index
                 break
+
         if match_index is None:
             clusters.append([incoming])
+            cluster_countries.append({incoming_country} if incoming_country else set())
+            cluster_has_unknown_country.append(not bool(incoming_country))
         else:
             clusters[match_index].append(incoming)
+            if incoming_country:
+                cluster_countries[match_index].add(incoming_country)
+            else:
+                cluster_has_unknown_country[match_index] = True
 
     canonical = [legacy._merge_group(cluster) for cluster in clusters]
     cross_source_clusters = 0
