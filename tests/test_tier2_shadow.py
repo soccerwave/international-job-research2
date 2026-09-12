@@ -1,6 +1,7 @@
 import unittest
 
 from src.evaluation.tier2_shadow import evaluate_tier2_shadow
+from scripts.build_user_excel import apply_tier1_report_filter
 
 
 def job(title: str) -> dict:
@@ -74,6 +75,74 @@ class Tier2ShadowTests(unittest.TestCase):
         result = evaluate_tier2_shadow(job("Research Fellow in Exercise Physiology"))
         self.assertFalse(result["matched"])
         self.assertFalse(result["would_skip"])
+
+    def test_safe_subsets_are_filterable_but_riskier_subsets_remain_shadow_only(self):
+        safe_titles = [
+            "Business Intelligence Analyst",
+            "Business Analyst",
+            "Reporting Analyst",
+            "Consulting Trainer",
+            "Formateur Habilitations Electriques",
+            "Mechanical Engineer",
+            "Civil Engineer",
+            "Process Engineer",
+        ]
+        shadow_titles = [
+            "Data Scientist",
+            "Data Analyst",
+            "Data Engineer",
+            "Analytics Engineer",
+            "Software Engineer",
+            "Systems Engineer",
+            "Simulation Engineer",
+            "Ingenieur Systeme",
+        ]
+        for title in safe_titles:
+            with self.subTest(title=title, mode="safe"):
+                result = evaluate_tier2_shadow(job(title))
+                self.assertTrue(result["would_filter"])
+                self.assertFalse(result["protected"])
+        for title in shadow_titles:
+            with self.subTest(title=title, mode="shadow"):
+                result = evaluate_tier2_shadow(job(title))
+                self.assertFalse(result["would_filter"])
+                self.assertTrue(result["shadow_only_candidate"])
+
+    def test_multilingual_research_identities_protect_overlap(self):
+        titles = [
+            "Chercheur Data Scientist en santé numérique",
+            "Investigadora Data Analyst en salud pública",
+            "Ricercatore Data Engineer in neuroscienze",
+            "Onderzoeker Systems Engineer Neuroimaging",
+            "Wissenschaftliche Mitarbeiterin Software Engineer",
+        ]
+        for title in titles:
+            with self.subTest(title=title):
+                result = evaluate_tier2_shadow(job(title))
+                self.assertTrue(result["protected"])
+                self.assertFalse(result["would_filter"])
+                self.assertFalse(result["would_skip"])
+
+    def test_user_report_removes_safe_subsets_and_retains_shadow_candidates(self):
+        titles = [
+            "Business Analyst",
+            "Consulting Trainer",
+            "Mechanical Engineer",
+            "Data Scientist",
+            "Software Engineer",
+            "Simulation Engineer",
+            "Postdoctoral Business Analyst in Population Health",
+        ]
+        kept = apply_tier1_report_filter([job(title) for title in titles])
+        self.assertEqual(
+            [item["position"]["title_raw"] for item in kept],
+            [
+                "Data Scientist",
+                "Software Engineer",
+                "Simulation Engineer",
+                "Postdoctoral Business Analyst in Population Health",
+            ],
+        )
 
 
 if __name__ == "__main__":
