@@ -3,7 +3,7 @@ from __future__ import annotations
 from difflib import SequenceMatcher
 from typing import Any
 
-from src.runtime import canonicalizer as legacy
+from src.runtime import canonicalizer_legacy as legacy
 
 
 def _features(record: dict[str, Any]) -> dict[str, Any]:
@@ -99,9 +99,6 @@ def canonicalize_records(records: list[dict[str, Any]]) -> tuple[list[dict[str, 
     features = {id(record): _features(record) for record in records}
     clusters: list[list[dict[str, Any]]] = []
 
-    # Cluster metadata supports only fast rejections that are already mandatory
-    # rejection conditions in the legacy matcher. None of these conditions can
-    # create a new merge or suppress a pair that legacy could accept.
     cluster_countries: list[set[str]] = []
     cluster_has_unknown_country: list[bool] = []
     cluster_source_keys: list[set[str]] = []
@@ -119,7 +116,6 @@ def canonicalize_records(records: list[dict[str, Any]]) -> tuple[list[dict[str, 
         match_index: int | None = None
 
         for index, cluster in enumerate(clusters):
-            # Legacy rejects every pair with known, different countries.
             if (
                 incoming_country
                 and not cluster_has_unknown_country[index]
@@ -127,10 +123,6 @@ def canonicalize_records(records: list[dict[str, Any]]) -> tuple[list[dict[str, 
             ):
                 continue
 
-            # Legacy rejects same-source pairs when both source_job_id values are
-            # present and distinct. This cluster-level rejection is safe only when
-            # every cluster member comes from that same source, every member has an
-            # id, and none of those ids equals the incoming id.
             if (
                 incoming_source_key
                 and incoming_source_id
@@ -140,9 +132,6 @@ def canonicalize_records(records: list[dict[str, Any]]) -> tuple[list[dict[str, 
             ):
                 continue
 
-            # Legacy rejects a pair when both records have reference tokens and the
-            # token sets are disjoint. This is safe at cluster level only when every
-            # member has at least one reference token.
             if (
                 incoming_refs
                 and not cluster_has_empty_refs[index]
