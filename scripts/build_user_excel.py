@@ -14,6 +14,11 @@ ACTIONABLE = {"STRONG_APPLY", "APPLY", "REVIEW"}
 CHANGE_EVENTS = {"NEW", "MATERIALLY_CHANGED", "REOPENED"}
 
 
+def apply_tier1_report_filter(records: list[dict]) -> list[dict]:
+    """Remove only audited Tier-1 non-target occupations from the user-facing report."""
+    return [record for record in records if not evaluate_negative_shadow(record).get("would_skip")]
+
+
 def _calibrated_report_view(record: dict) -> dict:
     """Attach E0.2.1 evaluation without deep-copying the immutable canonical payload."""
     clone = dict(record)
@@ -94,7 +99,7 @@ def build_user_summary(
 def main() -> int:
     args = build_parser().parse_args()
     records = load_canonical_records(args.records)
-    visible_records = [record for record in records if not evaluate_negative_shadow(record).get("would_skip")]
+    visible_records = apply_tier1_report_filter(records)
     calibrated_records = [_calibrated_report_view(record) for record in visible_records]
     rows = build_user_rows(calibrated_records)
     review_rows = build_review_rows(calibrated_records)
