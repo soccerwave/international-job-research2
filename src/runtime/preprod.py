@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -24,6 +26,11 @@ VACANCY_VALIDATOR = Draft202012Validator(VACANCY_SCHEMA)
 
 def _json_bytes(payload: Any) -> bytes:
     return (json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode("utf-8")
+
+
+def _emit_phase_timing(*, run_id: str, phase: str, started_at: float, **details: Any) -> None:
+    payload = {"event": "finalizer_phase_timing", "run_id": run_id, "phase": phase, "elapsed_seconds": round(time.perf_counter() - started_at, 3), **details}
+    print("[finalizer_timing] " + json.dumps(payload, ensure_ascii=False, sort_keys=True), file=sys.stderr, flush=True)
 
 
 def _parse_iso(value: str) -> datetime:
