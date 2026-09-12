@@ -132,7 +132,7 @@
     "data/reference/stage7/reference_set_manifest_v1.json": "51acd441a099071f612b56591d0c9659b88c2db2",
     "docs/security/PUBLIC_READINESS.md": "dd2a7948788b7b31aa7758b9321a7c14e346300c",
     "src/reporting/user_excel.py": "bbdc60cde8fcd03b917843fd678b49616c21f2cb",
-    "scripts/build_user_excel.py": "ac50a70b03d4abeaa86dd9528add7b46457d5f93",
+    "scripts/build_user_excel.py": "de220c764c5c3c3f46946af1c300d6dfbbaa9732",
     "scripts/check_stage7_reference_storage.py": "6bd9424a6e569c9083275fe6868b17f674fdde88",
     ".github/workflows/test-stage7-2-reference-storage.yml": "a971a1242c15f5135399e6a9bfb4c59898aa128d",
     ".github/workflows/test-publisher-build-performance.yml": "8395a7f991f4a183e27e9ab33a1176b8682a21b2",
