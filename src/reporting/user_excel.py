@@ -15,6 +15,7 @@ from src.reporting.report import record_to_row
 USER_REPORT_VERSION = "USER_REPORT_V1.4.1_OPERATIONAL_ROLE_FILTER"
 USER_PRIORITIES = ("STRONG_APPLY", "APPLY", "REVIEW")
 PRIORITY_RANK = {value: index for index, value in enumerate(USER_PRIORITIES)}
+REVIEW_CHANGE_EVENTS = {"NEW", "MATERIALLY_CHANGED", "REOPENED"}
 
 # Apply identically to both sheets, before either evaluator can rescue a role.
 # Match occupational identities at the start of the title, never JD keywords:
@@ -258,6 +259,9 @@ def build_review_rows(records: Iterable[dict[str, Any]]) -> list[dict[str, Any]]
         row = record_to_row(record)
         if str(row.get("lifecycle_status") or "UNKNOWN").upper() == "CLOSED":
             continue
+        seen_status = str(row.get("seen_status") or "").upper()
+        if seen_status not in REVIEW_CHANGE_EVENTS:
+            continue
         result = evaluate_recall_first_e11(record)
         route = result.get("operational_route")
         if route not in {"JOBS", "NEEDS_DETAIL_REVIEW"}:
@@ -277,14 +281,13 @@ def build_review_rows(records: Iterable[dict[str, Any]]) -> list[dict[str, Any]]
             "city": _clean_city(record, row.get("city")),
             "deadline": deadline,
             "url": _compact(row.get("url")),
-            "seen_status": _compact(row.get("seen_status")),
+            "seen_status": seen_status,
             "review_reason": (
                 "Essential details are missing or delegated to another document; open the source to verify."
                 if detail else "Excluded from JOBS by E0.2.1; retained by E1.1 for human review. Suitability is unconfirmed."
             ),
         })
-    rows.sort(key=lambda r: (r["seen_status"] not in {"NEW", "MATERIALLY_CHANGED", "REOPENED"},
-                             r["deadline"] or "9999-12-31", r["title"].casefold()))
+    rows.sort(key=lambda r: (r["deadline"] or "9999-12-31", r["title"].casefold()))
     return rows
 
 
