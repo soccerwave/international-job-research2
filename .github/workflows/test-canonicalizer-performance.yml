@@ -12,9 +12,13 @@ permissions:
   actions: read
 
 jobs:
-  compare-sep12-real-data:
+  canonicalize:
+    strategy:
+      fail-fast: false
+      matrix:
+        implementation: [legacy, candidate]
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 50
     env:
       TARGET_ACTIONS_RUN_ID: '34671847466'
       TARGET_PRODUCTION_RUN_ID: 'prod-34671847466-1'
@@ -46,13 +50,66 @@ jobs:
           count="$(find "artifacts/$TARGET_PRODUCTION_RUN_ID/shards" -mindepth 1 -maxdepth 1 -type d | wc -l)"
           echo "decrypted_shard_count=$count"
           test "$count" -eq 17
-      - name: Compare legacy and cached canonicalizers
+      - name: Run ${{ matrix.implementation }} canonicalizer
         run: |
           python scripts/compare_canonicalizers.py \
             --run-id "$TARGET_PRODUCTION_RUN_ID" \
+            --implementation "${{ matrix.implementation }}" \
             --artifact-root artifacts \
-            --output-root compare-output
-      - name: Confirm ephemeral-only comparison
+            --output-root "compare-output/${{ matrix.implementation }}" \
+            --result-json "results/${{ matrix.implementation }}.json"
+      - name: Upload comparison result
+        uses: actions/upload-artifact@v4
+        with:
+          name: canonicalizer-${{ matrix.implementation }}-result
+          path: results/${{ matrix.implementation }}.json
+          if-no-files-found: error
+          retention-days: 1
+      - name: Confirm ephemeral-only execution
         run: |
           test ! -e state/current/state.json
           echo "authoritative_state_mutation=false"
+
+  compare:
+    needs: canonicalize
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Download legacy result
+        uses: actions/download-artifact@v4
+        with:
+          name: canonicalizer-legacy-result
+          path: results
+      - name: Download candidate result
+        uses: actions/download-artifact@v4
+        with:
+          name: canonicalizer-candidate-result
+          path: results
+      - name: Require exact equivalence and report speedup
+        shell: python
+        run: |
+          import json
+          from pathlib import Path
+
+          legacy = json.loads(Path("results/legacy.json").read_text(encoding="utf-8"))
+          candidate = json.loads(Path("results/candidate.json").read_text(encoding="utf-8"))
+
+          exact_output_equivalent = legacy["digest"] == candidate["digest"]
+          summary_equivalent = legacy["summary"] == candidate["summary"]
+          speedup = legacy["elapsed_seconds"] / candidate["elapsed_seconds"] if candidate["elapsed_seconds"] else None
+
+          result = {
+              "status": "PASS" if exact_output_equivalent and summary_equivalent else "FAIL",
+              "exact_output_equivalent": exact_output_equivalent,
+              "summary_equivalent": summary_equivalent,
+              "legacy_digest": legacy["digest"],
+              "candidate_digest": candidate["digest"],
+              "legacy_summary": legacy["summary"],
+              "candidate_summary": candidate["summary"],
+              "legacy_seconds": legacy["elapsed_seconds"],
+              "candidate_seconds": candidate["elapsed_seconds"],
+              "speedup": round(speedup, 3) if speedup is not None else None,
+          }
+          print(json.dumps(result, indent=2))
+          if not exact_output_equivalent or not summary_equivalent:
+              raise SystemExit(2)
