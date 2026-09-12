@@ -343,6 +343,7 @@ def run_preprod_finalization(
     _validate_canonical(canonical)
     _emit_phase_timing(run_id=run_id, phase="schema_validation", started_at=phase_started, records=len(canonical))
 
+    phase_started = time.perf_counter()
     state_result, state_projection = persist_preprod_state(
         canonical,
         state_backend=state_backend,
@@ -352,7 +353,9 @@ def run_preprod_finalization(
         r2_store=r2_store,
         allow_bootstrap=allow_bootstrap,
     )
+    _emit_phase_timing(run_id=run_id, phase="state_persistence", started_at=phase_started, records=len(canonical))
 
+    phase_started = time.perf_counter()
     payload = build_reporting_payload(
         canonical,
         run_id=run_id,
@@ -360,8 +363,15 @@ def run_preprod_finalization(
         state_summary=state_result.summary,
         source_diagnostics=source_diagnostics,
     )
+    _emit_phase_timing(run_id=run_id, phase="report_payload", started_at=phase_started, audit_rows=len(payload["audit"]))
+
+    phase_started = time.perf_counter()
     report_path = build_xlsx(payload, preprod_dir / "academic_job_report.xlsx")
+    _emit_phase_timing(run_id=run_id, phase="xlsx_build", started_at=phase_started, audit_rows=len(payload["audit"]))
+
+    phase_started = time.perf_counter()
     report_summary_path = write_summary_json(payload, preprod_dir / "report_summary.json")
+    _emit_phase_timing(run_id=run_id, phase="report_summary_write", started_at=phase_started)
 
     if state_result.summary.get("records_observed") != len(canonical):
         raise RuntimeError("State/report integration mismatch: state records_observed != canonical records")
