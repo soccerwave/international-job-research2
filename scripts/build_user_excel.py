@@ -6,6 +6,7 @@ from collections import Counter
 from pathlib import Path
 
 from src.evaluation.calibrated_e021 import EVALUATOR_VERSION, evaluate_calibrated, with_calibrated_evaluation
+from src.evaluation.negative_shadow_tier1 import evaluate_negative_shadow
 from src.reporting.report import record_to_row
 from src.reporting.user_excel import build_review_rows, build_user_rows, build_user_xlsx, load_canonical_records
 
@@ -93,7 +94,8 @@ def build_user_summary(
 def main() -> int:
     args = build_parser().parse_args()
     records = load_canonical_records(args.records)
-    calibrated_records = [_calibrated_report_view(record) for record in records]
+    visible_records = [record for record in records if not evaluate_negative_shadow(record).get("would_skip")]
+    calibrated_records = [_calibrated_report_view(record) for record in visible_records]
     rows = build_user_rows(calibrated_records)
     review_rows = build_review_rows(calibrated_records)
     build_user_xlsx(calibrated_records, args.output, rows=rows, review_rows=review_rows)
