@@ -284,8 +284,13 @@ def run_preprod_finalization(
     expected = list(dict.fromkeys(expected_shards or []))
     missing_shards = [shard for shard in expected if shard not in present_shards]
 
+    phase_started = time.perf_counter()
     fanin = finalize_run(run_id=run_id, artifact_root=artifact_root, output_root=output_root)
+    _emit_phase_timing(run_id=run_id, phase="fanin", started_at=phase_started, fanin_status=fanin.status.value)
+
+    phase_started = time.perf_counter()
     source_diagnostics = collect_source_diagnostics(run_id=run_id, artifact_root=artifact_root)
+    _emit_phase_timing(run_id=run_id, phase="source_diagnostics", started_at=phase_started, sources=len(source_diagnostics))
     for shard in missing_shards:
         source_diagnostics[f"shard::{shard}"] = {
             "status": "ERROR",
@@ -317,12 +322,26 @@ def run_preprod_finalization(
         atomic_create_bytes(preprod_dir / "preprod_summary.json", _json_bytes(summary))
         return summary
 
+    phase_started = time.perf_counter()
     raw_records = _load_fanin_records(run_id=run_id, output_root=output_root)
+    _emit_phase_timing(run_id=run_id, phase="load_fanin_records", started_at=phase_started, raw_records=len(raw_records))
+
+    phase_started = time.perf_counter()
     canonical, canonical_summary = canonicalize_records(raw_records)
+    _emit_phase_timing(run_id=run_id, phase="canonicalization", started_at=phase_started, canonical_records=len(canonical))
+
+    phase_started = time.perf_counter()
     for record in canonical:
         apply_central_availability(record, observed_at=observed_at)
+    _emit_phase_timing(run_id=run_id, phase="availability", started_at=phase_started, records=len(canonical))
+
+    phase_started = time.perf_counter()
     evaluate_canonical_records(canonical)
+    _emit_phase_timing(run_id=run_id, phase="evaluation", started_at=phase_started, records=len(canonical))
+
+    phase_started = time.perf_counter()
     _validate_canonical(canonical)
+    _emit_phase_timing(run_id=run_id, phase="schema_validation", started_at=phase_started, records=len(canonical))
 
     state_result, state_projection = persist_preprod_state(
         canonical,
