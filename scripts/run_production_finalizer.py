@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -48,6 +49,8 @@ def main() -> int:
     output_root = Path(args.output_root)
     artifact_root = Path(args.artifact_root)
     store = R2StateStore.from_env(prefix="")
+    started = time.perf_counter()
+    print("[finalizer_timing] phase=production_finalization_start", file=sys.stderr, flush=True)
     result = run_production_finalization(
         run_id=args.run_id,
         artifact_root=artifact_root,
@@ -58,10 +61,21 @@ def main() -> int:
         allow_bootstrap=args.allow_bootstrap,
         strict_release=args.strict_release,
     )
+    print(
+        f"[finalizer_timing] phase=production_finalization_done elapsed_seconds={time.perf_counter() - started:.3f}",
+        file=sys.stderr,
+        flush=True,
+    )
+    observability_started = time.perf_counter()
     result["run_observability"] = collect_run_observability(
         run_id=args.run_id,
         artifact_root=artifact_root,
         expected_shards=PRODUCTION_SHARD_IDS,
+    )
+    print(
+        f"[finalizer_timing] phase=run_observability_done elapsed_seconds={time.perf_counter() - observability_started:.3f}",
+        file=sys.stderr,
+        flush=True,
     )
     if (
         result.get("status") != "STRICT_PREFLIGHT_FAILED"
