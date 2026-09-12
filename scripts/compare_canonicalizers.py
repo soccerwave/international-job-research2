@@ -12,7 +12,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from src.runtime.canonicalizer import canonicalize_records as legacy_canonicalize
-from src.runtime.canonicalizer_fast import canonicalize_records as cached_canonicalize
+from src.runtime.canonicalizer_fast import canonicalize_records as candidate_canonicalize
 from src.runtime.finalizer import finalize_run
 from src.runtime.preprod import _load_fanin_records
 
@@ -22,17 +22,13 @@ def digest_records(records: list[dict]) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
-def run_timed(fn):
-    started = time.perf_counter()
-    value = fn()
-    return value, time.perf_counter() - started
-
-
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--run-id", required=True)
+    parser.add_argument("--implementation", choices=("legacy", "candidate"), required=True)
     parser.add_argument("--artifact-root", default="artifacts")
     parser.add_argument("--output-root", default="compare-output")
+    parser.add_argument("--result-json", required=True)
     args = parser.parse_args()
 
     artifact_root = Path(args.artifact_root)
@@ -44,31 +40,24 @@ def main() -> int:
         raise RuntimeError(f"Unexpected fanin status: {fanin.status.value}")
     records = _load_fanin_records(run_id=args.run_id, output_root=output_root)
 
-    (legacy_records, legacy_summary), legacy_seconds = run_timed(lambda: legacy_canonicalize(records))
-    print(json.dumps({"phase": "legacy", "elapsed_seconds": round(legacy_seconds, 3)}), flush=True)
+    implementation = legacy_canonicalize if args.implementation == "legacy" else candidate_canonicalize
+    started = time.perf_counter()
+    canonical_records, summary = implementation(records)
+    elapsed_seconds = time.perf_counter() - started
 
-    (cached_records, cached_summary), cached_seconds = run_timed(lambda: cached_canonicalize(records))
-    print(json.dumps({"phase": "cached", "elapsed_seconds": round(cached_seconds, 3)}), flush=True)
-
-    legacy_digest = digest_records(legacy_records)
-    cached_digest = digest_records(cached_records)
-    equivalent = legacy_summary == cached_summary and legacy_digest == cached_digest
     result = {
-        "status": "PASS" if equivalent else "FAIL",
+        "implementation": args.implementation,
         "run_id": args.run_id,
         "input_records": len(records),
-        "legacy_summary": legacy_summary,
-        "cached_summary": cached_summary,
-        "legacy_digest": legacy_digest,
-        "cached_digest": cached_digest,
-        "exact_output_equivalent": legacy_digest == cached_digest,
-        "summary_equivalent": legacy_summary == cached_summary,
-        "legacy_seconds": round(legacy_seconds, 3),
-        "cached_seconds": round(cached_seconds, 3),
-        "speedup": round(legacy_seconds / cached_seconds, 3) if cached_seconds else None,
+        "summary": summary,
+        "digest": digest_records(canonical_records),
+        "elapsed_seconds": round(elapsed_seconds, 3),
     }
+    result_path = Path(args.result_json)
+    result_path.parent.mkdir(parents=True, exist_ok=True)
+    result_path.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(result, ensure_ascii=False, indent=2), flush=True)
-    return 0 if equivalent else 2
+    return 0
 
 
 if __name__ == "__main__":
