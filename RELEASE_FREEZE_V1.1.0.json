@@ -137,7 +137,7 @@
     ".github/workflows/test-stage7-2-reference-storage.yml": "a971a1242c15f5135399e6a9bfb4c59898aa128d",
     ".github/workflows/test-publisher-build-performance.yml": "8395a7f991f4a183e27e9ab33a1176b8682a21b2",
     ".github/workflows/ci.yml": "f476f1ecf348ad1ba197c9819111f8fcd78e4895",
-    ".github/workflows/stage7-reference-capture.yml": "aaf270b1f4338383e2d4e800e68a30f67968df00",
+    ".github/workflows/stage7-reference-capture.yml": "c041dc968635bbf5fb68307b980dd88888acc759",
     "scripts/capture_stage7_reference.py": "aa8b579a3691493fff5d45a9a577b98a16d22c75",
     "tests/test_stage7_2_reference_capture.py": "b04f182fa495f468d75ad4d075ab1e5961f3e80f"
   },
@@ -633,7 +633,7 @@
     "reference_day1_capture_issue": null,
     "reference_capture_execution_backend": "GITHUB_ACTIONS_HEADLESS_BROWSER",
     "reference_capture_browser_engine": "PLAYWRIGHT_CHROMIUM",
-    "reference_capture_schedule_local_time": "08:00",
+    "reference_capture_schedule_local_time": "08:07",
     "reference_capture_schedule_timezone": "Europe/Madrid",
     "reference_capture_live_implementation": "GITHUB_ACTIONS_LIVE_VALIDATED",
     "reference_capture_live_run_id": 34591889595,
@@ -647,7 +647,8 @@
     "reference_capture_idempotency_pending_sources": 0,
     "reference_capture_idempotency_new_events": 0,
     "reference_capture_chatgpt_automation_enabled": false,
-    "reference_capture_scheduler": "GITHUB_ACTIONS_CRON_06_UTC_WINDOW_GUARDED"
+    "reference_capture_scheduler": "GITHUB_ACTIONS_CRON_06_UTC_WINDOW_GUARDED",
+    "reference_capture_schedule_reason": "AVOID_GITHUB_TOP_OF_HOUR_SCHEDULE_DROP"
   },
   "control_plane_reporting": {
     "publisher_timeout_incident_run_id": 34564261302,
