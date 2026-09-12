@@ -1,0 +1,117 @@
+name: Canonicalizer Production Baselines
+
+on:
+  pull_request:
+    paths:
+      - 'src/runtime/canonicalizer.py'
+      - 'src/runtime/canonicalizer_fast.py'
+      - 'src/runtime/canonicalizer_legacy.py'
+      - '.github/workflows/test-canonicalizer-production-baselines.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  baseline:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: sep11
+            actions_run_id: '34560575563'
+            production_run_id: 'prod-34560575563-1'
+            expected_digest: 'f00036c53a167b0aa045640b760ef437f6bef66edfc06ff05a3b7a1f57105ed8'
+            input_records: 13241
+            canonical_records: 12778
+            duplicates_removed: 463
+            merged_clusters: 331
+            cross_source_clusters: 330
+          - label: sep12
+            actions_run_id: '34671847466'
+            production_run_id: 'prod-34671847466-1'
+            expected_digest: '51f2615cd1a623d349c805ebf187aea7278b24f1ae6268367f56238d2805c3cf'
+            input_records: 22954
+            canonical_records: 22467
+            duplicates_removed: 487
+            merged_clusters: 343
+            cross_source_clusters: 342
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      ARTIFACT_ENCRYPTION_KEY: ${{ secrets.ARTIFACT_ENCRYPTION_KEY }}
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements.txt -r requirements-cloud.txt
+      - name: Require encrypted artifact key
+        run: test -n "${ARTIFACT_ENCRYPTION_KEY:-}"
+      - name: Download encrypted shard artifacts
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ matrix.actions_run_id }}
+          pattern: production-shard-*
+          path: downloaded-shards
+      - name: Decrypt shard bundles in ephemeral runner workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "artifacts/${{ matrix.production_run_id }}"
+          while IFS= read -r -d '' encrypted; do
+            bash scripts/secure_artifact.sh unpack "$encrypted" "artifacts/${{ matrix.production_run_id }}"
+          done < <(find downloaded-shards -type f -name '*.tar.gz.enc' -print0)
+          count="$(find "artifacts/${{ matrix.production_run_id }}/shards" -mindepth 1 -maxdepth 1 -type d | wc -l)"
+          echo "decrypted_shard_count=$count"
+          test "$count" -eq 17
+      - name: Verify production import path against frozen baseline
+        shell: python
+        env:
+          RUN_ID: ${{ matrix.production_run_id }}
+          EXPECTED_DIGEST: ${{ matrix.expected_digest }}
+          INPUT_RECORDS: ${{ matrix.input_records }}
+          CANONICAL_RECORDS: ${{ matrix.canonical_records }}
+          DUPLICATES_REMOVED: ${{ matrix.duplicates_removed }}
+          MERGED_CLUSTERS: ${{ matrix.merged_clusters }}
+          CROSS_SOURCE_CLUSTERS: ${{ matrix.cross_source_clusters }}
+        run: |
+          import hashlib
+          import json
+          import os
+          import time
+          from pathlib import Path
+          from src.runtime.canonicalizer import canonicalize_records
+          from src.runtime.finalizer import finalize_run
+          from src.runtime.preprod import _load_fanin_records
+
+          run_id = os.environ['RUN_ID']
+          output_root = Path('compare-output') / run_id
+          output_root.mkdir(parents=True, exist_ok=True)
+          fanin = finalize_run(run_id=run_id, artifact_root=Path('artifacts'), output_root=output_root)
+          if fanin.status.value != 'OK':
+              raise SystemExit(f'Unexpected fanin status: {fanin.status.value}')
+          records = _load_fanin_records(run_id=run_id, output_root=output_root)
+          started = time.perf_counter()
+          canonical, summary = canonicalize_records(records)
+          elapsed = time.perf_counter() - started
+          digest = hashlib.sha256(json.dumps(canonical, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode('utf-8')).hexdigest()
+          expected_summary = {
+              'input_records': int(os.environ['INPUT_RECORDS']),
+              'canonical_records': int(os.environ['CANONICAL_RECORDS']),
+              'duplicates_removed': int(os.environ['DUPLICATES_REMOVED']),
+              'merged_clusters': int(os.environ['MERGED_CLUSTERS']),
+              'cross_source_clusters': int(os.environ['CROSS_SOURCE_CLUSTERS']),
+              'fail_open_unresolved_fuzzy_merge': 'DISABLED',
+          }
+          ok = digest == os.environ['EXPECTED_DIGEST'] and summary == expected_summary
+          print(json.dumps({'status': 'PASS' if ok else 'FAIL', 'digest': digest, 'summary': summary, 'elapsed_seconds': round(elapsed, 3)}, indent=2))
+          if not ok:
+              raise SystemExit(2)
+      - name: Confirm ephemeral-only execution
+        run: |
+          test ! -e state/current/state.json
+          echo "authoritative_state_mutation=false"

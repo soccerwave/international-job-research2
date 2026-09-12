@@ -1,0 +1,116 @@
+name: Canonicalizer Generalization Equivalence
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/test-canonicalizer-generalization.yml'
+      - 'src/runtime/canonicalizer_fast.py'
+      - 'scripts/compare_canonicalizers.py'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  canonicalize-sep11:
+    strategy:
+      fail-fast: false
+      matrix:
+        implementation: [legacy, candidate]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      TARGET_ACTIONS_RUN_ID: '34560575563'
+      TARGET_PRODUCTION_RUN_ID: 'prod-34560575563-1'
+      ARTIFACT_ENCRYPTION_KEY: ${{ secrets.ARTIFACT_ENCRYPTION_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements.txt -r requirements-cloud.txt
+      - name: Require encrypted artifact key
+        run: test -n "${ARTIFACT_ENCRYPTION_KEY:-}"
+      - name: Download Sep 11 encrypted shard artifacts
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ env.TARGET_ACTIONS_RUN_ID }}
+          pattern: production-shard-*
+          path: downloaded-shards
+      - name: Decrypt shard bundles in ephemeral runner workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "artifacts/$TARGET_PRODUCTION_RUN_ID"
+          while IFS= read -r -d '' encrypted; do
+            bash scripts/secure_artifact.sh unpack "$encrypted" "artifacts/$TARGET_PRODUCTION_RUN_ID"
+          done < <(find downloaded-shards -type f -name '*.tar.gz.enc' -print0)
+          count="$(find "artifacts/$TARGET_PRODUCTION_RUN_ID/shards" -mindepth 1 -maxdepth 1 -type d | wc -l)"
+          echo "decrypted_shard_count=$count"
+          test "$count" -eq 17
+      - name: Run ${{ matrix.implementation }} canonicalizer on Sep 11
+        run: |
+          python scripts/compare_canonicalizers.py \
+            --run-id "$TARGET_PRODUCTION_RUN_ID" \
+            --implementation "${{ matrix.implementation }}" \
+            --artifact-root artifacts \
+            --output-root "compare-output/${{ matrix.implementation }}" \
+            --result-json "results/${{ matrix.implementation }}.json"
+      - name: Upload comparison result
+        uses: actions/upload-artifact@v4
+        with:
+          name: sep11-canonicalizer-${{ matrix.implementation }}-result
+          path: results/${{ matrix.implementation }}.json
+          if-no-files-found: error
+          retention-days: 1
+      - name: Confirm ephemeral-only execution
+        run: |
+          test ! -e state/current/state.json
+          echo "authoritative_state_mutation=false"
+
+  compare-sep11:
+    needs: canonicalize-sep11
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Download legacy result
+        uses: actions/download-artifact@v4
+        with:
+          name: sep11-canonicalizer-legacy-result
+          path: results
+      - name: Download candidate result
+        uses: actions/download-artifact@v4
+        with:
+          name: sep11-canonicalizer-candidate-result
+          path: results
+      - name: Require exact equivalence and report speedup
+        shell: python
+        run: |
+          import json
+          from pathlib import Path
+
+          legacy = json.loads(Path("results/legacy.json").read_text(encoding="utf-8"))
+          candidate = json.loads(Path("results/candidate.json").read_text(encoding="utf-8"))
+
+          exact_output_equivalent = legacy["digest"] == candidate["digest"]
+          summary_equivalent = legacy["summary"] == candidate["summary"]
+          speedup = legacy["elapsed_seconds"] / candidate["elapsed_seconds"] if candidate["elapsed_seconds"] else None
+
+          result = {
+              "dataset": "2026-09-11",
+              "status": "PASS" if exact_output_equivalent and summary_equivalent else "FAIL",
+              "exact_output_equivalent": exact_output_equivalent,
+              "summary_equivalent": summary_equivalent,
+              "legacy_digest": legacy["digest"],
+              "candidate_digest": candidate["digest"],
+              "legacy_summary": legacy["summary"],
+              "candidate_summary": candidate["summary"],
+              "legacy_seconds": legacy["elapsed_seconds"],
+              "candidate_seconds": candidate["elapsed_seconds"],
+              "speedup": round(speedup, 3) if speedup is not None else None,
+          }
+          print(json.dumps(result, indent=2))
+          if not exact_output_equivalent or not summary_equivalent:
+              raise SystemExit(2)

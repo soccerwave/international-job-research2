@@ -84,7 +84,9 @@
     "stage9_freeze": "PASS"
   },
   "protected_git_blobs": {
-    "src/runtime/canonicalizer.py": "54ad8588e2c6a0fdc878800642c9c594f6ae5e38",
+    "src/runtime/canonicalizer.py": "cb440faef577fdff2e129aaba0dc4d9cef1be20b",
+    "src/runtime/canonicalizer_fast.py": "931e05e7fa6c8b79adc4b60e21232f48bdd6274e",
+    "src/runtime/canonicalizer_legacy.py": "d2e3bc6fa7fafa853453da3952e0ce5d3b839c12",
     "src/runtime/preprod.py": "f2c7a0ade90efae56f208fb93112831b2ccfb2d9",
     "src/runtime/state_projection.py": "4db2dfd0604b6a69fcbcbe8ded2a731e438c709f",
     "src/runtime/live_shards.py": "96fd9b0b0e09b61d26aaec0bee63368138b00f95",
