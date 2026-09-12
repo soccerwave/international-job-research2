@@ -14,16 +14,6 @@ _TARGET_ACADEMIC = re.compile(
     re.I,
 )
 
-_DIRECT_PROFILE = re.compile(
-    r"\b(?:exercise physiology|exercise science|sport(?:s)? science|sport and exercise|physical activity|"
-    r"human movement|kinesiology|clinical exercise|exercise intervention|exercise training|sports medicine|"
-    r"exercise neuroscience|psychophysiolog(?:y|ical)|psychosocial stress|psychological stress|stress biology|"
-    r"stress recovery|cortisol|hpa(?:-| )axis|brain health|neurocognitive health|cognitive neuroscience|"
-    r"public health|population health|epidemiolog(?:y|ical)|health data science|rehabilitation|"
-    r"healthy ag(?:e|ei)ing|digital health|behavio(?:u)?ral medicine|quality of life)\b",
-    re.I,
-)
-
 _RULES: tuple[tuple[str, re.Pattern[str], str], ...] = (
     (
         "SCHOOL_PRIVATE_TUTORING_T1",
@@ -50,8 +40,8 @@ _RULES: tuple[tuple[str, re.Pattern[str], str], ...] = (
         "CLINICAL_PRACTITIONER_T1",
         re.compile(
             r"\b(?:general practitioner|physician|medical doctor|resident physician|consultant physician|"
-            r"registered nurse|staff nurse|clinical nurse|assistenzarzt|assistenzärztin|facharzt|fachärztin|"
-            r"oberarzt|oberärztin|médecin|medecin|huisarts|medico|médico|medica|médica)\b",
+            r"registered nurse|staff nurse|clinical nurse|assistenzarzt(?:in)?|facharzt(?:in)?|"
+            r"oberarzt(?:in)?|medecin|huisarts)\b",
             re.I,
         ),
         "Explicit clinical-practitioner occupational identity.",
@@ -95,12 +85,13 @@ def _title(job: dict[str, Any]) -> str:
 def evaluate_negative_shadow(job: dict[str, Any]) -> dict[str, Any]:
     """Observe Tier-1 negative rules without changing any production route."""
     title = _title(job)
-    protected = bool(_TARGET_ACADEMIC.search(title) or _DIRECT_PROFILE.search(title))
-    protection_reason = None
-    if _TARGET_ACADEMIC.search(title):
-        protection_reason = "TARGET_ACADEMIC_TITLE"
-    elif _DIRECT_PROFILE.search(title):
-        protection_reason = "DIRECT_PROFILE_TITLE"
+
+    # Tier-1 rules describe explicit non-target occupational identities. A thematic
+    # phrase such as rehabilitation, public health, or physical activity must not
+    # override an explicit clinician/administrator/teacher identity. Only an actual
+    # configured academic target identity in the title protects a matched vacancy.
+    protected = bool(_TARGET_ACADEMIC.search(title))
+    protection_reason = "TARGET_ACADEMIC_TITLE" if protected else None
 
     matched: list[dict[str, str]] = []
     for rule_id, pattern, rationale in _RULES:
