@@ -23,6 +23,7 @@ def record(
     url: str = "https://example.com/job",
     full_jd: str = "Physical activity intervention and exercise physiology research.",
     level: str | None = None,
+    seen_status: str = "SEEN",
 ):
     if level is None:
         level = "STRONG" if role in {"POSTDOC", "RESEARCH_FELLOW_POSTDOC"} else "ACCEPTABLE"
@@ -40,7 +41,7 @@ def record(
         "dates": {"deadline_at": deadline or None, "deadline_text": deadline_text or None},
         "description": {"detail_status": "FULL", "full_jd": full_jd},
         "raw_extra": {
-            "state": {"lifecycle_status": lifecycle},
+            "state": {"lifecycle_status": lifecycle, "seen_status": seen_status},
             "evaluation": {
                 "evaluator_version": "E0.1",
                 "recommendation": priority,
@@ -71,7 +72,7 @@ class UserExcelTests(unittest.TestCase):
         rows = build_user_rows(
             [
                 record(priority="REVIEW", title="Research Fellow in Digital Health and Rehabilitation", deadline="2026-09-09T00:00:00+00:00", full_jd="Digital health, rehabilitation, wearables and behaviour change."),
-                record(priority="APPLY", title="Later apply", deadline="2026-10-01T00:00:00+00:00", full_jd="Physical activity research."),
+                record(priority="APPLY", title="Later apply", deadline="2026-10-01T00:00:00+00:00", full_jd="Physical activity research.", seen_status="NEW"),
                 record(priority="STRONG_APPLY", title="Strong job", full_jd="Exercise physiology and human movement research."),
                 record(priority="LOW_PRIORITY", title="Low job", full_jd="Algebraic graph theory research with a complete detailed description that has no health, exercise, stress or neuroscience relevance at all. " * 4),
                 record(priority="APPLY", title="Sooner apply", deadline="2026-09-15T00:00:00+00:00", full_jd="Physical activity research."),
@@ -83,12 +84,14 @@ class UserExcelTests(unittest.TestCase):
             [(row["recommendation"], row["title"]) for row in rows],
             [
                 ("STRONG_APPLY", "Strong job"),
-                ("APPLY", "Sooner apply"),
                 ("APPLY", "Later apply"),
+                ("APPLY", "Sooner apply"),
                 ("REVIEW", "Research Fellow in Digital Health and Rehabilitation"),
             ],
         )
-        self.assertEqual(rows[1]["deadline"], "2026-09-15")
+        self.assertEqual(rows[1]["deadline"], "2026-10-01")
+        self.assertEqual(rows[1]["seen_status"], "NEW")
+        self.assertEqual(rows[2]["seen_status"], "SEEN")
         self.assertNotIn("LOW_PRIORITY", [row["recommendation"] for row in rows])
         self.assertNotIn("SKIP", [row["recommendation"] for row in rows])
 
@@ -147,7 +150,26 @@ class UserExcelTests(unittest.TestCase):
         self.assertEqual(by_title["Postdoc Physical Activity Ordinal date"]["deadline"], "2026-09-27")
         self.assertEqual(by_title["Postdoc Physical Activity Numeric date"]["deadline"], "2026-09-16")
 
-    def test_excel_has_two_sheets_and_unchanged_jobs_headers(self):
+    def test_change_status_is_preserved_and_sorted_within_priority(self):
+        rows = build_user_rows(
+            [
+                record(priority="APPLY", title="Seen sooner", deadline="2026-09-15T00:00:00+00:00", seen_status="SEEN"),
+                record(priority="APPLY", title="Changed later", deadline="2026-10-01T00:00:00+00:00", seen_status="MATERIALLY_CHANGED"),
+                record(priority="APPLY", title="New latest", deadline="2026-11-01T00:00:00+00:00", seen_status="NEW"),
+                record(priority="APPLY", title="Reopened", deadline="2026-09-20T00:00:00+00:00", seen_status="REOPENED"),
+            ]
+        )
+        self.assertEqual(
+            [(row["seen_status"], row["title"]) for row in rows],
+            [
+                ("NEW", "New latest"),
+                ("MATERIALLY_CHANGED", "Changed later"),
+                ("REOPENED", "Reopened"),
+                ("SEEN", "Seen sooner"),
+            ],
+        )
+
+    def test_excel_has_two_sheets_and_change_header(self):
         with tempfile.TemporaryDirectory() as tmp:
             output = Path(tmp) / "international_academic_job_report.xlsx"
             build_user_xlsx(
@@ -165,7 +187,11 @@ class UserExcelTests(unittest.TestCase):
                 self.assertIn(f">{label}<", shared_strings)
             self.assertNotIn(">Evaluator reason<", shared_strings)
             self.assertNotIn(">State event<", shared_strings)
-            self.assertEqual(len(USER_COLUMNS), 8)
+            self.assertEqual(len(USER_COLUMNS), 9)
+            self.assertIn(">Change<", shared_strings)
+            with zipfile.ZipFile(output) as archive:
+                jobs_xml = archive.read("xl/worksheets/sheet1.xml").decode("utf-8")
+            self.assertIn("conditionalFormatting", jobs_xml)
 
 
 if __name__ == "__main__":

@@ -16,6 +16,7 @@ USER_REPORT_VERSION = "USER_REPORT_V1.4.1_OPERATIONAL_ROLE_FILTER"
 USER_PRIORITIES = ("STRONG_APPLY", "APPLY", "REVIEW")
 PRIORITY_RANK = {value: index for index, value in enumerate(USER_PRIORITIES)}
 REVIEW_CHANGE_EVENTS = {"NEW", "MATERIALLY_CHANGED", "REOPENED"}
+CHANGE_RANK = {"NEW": 0, "MATERIALLY_CHANGED": 1, "REOPENED": 2, "SEEN": 3}
 
 # Apply identically to both sheets, before either evaluator can rescue a role.
 # Match occupational identities at the start of the title, never JD keywords:
@@ -40,6 +41,7 @@ def _excluded_operational_role(record: dict[str, Any]) -> bool:
     title = position.get("title_raw") or position.get("title_normalized") or ""
     return bool(_OPERATIONAL_TITLE.search(" ".join(str(title).split())))
 USER_COLUMNS = (
+    ("seen_status", "Change", 22),
     ("recommendation", "Priority", 18),
     ("title", "Title", 48),
     ("country", "Country", 18),
@@ -206,7 +208,9 @@ def build_user_rows(records: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
         if priority not in PRIORITY_RANK or lifecycle == "CLOSED":
             continue
         _, deadline_sort, deadline_display = _deadline_parts(row.get("deadline"))
+        seen_status = str(row.get("seen_status") or "SEEN").upper()
         clean = {
+            "seen_status": seen_status,
             "recommendation": priority,
             "title": _compact(row.get("title")),
             "country": _compact(row.get("country") or row.get("country_code")),
@@ -222,6 +226,7 @@ def build_user_rows(records: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     rows.sort(
         key=lambda row: (
             PRIORITY_RANK[row["recommendation"]],
+            CHANGE_RANK.get(row["seen_status"], 4),
             1 if not row["deadline"] else 0,
             row["_deadline_sort"],
             row["country"].casefold(),
@@ -335,6 +340,11 @@ def build_user_xlsx(
             "border_color": "#D9E2F3",
         }
     )
+    change_highlight_formats = {
+        "NEW": workbook.add_format({"bg_color": "#E2F0D9"}),
+        "MATERIALLY_CHANGED": workbook.add_format({"bg_color": "#FFF2CC"}),
+        "REOPENED": workbook.add_format({"bg_color": "#D9EAF7"}),
+    }
     priority_formats = {
         "STRONG_APPLY": workbook.add_format(
             {"bold": True, "bg_color": "#C6EFCE", "font_color": "#006100", "align": "center", "valign": "vcenter", "border": 1, "border_color": "#A9D18E"}
@@ -377,6 +387,16 @@ def build_user_xlsx(
     
         if rows:
             ws.autofilter(0, 0, len(rows), len(columns) - 1)
+            if sheet_name == "JOBS":
+                last_col = len(columns) - 1
+                for status, fmt in change_highlight_formats.items():
+                    ws.conditional_format(
+                        1,
+                        0,
+                        len(rows),
+                        last_col,
+                        {"type": "formula", "criteria": f'=$A2="{status}"', "format": fmt},
+                    )
     
     workbook.close()
     return output_path
