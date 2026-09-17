@@ -5,13 +5,13 @@ import time
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from typing import Any
-from urllib.parse import urljoin
+from urllib.parse import parse_qsl, urljoin, urlparse
 
 from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
 
 from .pagination import next_listing_url, paginate, reached, record_coverage
-from .common import CODE_TO_COUNTRY_NAME, clean, make_record, make_session
+from .common import CODE_TO_COUNTRY_NAME, clean, infer_country_code, make_record, make_session
 
 SOURCE_KEY = "euraxess"
 PROVIDER = "EURAXESS"
@@ -26,7 +26,7 @@ COUNTRY_LABEL_ALIASES = {
 
 
 def discover_country_facets(html: str) -> dict[str, str]:
-    """Return EURAXESS country labels mapped to stable form option values."""
+    """Return EURAXESS country labels mapped to stable facet values."""
     soup = BeautifulSoup(html or "", "html.parser")
     result: dict[str,str] = {}
     options = soup.select('select[name="job_country[]"] option') or soup.find_all("option")
@@ -45,6 +45,21 @@ def discover_country_facets(html: str) -> dict[str, str]:
     return result
 
 
+def discover_offer_type_facet(html: str) -> str | None:
+    """Discover the current Job Offer facet from the live filter form."""
+    soup = BeautifulSoup(html or "", "html.parser")
+    select = soup.select_one('select[name="offer_type[]"]')
+    if select is None:
+        return None
+    for option in select.find_all("option"):
+        value = clean(option.get("value"))
+        label = clean(option.get_text(" ", strip=True)).lower()
+        if not value or ("job" not in label and "job" not in value.lower()):
+            continue
+        return value if value.startswith("offer_type:") else f"offer_type:{value}"
+    return None
+
+
 def _facet_for_code(facets: dict[str, str], code: str) -> str | None:
     labels = COUNTRY_LABEL_ALIASES.get(code) or (CODE_TO_COUNTRY_NAME.get(code) or "",)
     for label in labels:
@@ -52,6 +67,37 @@ def _facet_for_code(facets: dict[str, str], code: str) -> str | None:
         if facet:
             return facet
     return None
+
+
+def _filter_endpoint(html: str, page_url: str) -> str:
+    """Use the live form action as the search endpoint without depending on POST transport."""
+    soup = BeautifulSoup(html or "", "html.parser")
+    country_select = soup.select_one('select[name="job_country[]"]')
+    form = country_select.find_parent("form") if country_select else None
+    return urljoin(page_url, str(form.get("action") or SEARCH_URL)) if form else page_url
+
+
+def _filter_params(country_facet: str, offer_facet: str) -> list[tuple[str,str]]:
+    return [("f[0]", country_facet), ("f[1]", offer_facet)]
+
+
+def _url_has_facets(url: str, required_facets: tuple[str,...]) -> bool:
+    values = [value for key, value in parse_qsl(urlparse(url).query, keep_blank_values=True) if key.startswith("f[")]
+    return all(facet in values for facet in required_facets)
+
+
+def _assert_filtered_url(url: str, country_facet: str, offer_facet: str) -> None:
+    if not _url_has_facets(url, (country_facet, offer_facet)):
+        raise RuntimeError(
+            "EURAXESS filtered navigation lost active facets: "
+            f"country={country_facet}, offer={offer_facet}, url={url}"
+        )
+
+
+def _country_matches_requested(country_name: str, code: str) -> bool:
+    normalized = clean(country_name).lower()
+    labels = COUNTRY_LABEL_ALIASES.get(code) or (CODE_TO_COUNTRY_NAME.get(code) or "",)
+    return any(normalized == clean(label).lower() for label in labels if clean(label))
 
 
 def _retry_after_seconds(response: Any, attempt: int) -> float:
@@ -108,53 +154,6 @@ def _get(session, url: str, *, params=None, attempts: int = 5, pace_seconds: flo
     return _request(session, "GET", url, params=params, attempts=attempts, pace_seconds=pace_seconds)
 
 
-def _filter_submission(html: str, page_url: str, facet: str) -> tuple[str, list[tuple[str,str]]]:
-    """Build the live Drupal filter POST from its own form fields."""
-    soup = BeautifulSoup(html or "", "html.parser")
-    country_select = soup.select_one('select[name="job_country[]"]')
-    form = country_select.find_parent("form") if country_select else None
-    if form is None or clean(form.get("method")).lower() != "post":
-        raise RuntimeError("EURAXESS country filter POST form not found")
-
-    action = urljoin(page_url, str(form.get("action") or SEARCH_URL))
-    payload: list[tuple[str,str]] = []
-    for inp in form.find_all("input"):
-        name = clean(inp.get("name"))
-        typ = clean(inp.get("type")).lower()
-        if not name or typ != "hidden":
-            continue
-        payload.append((name, clean(inp.get("value"))))
-
-    numeric = clean(facet).split(":",1)[-1]
-    payload.append(("job_country[]", numeric))
-
-    offer_select = form.select_one('select[name="offer_type[]"]')
-    offer_value = ""
-    if offer_select:
-        for option in offer_select.find_all("option"):
-            value = clean(option.get("value"))
-            label = clean(option.get_text(" ", strip=True)).lower()
-            if value and ("job" in label or "job" in value.lower()):
-                offer_value = value
-                break
-    if not offer_value:
-        raise RuntimeError("EURAXESS job-offer filter option not found")
-    payload.append(("offer_type[]", offer_value))
-
-    submit = next(
-        (
-            node for node in form.find_all(["button", "input"])
-            if clean(node.get("type")).lower() == "submit"
-            and "apply filters" in (clean(node.get("value")) + " " + clean(node.get_text(" ", strip=True))).lower()
-        ),
-        None,
-    )
-    if submit is None or not clean(submit.get("name")):
-        raise RuntimeError("EURAXESS Apply filters submit control not found")
-    payload.append((clean(submit.get("name")), clean(submit.get("value")) or clean(submit.get_text(" ", strip=True))))
-    return action, payload
-
-
 def parse_listing(html: str, base_url: str = SEARCH_URL) -> list[dict[str,Any]]:
     soup = BeautifulSoup(html or "", "html.parser")
     by_id: dict[str,dict[str,Any]] = {}
@@ -193,7 +192,11 @@ def parse_detail_metadata(html: str) -> dict[str,str]:
     deadline=after((r"Application Deadline",))
     posted=after((r"Posted on",))
     country=""
-    m=re.search(r"(?:Country|countries?)\s*:?\s*([A-Za-z .'-]{2,40})", text, re.I)
+    m=re.search(
+        r"\bCountry\s*:?\s*(.+?)(?=(?:Type of Contract|Job Status|Hours Per Week|Is the job funded|Offer Description|Work Location|Work Locations|Geofield|$))",
+        text,
+        re.I,
+    )
     if m:
         country=clean(m.group(1))
     return {"title":title,"institution":institution,"deadline":deadline,"posted":posted,"country":country}
@@ -221,7 +224,15 @@ def collect(
     form_html=first.text
     form_url=first.url
     facets=discover_country_facets(form_html)
+    offer_facet=discover_offer_type_facet(form_html)
+    if not offer_facet:
+        record_coverage(SOURCE_KEY, "offer_type_facet_missing", complete=False)
+        return []
+    filter_endpoint=_filter_endpoint(form_html, form_url)
+
     items=[]; seen=set()
+    result_sets: dict[str,frozenset[str]] = {}
+    untrusted_item_ids: set[str] = set()
 
     for code in country_codes:
         facet=_facet_for_code(facets, code)
@@ -229,19 +240,22 @@ def collect(
             record_coverage(f"{SOURCE_KEY}:{code}","country_facet_missing")
             continue
         try:
-            action, payload=_filter_submission(form_html, form_url, facet)
-            filtered=_request(s, "POST", action, data=payload, pace_seconds=pace_seconds)
+            filtered=_get(
+                s,
+                filter_endpoint,
+                params=_filter_params(facet, offer_facet),
+                pace_seconds=pace_seconds,
+            )
             filtered.raise_for_status()
+            _assert_filtered_url(filtered.url, facet, offer_facet)
         except Exception as exc:
             record_coverage(
-                f"{SOURCE_KEY}:{code}", "request_failed",
+                f"{SOURCE_KEY}:{code}", "filter_validation_failed",
                 pages=0, records=0, error=f"{type(exc).__name__}: {exc}",
             )
             continue
 
-        form_html=filtered.text
-        form_url=filtered.url
-        next_url=next_listing_url(filtered.text, filtered.url)
+        next_url=None
         first_response=filtered
 
         def fetch(page):
@@ -252,8 +266,10 @@ def collect(
             else:
                 if not next_url:
                     return [], None, False
+                _assert_filtered_url(next_url, facet, offer_facet)
                 r=_get(s, next_url, pace_seconds=pace_seconds)
                 r.raise_for_status()
+                _assert_filtered_url(r.url, facet, offer_facet)
             batch=parse_listing(r.text,r.url)
             next_url=next_listing_url(r.text,r.url)
             return batch, None, bool(next_url)
@@ -267,11 +283,27 @@ def collect(
             )
         except Exception:
             continue
+
+        ids=frozenset(str(item["id"]) for item in batch)
+        if ids:
+            matching_codes=[previous for previous, previous_ids in result_sets.items() if previous_ids == ids]
+            if matching_codes:
+                untrusted_item_ids.update(ids)
+                record_coverage(
+                    f"{SOURCE_KEY}:{code}",
+                    "identical_country_result_set",
+                    complete=False,
+                    records=len(ids),
+                    compared_to=",".join(matching_codes),
+                )
+            result_sets[code]=ids
+
         for item in batch:
             if item["id"] not in seen:
                 seen.add(item["id"])
                 items.append((item,code,facet))
-                if reached(items,max_jobs): break
+                if reached(items,max_jobs):
+                    break
         if reached(items,max_jobs):
             record_coverage(SOURCE_KEY,"configured_record_limit")
             break
@@ -297,12 +329,50 @@ def collect(
             except Exception as exc:
                 detail_status="FETCH_FAILED"
                 failure=f"{type(exc).__name__}: {exc}"
-        country_name=CODE_TO_COUNTRY_NAME.get(code)
+
+        detail_country_name=clean(meta.get("country"))
+        detail_country_code=infer_country_code(detail_country_name) if detail_country_name else None
+        detail_country_mismatch=bool(detail_country_name and not _country_matches_requested(detail_country_name, code))
+        if detail_country_mismatch:
+            untrusted_item_ids.add(str(item["id"]))
+            record_coverage(
+                f"{SOURCE_KEY}:{code}",
+                "detail_country_mismatch",
+                complete=False,
+                records=1,
+                source_job_id=str(item["id"]),
+                requested_country_code=code,
+                detail_country=detail_country_name,
+            )
+
+        if detail_country_name:
+            if detail_country_mismatch:
+                resolved_country_code=detail_country_code
+                resolved_country_name=CODE_TO_COUNTRY_NAME.get(detail_country_code) if detail_country_code else detail_country_name
+            else:
+                resolved_country_code=detail_country_code or code
+                resolved_country_name=CODE_TO_COUNTRY_NAME.get(resolved_country_code) or detail_country_name
+        elif str(item["id"]) in untrusted_item_ids:
+            resolved_country_code=None
+            resolved_country_name=None
+        else:
+            resolved_country_code=code
+            resolved_country_name=CODE_TO_COUNTRY_NAME.get(code)
+
+        if detail_country_mismatch:
+            country_validation="DETAIL_MISMATCH"
+        elif detail_country_name:
+            country_validation="DETAIL_MATCH"
+        elif str(item["id"]) in untrusted_item_ids:
+            country_validation="UNTRUSTED_IDENTICAL_RESULT_SET"
+        else:
+            country_validation="FILTER_URL_VALIDATED"
+
         records.append(make_record(
             source_key=SOURCE_KEY, source_kind="SHARED_AGGREGATOR", provider=PROVIDER,
             source_job_id=item["id"], listing_url=SEARCH_URL, detail_url=item["url"],
             title=meta.get("title") or item["title"], institution=meta.get("institution") or None,
-            country_code=code, country_name=country_name,
+            country_code=resolved_country_code, country_name=resolved_country_name,
             posted_text=meta.get("posted") or None, deadline_text=meta.get("deadline") or None,
             full_jd=detail_text, detail_status=detail_status, detail_failure_reason=failure,
             source_language="en", source_status="UNKNOWN",
@@ -310,7 +380,11 @@ def collect(
                 "listing_context":item.get("context",""),
                 "requested_country_code":code,
                 "country_facet":facet,
-                "filter_transport":"POST_FORM",
+                "offer_type_facet":offer_facet,
+                "filter_transport":"GET_FACET",
+                "detail_country":detail_country_name or None,
+                "detail_country_code":detail_country_code,
+                "country_validation":country_validation,
             },
         ))
     return records
