@@ -1,5 +1,6 @@
 import unittest
 from types import SimpleNamespace
+from urllib.parse import parse_qs, urlsplit
 from unittest.mock import patch
 
 from src.sources.shared import euraxess
@@ -20,35 +21,46 @@ class Response:
 
 FILTER_FORM = '''
 <form method="post" action="/jobs/search">
-  <input type="hidden" name="form_build_id" value="build-1">
-  <input type="hidden" name="form_id" value="views_exposed_form">
-  <select name="job_country[]"><option value="794">Germany</option></select>
+  <select name="job_country[]">
+    <option value="798">Netherlands</option>
+    <option value="794">Germany</option>
+  </select>
   <select name="offer_type[]"><option value="job_offer">Job Offer</option></select>
-  <button type="submit" name="op" value="Apply filters">Apply filters</button>
-  <button type="submit" name="op" value="Clear filters">Clear filters</button>
 </form>
 '''
 
 
 class EuraxessStage41Tests(unittest.TestCase):
-    def test_posts_live_filter_form_then_follows_site_next_link(self):
+    def test_uses_stable_get_facets_and_preserves_them_on_next_link(self):
         page1 = FILTER_FORM + (
             '<article>Germany <a href="/jobs/100">Research Fellow A</a></article>'
             '<a rel="next" href="/jobs/search?page=1">Next</a>'
         )
         page2 = FILTER_FORM + '<article>Germany <a href="/jobs/101">Research Fellow B</a></article>'
         gets = []
-        posts = []
 
         def get(url, **kwargs):
-            gets.append((url, kwargs.get("params")))
+            params = kwargs.get("params")
+            gets.append((url, params))
             if len(gets) == 1:
                 return Response(FILTER_FORM)
-            return Response(page2, "https://euraxess.ec.europa.eu/jobs/search?page=1")
+            if len(gets) == 2:
+                self.assertEqual(
+                    params,
+                    [("f[0]", "job_country:794"), ("f[1]", "offer_type:job_offer")],
+                )
+                return Response(
+                    page1,
+                    "https://euraxess.ec.europa.eu/jobs/search?f%5B0%5D=job_country%3A794&f%5B1%5D=offer_type%3Ajob_offer",
+                )
+            query = parse_qs(urlsplit(url).query)
+            self.assertEqual(query["page"], ["1"])
+            self.assertEqual(query["f[0]"], ["job_country:794"])
+            self.assertEqual(query["f[1]"], ["offer_type:job_offer"])
+            return Response(page2, url)
 
-        def post(url, **kwargs):
-            posts.append((url, kwargs.get("data")))
-            return Response(page1, "https://euraxess.ec.europa.eu/jobs/search?f%5B0%5D=job_country%3A794")
+        def post(*args, **kwargs):
+            raise AssertionError("EURAXESS collector must not POST the exposed filter form")
 
         with capture_coverage() as coverage:
             rows = euraxess.collect(
@@ -61,34 +73,65 @@ class EuraxessStage41Tests(unittest.TestCase):
             )
 
         self.assertEqual([row["source"]["source_job_id"] for row in rows], ["100", "101"])
-        self.assertEqual(len(posts), 1)
-        payload = dict(posts[0][1])
-        self.assertEqual(payload["form_build_id"], "build-1")
-        self.assertEqual(payload["form_id"], "views_exposed_form")
-        self.assertEqual(payload["job_country[]"], "794")
-        self.assertEqual(payload["offer_type[]"], "job_offer")
-        self.assertEqual(payload["op"], "Apply filters")
-        self.assertEqual(gets[1], ("https://euraxess.ec.europa.eu/jobs/search?page=1", None))
+        self.assertEqual([row["source"]["raw_extra"]["filter_transport"] for row in rows], ["GET_FACET", "GET_FACET"])
         self.assertEqual(coverage[-1]["stop_reason"], "last_page")
         self.assertTrue(coverage[-1]["complete"])
 
-    def test_429_retry_honors_retry_after_for_post(self):
+    def test_distinct_country_facets_do_not_silently_reuse_global_results(self):
+        gets = []
+
+        def get(url, **kwargs):
+            params = kwargs.get("params")
+            gets.append((url, params))
+            if len(gets) == 1:
+                return Response(FILTER_FORM)
+            facet = dict(params or []).get("f[0]")
+            if facet == "job_country:798":
+                return Response(
+                    FILTER_FORM + '<article>Netherlands <a href="/jobs/200">Dutch Research Fellow</a></article>',
+                    "https://euraxess.ec.europa.eu/jobs/search?f%5B0%5D=job_country%3A798&f%5B1%5D=offer_type%3Ajob_offer",
+                )
+            if facet == "job_country:794":
+                return Response(
+                    FILTER_FORM + '<article>Germany <a href="/jobs/300">German Research Fellow</a></article>',
+                    "https://euraxess.ec.europa.eu/jobs/search?f%5B0%5D=job_country%3A794&f%5B1%5D=offer_type%3Ajob_offer",
+                )
+            raise AssertionError(f"Unexpected facet request: {params}")
+
+        with capture_coverage():
+            rows = euraxess.collect(
+                country_codes=("NL", "DE"),
+                pages_per_country=None,
+                max_jobs=None,
+                enrich_detail=False,
+                session=SimpleNamespace(get=get, post=lambda *a, **k: None),
+                pace_seconds=0,
+            )
+
+        self.assertEqual([row["source"]["source_job_id"] for row in rows], ["200", "300"])
+        self.assertEqual([row["location"]["country_code"] for row in rows], ["NL", "DE"])
+        self.assertEqual(
+            [row["source"]["raw_extra"]["country_facet"] for row in rows],
+            ["job_country:798", "job_country:794"],
+        )
+
+    def test_429_retry_honors_retry_after_for_get(self):
         responses = [
             Response(status_code=429, headers={"Retry-After": "2"}),
             Response(text="ok", status_code=200),
         ]
         calls = []
 
-        def post(url, **kwargs):
+        def get(url, **kwargs):
             calls.append(url)
             return responses.pop(0)
 
         with patch.object(euraxess.time, "sleep") as sleep:
             response = euraxess._request(
-                SimpleNamespace(post=post, get=lambda *a, **k: None),
-                "POST",
+                SimpleNamespace(post=lambda *a, **k: None, get=get),
+                "GET",
                 euraxess.SEARCH_URL,
-                data=[("job_country[]", "794")],
+                params=[("f[0]", "job_country:794"), ("f[1]", "offer_type:job_offer")],
                 attempts=3,
                 pace_seconds=0,
             )
