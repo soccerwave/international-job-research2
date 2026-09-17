@@ -134,10 +134,8 @@
     "src/reporting/user_excel.py": "7fc80ff9f784dc3b5b0e8e491c13a085deb092bf",
     "scripts/build_user_excel.py": "f7a7e75e164c7ec7f659c6713e4cdcc0fe556ee7",
     "scripts/check_stage7_reference_storage.py": "6bd9424a6e569c9083275fe6868b17f674fdde88",
-    ".github/workflows/test-stage7-2-reference-storage.yml": "a971a1242c15f5135399e6a9bfb4c59898aa128d",
     ".github/workflows/test-publisher-build-performance.yml": "8395a7f991f4a183e27e9ab33a1176b8682a21b2",
     ".github/workflows/ci.yml": "f476f1ecf348ad1ba197c9819111f8fcd78e4895",
-    ".github/workflows/stage7-reference-capture.yml": "c041dc968635bbf5fb68307b980dd88888acc759",
     "scripts/capture_stage7_reference.py": "aa8b579a3691493fff5d45a9a577b98a16d22c75",
     "tests/test_stage7_2_reference_capture.py": "b04f182fa495f468d75ad4d075ab1e5961f3e80f"
   },
