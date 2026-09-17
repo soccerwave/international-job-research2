@@ -1,0 +1,27 @@
+name: Jobs.ac.uk Evidence Isolation Check
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/sources/shared/jobs_ac_uk.py'
+      - 'src/evaluation/calibrated_e02.py'
+      - 'tests/test_phase1_stage4_6_jobs_ac_uk.py'
+      - 'tests/test_evaluator_e02_calibration.py'
+      - '.github/workflows/test-jobs-ac-uk-evidence-isolation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  focused-regressions:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Run jobs.ac.uk evidence isolation regressions
+        run: python -m unittest -v tests.test_evaluator_e02_calibration tests.test_phase1_stage4_6_jobs_ac_uk
