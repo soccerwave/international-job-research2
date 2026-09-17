@@ -5,7 +5,7 @@ import time
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from typing import Any
-from urllib.parse import urljoin
+from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
 
 from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
@@ -23,10 +23,11 @@ COUNTRY_LABEL_ALIASES = {
     "GB": ("United Kingdom", "UK"),
     "CZ": ("Czechia", "Czech Republic"),
 }
+OFFER_FACET = "offer_type:job_offer"
 
 
 def discover_country_facets(html: str) -> dict[str, str]:
-    """Return EURAXESS country labels mapped to stable form option values."""
+    """Return EURAXESS country labels mapped to stable GET facet values."""
     soup = BeautifulSoup(html or "", "html.parser")
     result: dict[str,str] = {}
     options = soup.select('select[name="job_country[]"] option') or soup.find_all("option")
@@ -52,6 +53,22 @@ def _facet_for_code(facets: dict[str, str], code: str) -> str | None:
         if facet:
             return facet
     return None
+
+
+def _filter_params(facet: str) -> list[tuple[str, str]]:
+    return [("f[0]", clean(facet)), ("f[1]", OFFER_FACET)]
+
+
+def _ensure_filter_url(url: str, facet: str) -> str:
+    """Keep the accepted EURAXESS country/job-offer facets on every pagination request."""
+    parts = urlsplit(url)
+    query = [
+        (key, value)
+        for key, value in parse_qsl(parts.query, keep_blank_values=True)
+        if key not in {"f[0]", "f[1]"}
+    ]
+    query.extend(_filter_params(facet))
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
 
 
 def _retry_after_seconds(response: Any, attempt: int) -> float:
@@ -106,53 +123,6 @@ def _request(
 
 def _get(session, url: str, *, params=None, attempts: int = 5, pace_seconds: float = 1.25):
     return _request(session, "GET", url, params=params, attempts=attempts, pace_seconds=pace_seconds)
-
-
-def _filter_submission(html: str, page_url: str, facet: str) -> tuple[str, list[tuple[str,str]]]:
-    """Build the live Drupal filter POST from its own form fields."""
-    soup = BeautifulSoup(html or "", "html.parser")
-    country_select = soup.select_one('select[name="job_country[]"]')
-    form = country_select.find_parent("form") if country_select else None
-    if form is None or clean(form.get("method")).lower() != "post":
-        raise RuntimeError("EURAXESS country filter POST form not found")
-
-    action = urljoin(page_url, str(form.get("action") or SEARCH_URL))
-    payload: list[tuple[str,str]] = []
-    for inp in form.find_all("input"):
-        name = clean(inp.get("name"))
-        typ = clean(inp.get("type")).lower()
-        if not name or typ != "hidden":
-            continue
-        payload.append((name, clean(inp.get("value"))))
-
-    numeric = clean(facet).split(":",1)[-1]
-    payload.append(("job_country[]", numeric))
-
-    offer_select = form.select_one('select[name="offer_type[]"]')
-    offer_value = ""
-    if offer_select:
-        for option in offer_select.find_all("option"):
-            value = clean(option.get("value"))
-            label = clean(option.get_text(" ", strip=True)).lower()
-            if value and ("job" in label or "job" in value.lower()):
-                offer_value = value
-                break
-    if not offer_value:
-        raise RuntimeError("EURAXESS job-offer filter option not found")
-    payload.append(("offer_type[]", offer_value))
-
-    submit = next(
-        (
-            node for node in form.find_all(["button", "input"])
-            if clean(node.get("type")).lower() == "submit"
-            and "apply filters" in (clean(node.get("value")) + " " + clean(node.get_text(" ", strip=True))).lower()
-        ),
-        None,
-    )
-    if submit is None or not clean(submit.get("name")):
-        raise RuntimeError("EURAXESS Apply filters submit control not found")
-    payload.append((clean(submit.get("name")), clean(submit.get("value")) or clean(submit.get_text(" ", strip=True))))
-    return action, payload
 
 
 def parse_listing(html: str, base_url: str = SEARCH_URL) -> list[dict[str,Any]]:
@@ -218,9 +188,7 @@ def collect(
 
     first=_get(s, SEARCH_URL, pace_seconds=pace_seconds)
     first.raise_for_status()
-    form_html=first.text
-    form_url=first.url
-    facets=discover_country_facets(form_html)
+    facets=discover_country_facets(first.text)
     items=[]; seen=set()
 
     for code in country_codes:
@@ -229,8 +197,12 @@ def collect(
             record_coverage(f"{SOURCE_KEY}:{code}","country_facet_missing")
             continue
         try:
-            action, payload=_filter_submission(form_html, form_url, facet)
-            filtered=_request(s, "POST", action, data=payload, pace_seconds=pace_seconds)
+            filtered=_get(
+                s,
+                SEARCH_URL,
+                params=_filter_params(facet),
+                pace_seconds=pace_seconds,
+            )
             filtered.raise_for_status()
         except Exception as exc:
             record_coverage(
@@ -239,9 +211,8 @@ def collect(
             )
             continue
 
-        form_html=filtered.text
-        form_url=filtered.url
-        next_url=next_listing_url(filtered.text, filtered.url)
+        next_candidate=next_listing_url(filtered.text, filtered.url)
+        next_url=_ensure_filter_url(next_candidate, facet) if next_candidate else None
         first_response=filtered
 
         def fetch(page):
@@ -255,7 +226,8 @@ def collect(
                 r=_get(s, next_url, pace_seconds=pace_seconds)
                 r.raise_for_status()
             batch=parse_listing(r.text,r.url)
-            next_url=next_listing_url(r.text,r.url)
+            candidate=next_listing_url(r.text,r.url)
+            next_url=_ensure_filter_url(candidate, facet) if candidate else None
             return batch, None, bool(next_url)
 
         try:
@@ -310,7 +282,7 @@ def collect(
                 "listing_context":item.get("context",""),
                 "requested_country_code":code,
                 "country_facet":facet,
-                "filter_transport":"POST_FORM",
+                "filter_transport":"GET_FACET",
             },
         ))
     return records
