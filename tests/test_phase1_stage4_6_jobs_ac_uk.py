@@ -66,5 +66,46 @@ class JobsAcUkStage46Tests(unittest.TestCase):
         self.assertNotIn('Research duties',parsed['location'])
         self.assertLess(len(parsed['location']),100)
 
+    def test_jsonld_description_excludes_related_job_titles(self):
+        html='''<html><head><script type="application/ld+json">{
+          "@context":"https://schema.org","@type":"JobPosting",
+          "title":"Assistant Lecturer - Forensic Science",
+          "description":"<p>Teach forensic laboratory methods, chemistry and crime-scene practice.</p>",
+          "hiringOrganization":{"@type":"Organization","name":"Atlantic Technological University"}
+        }</script></head><body><main>
+        <h1>Assistant Lecturer - Forensic Science</h1>
+        <p>Teach forensic laboratory methods, chemistry and crime-scene practice.</p>
+        <section><h2>More jobs from Atlantic Technological University</h2>
+        <a>Assistant Lecturer - Sport &amp; Exercise Science / Sports Coaching</a></section>
+        </main></body></html>'''
+        parsed=jobs_ac_uk.parse_detail(html)
+        self.assertIn('forensic laboratory methods',parsed['description'].lower())
+        self.assertNotIn('exercise science',parsed['description'].lower())
+        self.assertNotIn('more jobs from',parsed['description'].lower())
+
+    def test_fallback_description_stops_before_related_jobs(self):
+        html='''<html><body><main>
+        <h1>Lecturer in Digital Ecology and Environmental Sciences</h1>
+        <div>Location: Sligo Salary: Competitive Placed On: 16th September 2026 Closes: 24th September 2026 Job Ref: D1</div>
+        <p>Teach digital ecology, environmental monitoring and field methods.</p>
+        <h2>More jobs from Atlantic Technological University</h2>
+        <a>Assistant Lecturer - Sport &amp; Exercise Science / Sports Coaching</a>
+        </main></body></html>'''
+        parsed=jobs_ac_uk.parse_detail(html)
+        self.assertIn('digital ecology',parsed['description'].lower())
+        self.assertNotIn('exercise science',parsed['description'].lower())
+        self.assertNotIn('more jobs from',parsed['description'].lower())
+
+    def test_staff_physical_activity_benefit_is_not_scientific_description_evidence(self):
+        html='''<html><body><main>
+        <h1>Travel &amp; Tourism Lecturer</h1>
+        <p>Teach travel, tourism and hospitality programmes.</p>
+        <p>Regular Staff Physical Activity Sessions</p>
+        <p>Cycle to Work Scheme and employee discounts.</p>
+        </main></body></html>'''
+        parsed=jobs_ac_uk.parse_detail(html)
+        self.assertIn('travel',parsed['description'].lower())
+        self.assertNotIn('physical activity',parsed['description'].lower())
+
 
 if __name__=='__main__': unittest.main()
