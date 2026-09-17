@@ -20,6 +20,15 @@ DEFAULT_KEYWORDS=(
 )
 DATE_RE=r"[0-9]{1,2}(?:st|nd|rd|th)?\s+[A-Za-z]{3,9}(?:\s+[0-9]{4})?"
 LABELS=("Location","Salary","Hours","Contract Type","Placed On","Placed on","Date Placed","Closes","Expires","Job Ref")
+NON_VACANCY_MARKERS=(
+    "More jobs from",
+    "More jobs like this",
+    "Similar jobs",
+    "Job tools",
+    "Share this job",
+    "Get job alerts",
+    "Sign up for job alerts",
+)
 
 
 def _strip_ordinal_date(value: str | None) -> str:
@@ -75,6 +84,50 @@ def _jsonld_location(obj: dict[str,Any]) -> tuple[str,str]:
     return locality,country
 
 
+def _trim_non_vacancy_text(value: str) -> str:
+    text=clean(value)
+    if not text:
+        return ""
+    cut=len(text)
+    lowered=text.lower()
+    for marker in NON_VACANCY_MARKERS:
+        pos=lowered.find(marker.lower())
+        if pos>=0:
+            cut=min(cut,pos)
+    text=clean(text[:cut])
+    # Employee wellbeing perks are not scientific vacancy evidence. Keep genuine
+    # research uses of "physical activity" while removing the observed staff-benefit
+    # boilerplate that promoted an unrelated lecturer advert.
+    text=re.sub(
+        r"\b(?:regular\s+)?staff\b.{0,50}\bphysical activity sessions?\b",
+        " ",
+        text,
+        flags=re.I,
+    )
+    return clean(text)
+
+
+def _vacancy_description(soup: BeautifulSoup, obj: dict[str,Any], full_text: str) -> str:
+    raw_description=obj.get("description") if obj else None
+    if raw_description:
+        if isinstance(raw_description,(dict,list)):
+            raw_description=json.dumps(raw_description,ensure_ascii=False)
+        description=html_to_text(str(raw_description))
+        description=_trim_non_vacancy_text(description)
+        if description:
+            return description
+
+    root=soup.find("main") or soup.find("article") or soup.body
+    if root:
+        fragment=BeautifulSoup(str(root),"html.parser")
+        for node in fragment.find_all(["script","style","nav","aside","footer"]):
+            node.decompose()
+        description=clean(fragment.get_text(" ",strip=True))
+    else:
+        description=full_text
+    return _trim_non_vacancy_text(description)
+
+
 def parse_search(html: str, base_url: str = SEARCH_URL) -> list[dict[str,Any]]:
     soup=BeautifulSoup(html or "","html.parser")
     by_id={}
@@ -126,9 +179,10 @@ def parse_detail(html: str, fallback_title: str="") -> dict[str,str]:
             node=soup.select_one(selector)
             if node:
                 institution=clean(node.get_text(" ",strip=True)); break
+    description=_vacancy_description(soup,obj,text)
     return {
         "title":title,"location":location,"country":country,"salary":salary,
-        "deadline":deadline,"posted":posted,"institution":institution,"description":text,
+        "deadline":deadline,"posted":posted,"institution":institution,"description":description,
     }
 
 

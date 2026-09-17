@@ -69,6 +69,29 @@ class CalibratedEvaluatorTests(unittest.TestCase):
         self.assertEqual(result["recommendation"], "SKIP")
         self.assertNotIn("fitness", " ".join(result.get("fit_signals") or []).lower())
 
+    def test_staff_physical_activity_benefit_does_not_create_scientific_fit(self):
+        job = vacancy(
+            title="Travel & Tourism Lecturer",
+            role="LECTURER",
+            level="ACCEPTABLE",
+            jd="Teach travel and tourism programmes. Employee benefits include regular Staff Physical Activity Sessions and a cycle to work scheme.",
+        )
+        result = evaluate_calibrated(job)
+        self.assertNotIn(result["recommendation"], {"APPLY", "STRONG_APPLY"})
+        self.assertEqual(result["dimensions"]["scientific"], "UNCLEAR")
+        self.assertNotIn("physical activity", " ".join(result.get("fit_signals") or []).lower())
+
+    def test_research_physical_activity_remains_direct_scientific_fit(self):
+        job = vacancy(
+            title="Postdoctoral Researcher",
+            role="POSTDOC",
+            jd="The project investigates physical activity patterns in adults using accelerometry and longitudinal health data.",
+        )
+        result = evaluate_calibrated(job)
+        self.assertEqual(result["dimensions"]["scientific"], "GOOD")
+        self.assertIn("physical activity", " ".join(result.get("fit_signals") or []).lower())
+        self.assertNotEqual(result["recommendation"], "SKIP")
+
     def test_sport_and_exercise_facility_boilerplate_does_not_create_fit(self):
         job = vacancy(
             title="Postdoctoral Researcher in Archaeology",

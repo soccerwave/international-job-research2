@@ -168,8 +168,22 @@ def _hits(text: str, patterns: dict[str, str]) -> list[str]:
     return [label for label, pattern in patterns.items() if re.search(pattern, text, re.I)]
 
 
+def _has_non_benefit_physical_activity(text: str) -> bool:
+    matches=list(re.finditer(TEXT_CORE["physical activity"],text,re.I))
+    if not matches:
+        return False
+    benefit_terms=re.compile(r"\b(?:staff|employee|employees|employee benefits?|staff benefits?|perks?)\b",re.I)
+    for match in matches:
+        window=text[max(0,match.start()-90):min(len(text),match.end()+90)]
+        if not benefit_terms.search(window):
+            return True
+    return False
+
+
 def _scientific_dimension(title: str, text: str) -> tuple[str, list[str], str | None, bool]:
     core_hits = _hits(text, TEXT_CORE)
+    if "physical activity" in core_hits and not _has_non_benefit_physical_activity(text):
+        core_hits = [hit for hit in core_hits if hit != "physical activity"]
     adjacent_hits = _hits(text, ADJACENT)
     title_core = _hits(title, TITLE_CORE)
     title_adjacent = _hits(title, TITLE_ADJACENT)
