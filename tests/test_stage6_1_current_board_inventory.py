@@ -12,8 +12,8 @@ from src.runtime.board_inventory import build_current_board_inventory
 class Stage61CurrentBoardInventoryTests(unittest.TestCase):
     def test_inventory_summary_matches_current_wiring(self):
         inventory = build_current_board_inventory()
-        self.assertEqual(inventory["production_shard_count"], 17)
-        self.assertEqual(inventory["source_execution_count"], 33)
+        self.assertEqual(inventory["production_shard_count"], 19)
+        self.assertEqual(inventory["source_execution_count"], 35)
         self.assertEqual(inventory["unique_source_id_count"], 30)
         self.assertEqual(inventory["unique_report_key_count"], 29)
         self.assertEqual(inventory["board_family_count"], 17)
@@ -39,7 +39,7 @@ class Stage61CurrentBoardInventoryTests(unittest.TestCase):
                 "MULTI_COUNTRY_AGGREGATOR": 2,
                 "NATIONAL_ACADEMIC_PORTAL": 2,
                 "RESEARCH_ORGANISATION_PORTAL": 1,
-                "SEARCH_PLATFORM": 5,
+                "SEARCH_PLATFORM": 7,
                 "THEMATIC_JOB_BOARD": 3,
             },
         )
@@ -52,7 +52,7 @@ class Stage61CurrentBoardInventoryTests(unittest.TestCase):
             {
                 "BOARD_NATIVE_UNFILTERED": 1,
                 "EXPLICIT_COUNTRY_FILTER": 2,
-                "EXPLICIT_LOCATION_SEARCH": 5,
+                "EXPLICIT_LOCATION_SEARCH": 7,
                 "FIXED_SOURCE_COUNTRY": 21,
                 "LISTING_INFERRED_COUNTRY": 1,
                 "LISTING_NATIVE": 3,
@@ -89,12 +89,14 @@ class Stage61CurrentBoardInventoryTests(unittest.TestCase):
             row for row in inventory["executions"]
             if row["source_id"] == "linkedin_europe"
         ]
-        self.assertEqual(len(rows), 4)
+        self.assertEqual(len(rows), 6)
         self.assertEqual(
             {row["shard_id"] for row in rows},
             {
                 "linkedin-europe-germany",
-                "linkedin-europe-west",
+                "linkedin-europe-uk",
+                "linkedin-europe-netherlands",
+                "linkedin-europe-belgium-ireland",
                 "linkedin-europe-france-austria",
                 "linkedin-europe-opportunistic",
             },
