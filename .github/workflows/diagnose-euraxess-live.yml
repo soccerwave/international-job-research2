@@ -18,65 +18,41 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
-      - name: Inspect live EURAXESS pagination contract
+      - name: Reproduce current collector and POST canonicalization
         shell: bash
         run: |
           python - <<'PY'
           import re
           from urllib.parse import urljoin
-          import requests
           from bs4 import BeautifulSoup
-          from src.sources.shared.pagination import next_listing_url
+          from src.sources.shared import euraxess
+          from src.sources.shared.pagination import capture_coverage
 
-          SEARCH='https://euraxess.ec.europa.eu/jobs/search'
-          s=requests.Session()
-          s.headers.update({'User-Agent':'Mozilla/5.0 (compatible; EURAXESS-contract-diagnostic/1.1)'})
-
-          def ids(html):
-              return list(dict.fromkeys(re.findall(r'/jobs/(\d+)(?:[/?#]|$)', html or '')))[:20]
-
-          def result_count(html):
-              text=BeautifulSoup(html or '', 'html.parser').get_text(' ', strip=True)
-              m=re.search(r'Search results\s*\(([0-9,]+)\)', text, re.I)
-              return m.group(1) if m else None
-
-          def candidates(html, base):
-              soup=BeautifulSoup(html or '', 'html.parser')
-              out=[]
-              for a in soup.find_all('a', href=True):
-                  text=' '.join(a.get_text(' ',strip=True).split())
-                  aria=str(a.get('aria-label') or '')
-                  title=str(a.get('title') or '')
-                  rel=' '.join(a.get('rel') or [])
-                  label=' '.join([text,aria,title]).strip().lower()
-                  if 'next' in rel.lower() or re.search(r'\b(next|more jobs|suivant|suivante|volgende|weiter|nächste)\b|^[›»>]$', label):
-                      out.append({'text':text,'aria':aria,'title':title,'rel':rel,'href':str(a['href']),'url':urljoin(base,str(a['href']))})
-              return out
-
-          base=s.get(SEARCH,timeout=45)
+          s=euraxess.make_session(retries=0)
+          base=euraxess._get(s,euraxess.SEARCH_URL,pace_seconds=0.2)
           soup=BeautifulSoup(base.text,'html.parser')
-          sel=soup.select_one('select[name="job_country[]"]')
-          form=sel.find_parent('form')
-          action=urljoin(base.url,form.get('action') or SEARCH)
-          offer=form.select_one('select[name="offer_type[]"]')
-          offer_value=next(o.get('value') for o in offer.find_all('option') if o.get('value') and ('job' in o.get_text(' ',strip=True).lower() or 'job' in o.get('value').lower()))
-          cmap={o.get_text(' ',strip=True):o.get('value') for o in sel.find_all('option') if o.get_text(' ',strip=True) in {'Netherlands','Germany'}}
+          facets=euraxess.discover_country_facets(base.text)
+          offer=euraxess.discover_offer_type_facet(base.text)
+          endpoint=euraxess._filter_endpoint(base.text,base.url)
+          form=soup.select_one('select[name="job_country[]"]').find_parent('form')
+          hidden=[(i.get('name'),i.get('value') or '') for i in form.find_all('input') if (i.get('type') or '').lower()=='hidden' and i.get('name')]
+          submit=next(n for n in form.find_all(['button','input']) if (n.get('type') or '').lower()=='submit' and 'apply filters' in ((n.get('value') or '')+' '+n.get_text(' ',strip=True)).lower())
 
-          print('FORM_METHOD',form.get('method'),'ACTION',action,'OFFER',offer_value,'COUNTRIES',cmap)
-          for label in ('Netherlands','Germany'):
-              cv=cmap[label]
-              params=[('f[0]',f'job_country:{cv}'),('f[1]',f'offer_type:{offer_value}')]
-              r=s.get(action,params=params,timeout=45,allow_redirects=True)
-              print('---',label,'---')
-              print('URL',r.url)
-              print('COUNT',result_count(r.text))
-              print('IDS',ids(r.text)[:10])
-              print('CURRENT_HELPER_NEXT',next_listing_url(r.text,r.url))
-              print('NEXT_CANDIDATES',candidates(r.text,r.url))
-              n=next_listing_url(r.text,r.url)
-              if n:
-                  nr=s.get(n,timeout=45,allow_redirects=True)
-                  print('HELPER_NEXT_FETCH_URL',nr.url)
-                  print('HELPER_NEXT_COUNT',result_count(nr.text))
-                  print('HELPER_NEXT_IDS',ids(nr.text)[:10])
+          for code in ('NL','DE'):
+              facet=euraxess._facet_for_code(facets,code)
+              params=euraxess._filter_params(facet,offer)
+              gr=euraxess._get(s,endpoint,params=params,pace_seconds=0.2)
+              print('DIRECT',code,gr.status_code,gr.url,'parsed=',[(x['id'],x['title'][:50]) for x in euraxess.parse_listing(gr.text,gr.url)[:5]],'next=',euraxess.next_listing_url(gr.text,gr.url))
+              cv=facet.split(':',1)[1]
+              ov=offer.split(':',1)[1]
+              payload=list(hidden)+[('job_country[]',cv),('offer_type[]',ov),(submit.get('name'),submit.get('value') or submit.get_text(' ',strip=True))]
+              pr=euraxess._request(s,'POST',endpoint,data=payload,pace_seconds=0.2)
+              print('POST',code,pr.status_code,pr.url,'history=',[(h.status_code,h.headers.get('location')) for h in pr.history],'parsed=',[(x['id'],x['title'][:50]) for x in euraxess.parse_listing(pr.text,pr.url)[:5]],'next=',euraxess.next_listing_url(pr.text,pr.url))
+
+          with capture_coverage() as cov:
+              rows=euraxess.collect(country_codes=('NL','DE'),pages_per_country=2,max_jobs=None,enrich_detail=False,pace_seconds=0.2)
+          print('COLLECT_ROWS',len(rows))
+          print('COLLECT_COUNTS',{c:sum(1 for r in rows if (r.get('raw_extra') or {}).get('requested_country_code')==c) for c in ('NL','DE')})
+          print('COLLECT_FIRST',[(r.get('source_record_id'),(r.get('raw_extra') or {}).get('requested_country_code')) for r in rows[:10]])
+          print('COVERAGE',cov)
           PY
