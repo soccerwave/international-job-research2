@@ -14,7 +14,9 @@ EXPECTED_COUNTRIES = {
 }
 EXPECTED_PARTITIONS = {
     "linkedin-europe-germany",
-    "linkedin-europe-west",
+    "linkedin-europe-uk",
+    "linkedin-europe-netherlands",
+    "linkedin-europe-belgium-ireland",
     "linkedin-europe-france-austria",
     "linkedin-europe-opportunistic",
 }
@@ -28,6 +30,10 @@ class LinkedInRuntimeArchitectureTests(unittest.TestCase):
         self.assertEqual(len(flattened), len(EXPECTED_COUNTRIES))
         self.assertEqual(Counter(flattened), Counter(EXPECTED_COUNTRIES))
         self.assertEqual(LINKEDIN_EUROPE_PARTITIONS["linkedin-europe-germany"], ("Germany",))
+        self.assertEqual(LINKEDIN_EUROPE_PARTITIONS["linkedin-europe-uk"], ("United Kingdom",))
+        self.assertEqual(LINKEDIN_EUROPE_PARTITIONS["linkedin-europe-netherlands"], ("Netherlands",))
+        self.assertEqual(LINKEDIN_EUROPE_PARTITIONS["linkedin-europe-belgium-ireland"], ("Belgium", "Ireland"))
+        self.assertNotIn("linkedin-europe-west", LINKEDIN_EUROPE_PARTITIONS)
 
     def test_production_topology_matches_expected_shards(self):
         production = production_source_map()
