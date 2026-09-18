@@ -94,6 +94,145 @@ def _assert_filtered_url(url: str, country_facet: str, offer_facet: str) -> None
         )
 
 
+def _selected_option_values(html: str, select_name: str) -> set[str]:
+    soup = BeautifulSoup(html or "", "html.parser")
+    select = soup.select_one(f'select[name="{select_name}"]')
+    if select is None:
+        return set()
+    return {
+        clean(option.get("value"))
+        for option in select.find_all("option")
+        if option.has_attr("selected") and clean(option.get("value"))
+    }
+
+
+def _assert_active_filter_response(response: Any, country_facet: str, offer_facet: str) -> str | None:
+    """Require both canonical URL facets and server-rendered selected filter state."""
+    _assert_filtered_url(response.url, country_facet, offer_facet)
+    country_value = country_facet.split(":", 1)[-1]
+    offer_value = offer_facet.split(":", 1)[-1]
+    selected_countries = _selected_option_values(response.text, "job_country[]")
+    selected_offers = _selected_option_values(response.text, "offer_type[]")
+    if country_value not in selected_countries and country_facet not in selected_countries:
+        raise RuntimeError(
+            "EURAXESS response URL retained facets but rendered country filter is inactive: "
+            f"country={country_facet}, url={response.url}"
+        )
+    if offer_value not in selected_offers and offer_facet not in selected_offers:
+        raise RuntimeError(
+            "EURAXESS response URL retained facets but rendered offer filter is inactive: "
+            f"offer={offer_facet}, url={response.url}"
+        )
+    next_url = next_listing_url(response.text, response.url)
+    if next_url and not _url_has_facets(next_url, (country_facet, offer_facet)):
+        raise RuntimeError(
+            "EURAXESS filtered navigation lost active facets: "
+            f"country={country_facet}, offer={offer_facet}, url={next_url}"
+        )
+    return next_url
+
+
+def _filter_submission(
+    html: str,
+    page_url: str,
+    country_facet: str,
+    offer_facet: str,
+) -> tuple[str, list[tuple[str, str]]]:
+    """Build the live Drupal filter POST used as a fallback when direct GET is semantically stale."""
+    soup = BeautifulSoup(html or "", "html.parser")
+    country_select = soup.select_one('select[name="job_country[]"]')
+    form = country_select.find_parent("form") if country_select else None
+    if form is None or clean(form.get("method")).lower() != "post":
+        raise RuntimeError("EURAXESS country filter POST form not found")
+
+    action = urljoin(page_url, str(form.get("action") or SEARCH_URL))
+    payload: list[tuple[str, str]] = []
+    for inp in form.find_all("input"):
+        name = clean(inp.get("name"))
+        typ = clean(inp.get("type")).lower()
+        if name and typ == "hidden":
+            payload.append((name, clean(inp.get("value"))))
+
+    payload.append(("job_country[]", country_facet.split(":", 1)[-1]))
+    payload.append(("offer_type[]", offer_facet.split(":", 1)[-1]))
+    submit = next(
+        (
+            node for node in form.find_all(["button", "input"])
+            if clean(node.get("type")).lower() == "submit"
+            and "apply filters" in (
+                clean(node.get("value")) + " " + clean(node.get_text(" ", strip=True))
+            ).lower()
+        ),
+        None,
+    )
+    if submit is None or not clean(submit.get("name")):
+        raise RuntimeError("EURAXESS Apply filters submit control not found")
+    payload.append((
+        clean(submit.get("name")),
+        clean(submit.get("value")) or clean(submit.get_text(" ", strip=True)),
+    ))
+    return action, payload
+
+
+def _request_filtered_country(
+    session,
+    *,
+    filter_endpoint: str,
+    country_facet: str,
+    offer_facet: str,
+    pace_seconds: float,
+) -> tuple[Any, str]:
+    """Try canonical GET first, then a fresh Drupal POST if the rendered filter state is stale."""
+    errors: list[str] = []
+    try:
+        response = _get(
+            session,
+            filter_endpoint,
+            params=_filter_params(country_facet, offer_facet),
+            pace_seconds=pace_seconds,
+        )
+        response.raise_for_status()
+        _assert_active_filter_response(response, country_facet, offer_facet)
+        return response, "GET_FACET"
+    except Exception as exc:
+        errors.append(f"GET_FACET={type(exc).__name__}: {exc}")
+
+    try:
+        fresh = _get(session, SEARCH_URL, pace_seconds=pace_seconds)
+        fresh.raise_for_status()
+        action, payload = _filter_submission(
+            fresh.text,
+            fresh.url,
+            country_facet,
+            offer_facet,
+        )
+        response = _request(
+            session,
+            "POST",
+            action,
+            data=payload,
+            pace_seconds=pace_seconds,
+        )
+        response.raise_for_status()
+        _assert_active_filter_response(response, country_facet, offer_facet)
+        return response, "POST_FORM_FALLBACK"
+    except Exception as exc:
+        errors.append(f"POST_FORM_FALLBACK={type(exc).__name__}: {exc}")
+
+    raise RuntimeError("EURAXESS filter activation failed; " + " | ".join(errors))
+
+
+def _description_list_value(soup: BeautifulSoup, labels: tuple[str, ...]) -> str:
+    wanted = {clean(label).lower() for label in labels}
+    for dt in soup.find_all("dt"):
+        if clean(dt.get_text(" ", strip=True)).lower() not in wanted:
+            continue
+        dd = dt.find_next_sibling("dd")
+        if dd is not None:
+            return clean(dd.get_text(" ", strip=True))
+    return ""
+
+
 def _country_matches_requested(country_name: str, code: str) -> bool:
     normalized = clean(country_name).lower()
     labels = COUNTRY_LABEL_ALIASES.get(code) or (CODE_TO_COUNTRY_NAME.get(code) or "",)
@@ -181,24 +320,20 @@ def parse_detail_metadata(html: str) -> dict[str,str]:
     if title.lower() in GENERIC_DETAIL_TITLES:
         title=""
 
-    def after(labels: tuple[str,...]) -> str:
-        for label in labels:
-            m=re.search(rf"{label}\s*:?\s*(.+?)(?=(?:Application Deadline|Research Field|Researcher Profile|Organisation|Organization|Work Location|Work Locations|Posted on|Offer Description|$))", text, re.I)
-            if m:
-                return clean(m.group(1))
-        return ""
-
-    institution=after((r"Organisation",r"Organization"))
-    deadline=after((r"Application Deadline",))
-    posted=after((r"Posted on",))
-    country=""
-    m=re.search(
-        r"\bCountry\s*:?\s*(.+?)(?=(?:Type of Contract|Job Status|Hours Per Week|Is the job funded|Offer Description|Work Location|Work Locations|Geofield|$))",
+    institution=_description_list_value(
+        soup,
+        ("Organisation/Company", "Organisation", "Organization", "Company/Institute"),
+    )
+    deadline=_description_list_value(soup, ("Application Deadline",))
+    country=_description_list_value(soup, ("Country",))
+    posted=""
+    posted_match=re.search(
+        r"Posted on\s*:\s*([0-9]{1,2}\s+[A-Za-z]+\s+[0-9]{4})",
         text,
         re.I,
     )
-    if m:
-        country=clean(m.group(1))
+    if posted_match:
+        posted=clean(posted_match.group(1))
     return {"title":title,"institution":institution,"deadline":deadline,"posted":posted,"country":country}
 
 
@@ -240,14 +375,13 @@ def collect(
             record_coverage(f"{SOURCE_KEY}:{code}","country_facet_missing")
             continue
         try:
-            filtered=_get(
+            filtered, filter_transport = _request_filtered_country(
                 s,
-                filter_endpoint,
-                params=_filter_params(facet, offer_facet),
+                filter_endpoint=filter_endpoint,
+                country_facet=facet,
+                offer_facet=offer_facet,
                 pace_seconds=pace_seconds,
             )
-            filtered.raise_for_status()
-            _assert_filtered_url(filtered.url, facet, offer_facet)
         except Exception as exc:
             record_coverage(
                 f"{SOURCE_KEY}:{code}", "filter_validation_failed",
@@ -269,9 +403,8 @@ def collect(
                 _assert_filtered_url(next_url, facet, offer_facet)
                 r=_get(s, next_url, pace_seconds=pace_seconds)
                 r.raise_for_status()
-                _assert_filtered_url(r.url, facet, offer_facet)
+            next_url=_assert_active_filter_response(r, facet, offer_facet)
             batch=parse_listing(r.text,r.url)
-            next_url=next_listing_url(r.text,r.url)
             return batch, None, bool(next_url)
 
         try:
@@ -301,7 +434,7 @@ def collect(
         for item in batch:
             if item["id"] not in seen:
                 seen.add(item["id"])
-                items.append((item,code,facet))
+                items.append((item,code,facet,filter_transport))
                 if reached(items,max_jobs):
                     break
         if reached(items,max_jobs):
@@ -309,7 +442,7 @@ def collect(
             break
 
     records=[]
-    for item, code, facet in items[:max_jobs]:
+    for item, code, facet, filter_transport in items[:max_jobs]:
         detail_text=None
         detail_status="NOT_ATTEMPTED"
         failure=None
@@ -381,7 +514,7 @@ def collect(
                 "requested_country_code":code,
                 "country_facet":facet,
                 "offer_type_facet":offer_facet,
-                "filter_transport":"GET_FACET",
+                "filter_transport":filter_transport,
                 "detail_country":detail_country_name or None,
                 "detail_country_code":detail_country_code,
                 "country_validation":country_validation,
