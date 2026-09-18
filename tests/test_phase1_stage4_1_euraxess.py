@@ -163,7 +163,7 @@ class EuraxessStage41Tests(unittest.TestCase):
         self.assertEqual(rows[0]["raw_extra"]["listing_country"], "Germany")
         self.assertEqual(rows[0]["raw_extra"]["country_validation"], "LISTING_CARD_VALIDATED")
         self.assertIn("rendered country filter is inactive", rows[0]["raw_extra"]["fallback_reason"])
-        self.assertTrue(all(event["complete"] for event in coverage))
+        self.assertTrue(all(event["complete"] for event in coverage), coverage)
 
     def test_identical_filtered_result_sets_are_discarded_and_global_fallback_wins(self):
         same_body = (
