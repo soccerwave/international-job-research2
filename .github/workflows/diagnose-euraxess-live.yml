@@ -11,47 +11,39 @@ permissions:
 jobs:
   diagnose:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
-      - name: Inspect EURAXESS detail country markup
+      - name: Run EURAXESS regression tests
+        run: python -m unittest tests.test_phase1_stage4_1_euraxess -v
+      - name: Run focused live EURAXESS smoke
         shell: bash
         run: |
           python - <<'PY'
-          import re
-          from bs4 import BeautifulSoup
           from src.sources.shared import euraxess
+          from src.sources.shared.pagination import capture_coverage
 
-          s=euraxess.make_session(retries=0)
-          base=euraxess._get(s,euraxess.SEARCH_URL,pace_seconds=0.2)
-          facets=euraxess.discover_country_facets(base.text)
-          offer=euraxess.discover_offer_type_facet(base.text)
-          endpoint=euraxess._filter_endpoint(base.text,base.url)
-          facet=euraxess._facet_for_code(facets,'NL')
-          r=euraxess._get(s,endpoint,params=euraxess._filter_params(facet,offer),pace_seconds=0.2)
-          rows=euraxess.parse_listing(r.text,r.url)
-          print('LISTING',[(x['id'],x['title']) for x in rows[:3]])
-          u=rows[0]['url']
-          d=euraxess._get(s,u,pace_seconds=0.2)
-          print('DETAIL_URL',d.url)
-          soup=BeautifulSoup(d.text,'html.parser')
-          hits=[]
-          for node in soup.find_all(string=True):
-              t=' '.join(str(node).split())
-              if t.lower()=='country':
-                  p=node.parent
-                  hits.append({
-                      'tag':p.name,
-                      'class':p.get('class'),
-                      'parent_tag':p.parent.name if p.parent else None,
-                      'parent_class':p.parent.get('class') if p.parent else None,
-                      'parent_text':' '.join(p.parent.get_text(' ',strip=True).split())[:500] if p.parent else None,
-                      'parent_html':str(p.parent)[:1800] if p.parent else None,
-                  })
-          print('COUNTRY_HITS',hits)
-          print('PARSED_META',euraxess.parse_detail_metadata(d.text))
+          with capture_coverage() as cov:
+              rows=euraxess.collect(
+                  country_codes=('NL','DE'),
+                  pages_per_country=2,
+                  max_jobs=None,
+                  enrich_detail=False,
+                  pace_seconds=0.5,
+              )
+          counts={c:sum(1 for r in rows if (r.get('raw_extra') or {}).get('requested_country_code')==c) for c in ('NL','DE')}
+          ids={c:[r['source']['source_job_id'] for r in rows if (r.get('raw_extra') or {}).get('requested_country_code')==c][:5] for c in ('NL','DE')}
+          transports={c:sorted({(r.get('raw_extra') or {}).get('filter_transport') for r in rows if (r.get('raw_extra') or {}).get('requested_country_code')==c}) for c in ('NL','DE')}
+          print('LIVE_ROWS',len(rows))
+          print('LIVE_COUNTS',counts)
+          print('LIVE_IDS',ids)
+          print('LIVE_TRANSPORTS',transports)
+          print('LIVE_COVERAGE',cov)
+          assert counts['NL'] > 0 and counts['DE'] > 0
+          assert ids['NL'] != ids['DE']
+          assert not any(e.get('stop_reason') in {'filter_validation_failed','identical_country_result_set'} for e in cov)
           PY
