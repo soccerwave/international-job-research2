@@ -10,7 +10,7 @@ from urllib.parse import parse_qsl, urljoin, urlparse
 from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
 
-from .pagination import next_listing_url, paginate, reached, record_coverage
+from .pagination import capture_coverage, next_listing_url, paginate, reached, record_coverage
 from .common import CODE_TO_COUNTRY_NAME, clean, infer_country_code, make_record, make_session
 
 SOURCE_KEY = "euraxess"
@@ -203,6 +203,23 @@ def _get(session, url: str, *, params=None, attempts: int = 5, pace_seconds: flo
     return _request(session, "GET", url, params=params, attempts=attempts, pace_seconds=pace_seconds)
 
 
+def _listing_card_metadata(link) -> tuple[str, str, str | None, str]:
+    card = link.find_parent("div", id="job-teaser-content")
+    labels: list[str] = []
+    if card is not None:
+        labels = [
+            clean(node.get_text(" ", strip=True))
+            for node in card.select(".ecl-content-block__label-container .ecl-label")
+            if clean(node.get_text(" ", strip=True))
+        ]
+    offer_type = labels[0].upper() if labels else ""
+    country_name = labels[1] if len(labels) > 1 else ""
+    country_code = infer_country_code(country_name) if country_name else None
+    block = card or link.find_parent(["article", "li", "div"])
+    context = clean(block.get_text(" ", strip=True)) if block else clean(link.get_text(" ", strip=True))
+    return offer_type, country_name, country_code, context
+
+
 def parse_listing(html: str, base_url: str = SEARCH_URL) -> list[dict[str,Any]]:
     soup = BeautifulSoup(html or "", "html.parser")
     by_id: dict[str,dict[str,Any]] = {}
@@ -213,13 +230,171 @@ def parse_listing(html: str, base_url: str = SEARCH_URL) -> list[dict[str,Any]]:
         if not m or not title or len(title) < 4:
             continue
         job_id=m.group(1)
-        block=link.find_parent(["article","li","div"])
-        context=clean(block.get_text(" ", strip=True)) if block else title
+        offer_type, country_name, country_code, context = _listing_card_metadata(link)
         current=by_id.get(job_id)
-        item={"id":job_id,"title":title,"url":href,"context":context}
+        item={
+            "id":job_id,
+            "title":title,
+            "url":href,
+            "context":context,
+            "offer_type":offer_type,
+            "listing_country_name":country_name,
+            "listing_country_code":country_code,
+        }
         if current is None or len(title) > len(current.get("title","")):
             by_id[job_id]=item
     return list(by_id.values())
+
+
+def _replay_coverage(events: list[dict[str, Any]]) -> None:
+    for event in events:
+        details = {
+            key: value
+            for key, value in event.items()
+            if key not in {"source", "stop_reason", "complete"}
+        }
+        record_coverage(
+            event["source"],
+            event["stop_reason"],
+            complete=bool(event.get("complete")),
+            **details,
+        )
+
+
+def _preflight_country_filters(
+    session,
+    *,
+    country_codes: tuple[str, ...],
+    facets: dict[str, str],
+    offer_facet: str,
+    filter_endpoint: str,
+    pace_seconds: float,
+) -> dict[str, tuple[Any, str]]:
+    responses: dict[str, tuple[Any, str]] = {}
+    for code in country_codes:
+        facet = _facet_for_code(facets, code)
+        if not facet:
+            raise RuntimeError(f"EURAXESS country facet missing for {code}")
+        filtered = _get(
+            session,
+            filter_endpoint,
+            params=_filter_params(facet, offer_facet),
+            pace_seconds=pace_seconds,
+        )
+        filtered.raise_for_status()
+        _assert_active_filter_response(filtered, facet, offer_facet)
+        responses[code] = (filtered, facet)
+    return responses
+
+
+def _collect_global_fallback(
+    session,
+    *,
+    country_codes: tuple[str, ...],
+    pages_per_country: int | None,
+    max_jobs: int | None,
+    pace_seconds: float,
+) -> tuple[list[dict[str, Any]], bool]:
+    """Scan the global listing when country facets are unreliable.
+
+    EURAXESS exposes offer type and country as structured labels on each listing card,
+    so non-target countries are discarded before detail enrichment.
+    """
+    target_codes = set(country_codes)
+    page_limit = None
+    if pages_per_country is not None:
+        page_limit = max(1, int(pages_per_country) * max(1, len(country_codes)))
+
+    current_url = SEARCH_URL
+    visited: set[str] = set()
+    items: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    pages = 0
+    reason = "unknown"
+    complete = False
+    error = None
+    global_rows_seen = 0
+    unresolved_country_rows = 0
+
+    while True:
+        if current_url in visited:
+            reason = "repeated_page_url"
+            error = f"Repeated global pagination URL: {current_url}"
+            break
+        visited.add(current_url)
+        try:
+            response = _get(session, current_url, pace_seconds=pace_seconds)
+            response.raise_for_status()
+        except Exception as exc:
+            reason = "request_failed"
+            error = f"{type(exc).__name__}: {exc}"
+            break
+
+        pages += 1
+        batch = parse_listing(response.text, response.url)
+        global_rows_seen += len(batch)
+        next_url = next_listing_url(response.text, response.url)
+
+        if not batch:
+            reason = "empty_page"
+            complete = next_url is None
+            break
+
+        for item in batch:
+            offer_type = clean(item.get("offer_type")).upper()
+            if offer_type and offer_type != "JOB":
+                continue
+
+            listing_name = clean(item.get("listing_country_name"))
+            listing_code = item.get("listing_country_code")
+            if listing_name:
+                matched_target = next(
+                    (
+                        code for code in country_codes
+                        if _country_matches_requested(listing_name, code)
+                    ),
+                    None,
+                )
+                if matched_target is None:
+                    continue
+                listing_code = matched_target
+                item["listing_country_code"] = matched_target
+            elif listing_code not in target_codes:
+                listing_code = None
+
+            if listing_code is None:
+                unresolved_country_rows += 1
+            job_id = str(item["id"])
+            if job_id in seen:
+                continue
+            seen.add(job_id)
+            items.append(item)
+            if reached(items, max_jobs):
+                break
+
+        if reached(items, max_jobs):
+            reason = "configured_record_limit"
+            break
+        if not next_url:
+            reason = "last_page"
+            complete = True
+            break
+        if page_limit is not None and pages >= page_limit:
+            reason = "configured_page_limit"
+            break
+        current_url = next_url
+
+    record_coverage(
+        f"{SOURCE_KEY}:global_fallback",
+        reason,
+        complete=complete,
+        pages=pages,
+        records=len(items),
+        global_rows_seen=global_rows_seen,
+        unresolved_country_rows=unresolved_country_rows,
+        error=error,
+    )
+    return items, complete
 
 
 def parse_detail_metadata(html: str) -> dict[str,str]:
@@ -270,90 +445,135 @@ def collect(
     form_url=first.url
     facets=discover_country_facets(form_html)
     offer_facet=discover_offer_type_facet(form_html)
-    if not offer_facet:
-        record_coverage(SOURCE_KEY, "offer_type_facet_missing", complete=False)
-        return []
     filter_endpoint=_filter_endpoint(form_html, form_url)
 
-    items=[]; seen=set()
-    result_sets: dict[str,frozenset[str]] = {}
+    items: list[tuple[dict[str, Any], str | None, str | None, str, str | None]] = []
     untrusted_item_ids: set[str] = set()
+    fallback_reason: str | None = None
 
-    for code in country_codes:
-        facet=_facet_for_code(facets, code)
-        if not facet:
-            record_coverage(f"{SOURCE_KEY}:{code}","country_facet_missing")
-            continue
+    preflight: dict[str, tuple[Any, str]] = {}
+    if not offer_facet:
+        fallback_reason = "EURAXESS Job Offer facet missing; using global listing labels"
+    else:
         try:
-            filtered=_get(
+            preflight = _preflight_country_filters(
                 s,
-                filter_endpoint,
-                params=_filter_params(facet, offer_facet),
+                country_codes=country_codes,
+                facets=facets,
+                offer_facet=offer_facet,
+                filter_endpoint=filter_endpoint,
                 pace_seconds=pace_seconds,
             )
-            filtered.raise_for_status()
-            _assert_active_filter_response(filtered, facet, offer_facet)
         except Exception as exc:
-            record_coverage(
-                f"{SOURCE_KEY}:{code}", "filter_validation_failed",
-                pages=0, records=0, error=f"{type(exc).__name__}: {exc}",
-            )
-            continue
+            fallback_reason = f"{type(exc).__name__}: {exc}"
 
-        next_url=None
-        first_response=filtered
+    if fallback_reason is None:
+        filtered_items: list[tuple[dict[str, Any], str | None, str | None, str, str | None]] = []
+        seen: set[str] = set()
+        result_sets: dict[str, frozenset[str]] = {}
 
-        def fetch(page):
-            nonlocal next_url, first_response
-            if first_response is not None:
-                r=first_response
-                first_response=None
-            else:
-                if not next_url:
-                    return [], None, False
-                _assert_filtered_url(next_url, facet, offer_facet)
-                r=_get(s, next_url, pace_seconds=pace_seconds)
-                r.raise_for_status()
-            next_url=_assert_active_filter_response(r, facet, offer_facet)
-            batch=parse_listing(r.text,r.url)
-            return batch, None, bool(next_url)
+        with capture_coverage() as filtered_coverage:
+            for code in country_codes:
+                filtered, facet = preflight[code]
+                next_url=None
+                first_response=filtered
 
-        try:
-            batch=paginate(
-                fetch,
-                source=f"{SOURCE_KEY}:{code}",
-                max_jobs=max_jobs,
-                max_pages=pages_per_country,
-            )
-        except Exception:
-            continue
+                def fetch(page):
+                    nonlocal next_url, first_response
+                    if first_response is not None:
+                        r=first_response
+                        first_response=None
+                    else:
+                        if not next_url:
+                            return [], None, False
+                        _assert_filtered_url(next_url, facet, offer_facet)
+                        r=_get(s, next_url, pace_seconds=pace_seconds)
+                        r.raise_for_status()
+                    next_url=_assert_active_filter_response(r, facet, offer_facet)
+                    batch=parse_listing(r.text,r.url)
+                    return batch, None, bool(next_url)
 
-        ids=frozenset(str(item["id"]) for item in batch)
-        if ids:
-            matching_codes=[previous for previous, previous_ids in result_sets.items() if previous_ids == ids]
-            if matching_codes:
-                untrusted_item_ids.update(ids)
-                record_coverage(
-                    f"{SOURCE_KEY}:{code}",
-                    "identical_country_result_set",
-                    complete=False,
-                    records=len(ids),
-                    compared_to=",".join(matching_codes),
-                )
-            result_sets[code]=ids
+                try:
+                    batch=paginate(
+                        fetch,
+                        source=f"{SOURCE_KEY}:{code}",
+                        max_jobs=max_jobs,
+                        max_pages=pages_per_country,
+                    )
+                except Exception:
+                    batch=[]
 
-        for item in batch:
-            if item["id"] not in seen:
-                seen.add(item["id"])
-                items.append((item,code,facet))
-                if reached(items,max_jobs):
+                ids=frozenset(str(item["id"]) for item in batch)
+                if ids:
+                    matching_codes=[
+                        previous for previous, previous_ids in result_sets.items()
+                        if previous_ids == ids
+                    ]
+                    if matching_codes:
+                        untrusted_item_ids.update(ids)
+                        record_coverage(
+                            f"{SOURCE_KEY}:{code}",
+                            "identical_country_result_set",
+                            complete=False,
+                            records=len(ids),
+                            compared_to=",".join(matching_codes),
+                        )
+                    result_sets[code]=ids
+
+                for item in batch:
+                    if item["id"] not in seen:
+                        seen.add(item["id"])
+                        filtered_items.append((item, code, facet, "GET_FACET", None))
+                        if reached(filtered_items,max_jobs):
+                            break
+                if reached(filtered_items,max_jobs):
+                    record_coverage(SOURCE_KEY,"configured_record_limit")
                     break
-        if reached(items,max_jobs):
-            record_coverage(SOURCE_KEY,"configured_record_limit")
-            break
+
+        unexpected_incomplete = [
+            event for event in filtered_coverage
+            if not event.get("complete")
+            and event.get("stop_reason") not in {"configured_page_limit", "configured_record_limit"}
+        ]
+        if unexpected_incomplete:
+            first_bad = unexpected_incomplete[0]
+            fallback_reason = (
+                f"{first_bad.get('source')}:{first_bad.get('stop_reason')}"
+                + (f" ({first_bad.get('error')})" if first_bad.get("error") else "")
+            )
+        else:
+            _replay_coverage(filtered_coverage)
+            items=filtered_items
+
+    if fallback_reason is not None:
+        fallback_items, fallback_complete = _collect_global_fallback(
+            s,
+            country_codes=country_codes,
+            pages_per_country=pages_per_country,
+            max_jobs=max_jobs,
+            pace_seconds=pace_seconds,
+        )
+        items=[
+            (
+                item,
+                item.get("listing_country_code"),
+                None,
+                "GLOBAL_LISTING_FALLBACK",
+                fallback_reason,
+            )
+            for item in fallback_items
+        ]
+        record_coverage(
+            SOURCE_KEY,
+            "global_fallback_recovered" if fallback_complete else "global_fallback_partial",
+            complete=fallback_complete,
+            records=len(items),
+            filter_failure=fallback_reason,
+        )
 
     records=[]
-    for item, code, facet in items[:max_jobs]:
+    target_codes=set(country_codes)
+    for item, code, facet, filter_transport, item_fallback_reason in items[:max_jobs]:
         detail_text=None
         detail_status="NOT_ATTEMPTED"
         failure=None
@@ -376,6 +596,23 @@ def collect(
 
         detail_country_name=clean(meta.get("country"))
         detail_country_code=infer_country_code(detail_country_name) if detail_country_name else None
+
+        if code is None:
+            if detail_country_code in target_codes:
+                code=detail_country_code
+            elif detail_country_code is not None:
+                continue
+            else:
+                record_coverage(
+                    f"{SOURCE_KEY}:global_fallback",
+                    "unresolved_listing_country",
+                    complete=False,
+                    records=1,
+                    source_job_id=str(item["id"]),
+                    detail_status=detail_status,
+                )
+                continue
+
         detail_country_mismatch=bool(detail_country_name and not _country_matches_requested(detail_country_name, code))
         if detail_country_mismatch:
             untrusted_item_ids.add(str(item["id"]))
@@ -409,6 +646,8 @@ def collect(
             country_validation="DETAIL_MATCH"
         elif str(item["id"]) in untrusted_item_ids:
             country_validation="UNTRUSTED_IDENTICAL_RESULT_SET"
+        elif filter_transport == "GLOBAL_LISTING_FALLBACK":
+            country_validation="LISTING_CARD_VALIDATED"
         else:
             country_validation="FILTER_URL_VALIDATED"
 
@@ -425,7 +664,11 @@ def collect(
                 "requested_country_code":code,
                 "country_facet":facet,
                 "offer_type_facet":offer_facet,
-                "filter_transport":"GET_FACET",
+                "filter_transport":filter_transport,
+                "fallback_reason":item_fallback_reason,
+                "listing_offer_type":item.get("offer_type") or None,
+                "listing_country":item.get("listing_country_name") or None,
+                "listing_country_code":item.get("listing_country_code"),
                 "detail_country":detail_country_name or None,
                 "detail_country_code":detail_country_code,
                 "country_validation":country_validation,

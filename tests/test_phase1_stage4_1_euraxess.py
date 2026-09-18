@@ -30,6 +30,16 @@ FILTER_FORM = """
 """
 
 
+FILTER_FORM_NO_OFFER = """
+<form method="post" action="/jobs/search">
+  <select name="job_country[]">
+    <option value="794">Germany</option>
+  </select>
+  <button type="submit" name="op" value="Apply filters">Apply filters</button>
+</form>
+"""
+
+
 def selected_form(code):
     country_value = {"DE": "794", "NL": "798"}[code]
     country_label = {"DE": "Germany", "NL": "Netherlands"}[code]
@@ -57,12 +67,47 @@ def filtered_url(country_facet, page=None):
     return euraxess.SEARCH_URL + suffix
 
 
+def global_card(job_id, title, country=None, offer_type="JOB"):
+    country_label = (
+        f'<li class="ecl-content-block__label-item">'
+        f'<span class="ecl-label ecl-label--highlight">{country}</span></li>'
+        if country else ""
+    )
+    return f"""
+<div id="job-teaser-content">
+  <div class="label-thumbnail-wrapper">
+    <ul class="ecl-content-block__label-container">
+      <li class="ecl-content-block__label-item">
+        <span class="ecl-label ecl-label--low">{offer_type}</span>
+      </li>
+      {country_label}
+    </ul>
+  </div>
+  <article class="ecl-content-item">
+    <div class="ecl-content-block ecl-content-item__content-block">
+      <h3 class="ecl-content-block__title">
+        <a class="ecl-link ecl-link--standalone" href="/jobs/{job_id}"><span>{title}</span></a>
+      </h3>
+    </div>
+  </article>
+</div>
+"""
+
+
 class EuraxessStage41Tests(unittest.TestCase):
     def test_discovers_current_get_facets_dynamically(self):
         facets = euraxess.discover_country_facets(FILTER_FORM)
         self.assertEqual(facets["germany"], "job_country:794")
         self.assertEqual(facets["netherlands"], "job_country:798")
         self.assertEqual(euraxess.discover_offer_type_facet(FILTER_FORM), "offer_type:job_offer")
+
+    def test_parse_listing_extracts_structured_offer_type_and_country(self):
+        rows = euraxess.parse_listing(global_card("100", "Research Fellow", "Germany"))
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["offer_type"], "JOB")
+        self.assertEqual(rows[0]["listing_country_name"], "Germany")
+        self.assertEqual(rows[0]["listing_country_code"], "DE")
+        self.assertIn("JOB Germany", rows[0]["context"])
 
     def test_uses_get_facets_and_follows_filtered_next_link_unchanged(self):
         next_href = "?f%5B0%5D=job_country%3A794&f%5B1%5D=offer_type%3Ajob_offer&page=1"
@@ -94,21 +139,51 @@ class EuraxessStage41Tests(unittest.TestCase):
         )
         self.assertEqual(gets[2], (euraxess.SEARCH_URL + next_href, None))
         self.assertEqual(rows[0]["raw_extra"]["filter_transport"], "GET_FACET")
-        self.assertEqual(coverage[-1]["stop_reason"], "last_page")
-        self.assertTrue(coverage[-1]["complete"])
+        self.assertTrue(all(event["complete"] for event in coverage))
 
-    def test_semantically_unfiltered_http_200_is_rejected_before_rows_are_accepted(self):
-        global_page = FILTER_FORM + (
-            '<article>Global <a href="/jobs/999">Wrong Global Result</a></article>'
-            '<a rel="next" href="/jobs/search?page=1">Next</a>'
+    def test_semantically_unfiltered_country_filter_falls_back_to_global_scan(self):
+        stale_filtered = FILTER_FORM + global_card("999", "Global Wrong Result", "Croatia")
+        global_page1 = (
+            global_card("200", "Croatian Job", "Croatia")
+            + global_card("201", "German Funding", "Germany", offer_type="FUNDING")
+            + '<a rel="next" href="/jobs/search?page=1">Next</a>'
         )
+        global_page2 = global_card("100", "German Research Fellow", "Germany")
         gets = []
 
         def get(url, **kwargs):
             gets.append((url, kwargs.get("params")))
             if len(gets) == 1:
                 return Response(FILTER_FORM)
-            return Response(global_page, filtered_url("job_country:794"))
+            if len(gets) == 2:
+                return Response(stale_filtered, filtered_url("job_country:794"))
+            if len(gets) == 3:
+                return Response(global_page1, euraxess.SEARCH_URL)
+            return Response(global_page2, euraxess.SEARCH_URL + "?page=1")
+
+        with capture_coverage() as coverage:
+            rows = euraxess.collect(
+                country_codes=("DE",), pages_per_country=2, max_jobs=None,
+                enrich_detail=False, session=SimpleNamespace(get=get), pace_seconds=0,
+            )
+
+        self.assertEqual([row["source"]["source_job_id"] for row in rows], ["100"])
+        self.assertEqual(rows[0]["location"]["country_code"], "DE")
+        self.assertEqual(rows[0]["raw_extra"]["filter_transport"], "GLOBAL_LISTING_FALLBACK")
+        self.assertEqual(rows[0]["raw_extra"]["listing_country"], "Germany")
+        self.assertEqual(rows[0]["raw_extra"]["country_validation"], "LISTING_CARD_VALIDATED")
+        self.assertIn("rendered country filter is inactive", rows[0]["raw_extra"]["fallback_reason"])
+        self.assertTrue(all(event["complete"] for event in coverage), coverage)
+
+    def test_missing_offer_facet_uses_global_listing_fallback(self):
+        global_page = global_card("150", "German Job Without Offer Facet", "Germany")
+        gets = []
+
+        def get(url, **kwargs):
+            gets.append((url, kwargs.get("params")))
+            if len(gets) == 1:
+                return Response(FILTER_FORM_NO_OFFER)
+            return Response(global_page, euraxess.SEARCH_URL)
 
         with capture_coverage() as coverage:
             rows = euraxess.collect(
@@ -116,39 +191,22 @@ class EuraxessStage41Tests(unittest.TestCase):
                 enrich_detail=False, session=SimpleNamespace(get=get), pace_seconds=0,
             )
 
-        self.assertEqual(rows, [])
-        self.assertEqual(coverage[-1]["stop_reason"], "filter_validation_failed")
-        self.assertFalse(coverage[-1]["complete"])
-        self.assertIn("rendered country filter is inactive", coverage[-1]["error"])
+        self.assertEqual([row["source"]["source_job_id"] for row in rows], ["150"])
+        self.assertEqual(rows[0]["raw_extra"]["filter_transport"], "GLOBAL_LISTING_FALLBACK")
+        self.assertIsNone(rows[0]["raw_extra"]["offer_type_facet"])
+        self.assertIn("Job Offer facet missing", rows[0]["raw_extra"]["fallback_reason"])
+        self.assertTrue(all(event["complete"] for event in coverage), coverage)
 
-    def test_pagination_that_drops_facets_is_rejected_before_rows_are_accepted(self):
-        bad_page = selected_form("DE") + (
-            '<article>Germany <a href="/jobs/100">Research Fellow A</a></article>'
-            '<a rel="next" href="/jobs/search?page=1">Next</a>'
-        )
-        gets = []
-
-        def get(url, **kwargs):
-            gets.append((url, kwargs.get("params")))
-            if len(gets) == 1:
-                return Response(FILTER_FORM)
-            return Response(bad_page, filtered_url("job_country:794"))
-
-        with capture_coverage() as coverage:
-            rows = euraxess.collect(
-                country_codes=("DE",), pages_per_country=None, max_jobs=None,
-                enrich_detail=False, session=SimpleNamespace(get=get), pace_seconds=0,
-            )
-
-        self.assertEqual(rows, [])
-        self.assertEqual(coverage[-1]["stop_reason"], "filter_validation_failed")
-        self.assertFalse(coverage[-1]["complete"])
-        self.assertIn("lost active facets", coverage[-1]["error"])
-
-    def test_identical_country_result_sets_are_flagged_and_country_becomes_untrusted(self):
+    def test_identical_filtered_result_sets_are_discarded_and_global_fallback_wins(self):
         same_body = (
-            '<article><span>Global</span><a href="/jobs/100">Research Fellow A</a></article>'
-            '<article><span>Global</span><a href="/jobs/101">Research Fellow B</a></article>'
+            '<article><a href="/jobs/300">Duplicated A</a></article>'
+            '<article><a href="/jobs/301">Duplicated B</a></article>'
+        )
+        de_filtered = selected_form("DE") + same_body
+        nl_filtered = selected_form("NL") + same_body
+        global_page = (
+            global_card("400", "German Global Job", "Germany")
+            + global_card("401", "Dutch Global Job", "Netherlands")
         )
         gets = []
 
@@ -156,9 +214,11 @@ class EuraxessStage41Tests(unittest.TestCase):
             gets.append((url, kwargs.get("params")))
             if len(gets) == 1:
                 return Response(FILTER_FORM)
-            params = dict(kwargs.get("params") or [])
-            code = "DE" if params["f[0]"] == "job_country:794" else "NL"
-            return Response(selected_form(code) + same_body, filtered_url(params["f[0]"]))
+            if len(gets) == 2:
+                return Response(de_filtered, filtered_url("job_country:794"))
+            if len(gets) == 3:
+                return Response(nl_filtered, filtered_url("job_country:798"))
+            return Response(global_page, euraxess.SEARCH_URL)
 
         with capture_coverage() as coverage:
             rows = euraxess.collect(
@@ -166,13 +226,51 @@ class EuraxessStage41Tests(unittest.TestCase):
                 enrich_detail=False, session=SimpleNamespace(get=get), pace_seconds=0,
             )
 
-        self.assertEqual([row["source"]["source_job_id"] for row in rows], ["100", "101"])
-        self.assertTrue(any(event["stop_reason"] == "identical_country_result_set" for event in coverage))
-        self.assertEqual({row["location"]["country_code"] for row in rows}, {None})
         self.assertEqual(
-            {row["raw_extra"]["country_validation"] for row in rows},
-            {"UNTRUSTED_IDENTICAL_RESULT_SET"},
+            [row["source"]["source_job_id"] for row in rows],
+            ["400", "401"],
         )
+        self.assertEqual(
+            {row["raw_extra"]["filter_transport"] for row in rows},
+            {"GLOBAL_LISTING_FALLBACK"},
+        )
+        self.assertTrue(all(event["complete"] for event in coverage))
+
+    def test_global_fallback_resolves_missing_card_country_from_detail(self):
+        stale_filtered = FILTER_FORM + global_card("999", "Wrong Result", "Croatia")
+        global_page = global_card("500", "Country Missing Research Fellow", None)
+        detail = (
+            "<html><body><h1>Country Missing Research Fellow</h1>"
+            "<dl><dt>Organisation/Company</dt><dd>Example University</dd>"
+            "<dt>Application Deadline</dt><dd>30 Sep 2026 - 12:00 (UTC)</dd>"
+            "<dt>Country</dt><dd>Germany</dd></dl>"
+            "<p>" + ("Research description. " * 20) + "</p></body></html>"
+        )
+        gets = []
+
+        def get(url, **kwargs):
+            gets.append((url, kwargs.get("params")))
+            if len(gets) == 1:
+                return Response(FILTER_FORM)
+            if len(gets) == 2:
+                return Response(stale_filtered, filtered_url("job_country:794"))
+            if len(gets) == 3:
+                return Response(global_page, euraxess.SEARCH_URL)
+            return Response(detail, "https://euraxess.ec.europa.eu/jobs/500")
+
+        with capture_coverage() as coverage:
+            rows = euraxess.collect(
+                country_codes=("DE",), pages_per_country=None, max_jobs=None,
+                enrich_detail=True, session=SimpleNamespace(get=get), pace_seconds=0,
+            )
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["source"]["source_job_id"], "500")
+        self.assertEqual(rows[0]["location"]["country_code"], "DE")
+        self.assertEqual(rows[0]["raw_extra"]["filter_transport"], "GLOBAL_LISTING_FALLBACK")
+        self.assertEqual(rows[0]["raw_extra"]["detail_country"], "Germany")
+        self.assertEqual(rows[0]["raw_extra"]["country_validation"], "DETAIL_MATCH")
+        self.assertTrue(all(event["complete"] for event in coverage))
 
     def test_explicit_detail_country_mismatch_preserves_real_country_and_flags_coverage(self):
         listing = selected_form("DE") + '<article>Germany <a href="/jobs/100">Research Fellow A</a></article>'
