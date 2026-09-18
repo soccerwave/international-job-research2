@@ -73,18 +73,18 @@ class Stage51RunObservabilityTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             self._write(root, run_id="r1", shard_id="linkedin-europe-germany", source_id="linkedin_europe", report_key="linkedin_mads", elapsed_ms=1200, records=2)
-            self._write(root, run_id="r1", shard_id="linkedin-europe-west", source_id="linkedin_europe", report_key="linkedin_mads", elapsed_ms=800, records=3)
+            self._write(root, run_id="r1", shard_id="linkedin-europe-uk", source_id="linkedin_europe", report_key="linkedin_mads", elapsed_ms=800, records=3)
             result = collect_run_observability(
                 run_id="r1",
                 artifact_root=root,
-                expected_shards=("linkedin-europe-germany", "linkedin-europe-west"),
+                expected_shards=("linkedin-europe-germany", "linkedin-europe-uk"),
             )
             self.assertEqual(len(result["sources"]), 1)
             source = result["sources"][0]
             self.assertEqual(source["logical_source"], "linkedin_mads")
             self.assertEqual(source["records"], 5)
             self.assertEqual(source["elapsed_ms"], 2000)
-            self.assertEqual(source["shard_ids"], ["linkedin-europe-germany", "linkedin-europe-west"])
+            self.assertEqual(source["shard_ids"], ["linkedin-europe-germany", "linkedin-europe-uk"])
             self.assertEqual(len(source["instances"]), 2)
 
     def test_missing_expected_shard_is_explicit_not_inferred_healthy(self):

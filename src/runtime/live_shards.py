@@ -49,7 +49,9 @@ JOBS_AC_UK_QUERIES = (
 )
 LINKEDIN_EUROPE_PARTITIONS = {
     "linkedin-europe-germany": ("Germany",),
-    "linkedin-europe-west": ("Netherlands", "Ireland", "United Kingdom", "Belgium"),
+    "linkedin-europe-uk": ("United Kingdom",),
+    "linkedin-europe-netherlands": ("Netherlands",),
+    "linkedin-europe-belgium-ireland": ("Belgium", "Ireland"),
     "linkedin-europe-france-austria": ("France", "Austria"),
     "linkedin-europe-opportunistic": ("Italy", "Portugal", "Czechia", "Poland", "Luxembourg"),
 }

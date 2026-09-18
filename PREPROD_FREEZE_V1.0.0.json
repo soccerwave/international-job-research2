@@ -89,7 +89,7 @@
     "src/runtime/canonicalizer_legacy.py": "d2e3bc6fa7fafa853453da3952e0ce5d3b839c12",
     "src/runtime/preprod.py": "f2c7a0ade90efae56f208fb93112831b2ccfb2d9",
     "src/runtime/state_projection.py": "4db2dfd0604b6a69fcbcbe8ded2a731e438c709f",
-    "src/runtime/live_shards.py": "96fd9b0b0e09b61d26aaec0bee63368138b00f95",
+    "src/runtime/live_shards.py": "5dc151c8078f4c3bdbb9b00cba97b6d32cab47c5",
     "scripts/run_stage10_live_shard.py": "bcfcd6753dfdc3314f3228efd49522def0556158",
     "scripts/run_stage10_preprod.py": "7740d75f80ebffbd994ff63ea729d9796b15bd61",
     "tests/test_stage10_preprod.py": "1edce3283b467aebe06ecf51263f4b73f70dd0f3",

@@ -15,7 +15,7 @@ class Stage63StructuralCompletenessTests(unittest.TestCase):
         self.assertEqual(audit["target_countries_without_explicit_wiring"], [])
         self.assertEqual(audit["tenant_registry_count"], 17)
         self.assertEqual(audit["unwired_registered_tenant_count"], 0)
-        self.assertEqual(audit["linkedin_partition_count"], 4)
+        self.assertEqual(audit["linkedin_partition_count"], 6)
         self.assertEqual(audit["unwired_linkedin_partition_count"], 0)
         self.assertEqual(audit["portal_collector_surface_count"], 6)
         self.assertEqual(audit["unresolved_geography_execution_count"], 5)

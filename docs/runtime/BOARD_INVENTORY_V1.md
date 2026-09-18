@@ -8,8 +8,8 @@ This inventory describes only the sources and geographies explicitly wired into 
 
 | Metric | Count |
 | --- | ---: |
-| Production shards | 17 |
-| Source executions across shards | 33 |
+| Production shards | 19 |
+| Source executions across shards | 35 |
 | Unique source IDs | 30 |
 | Unique report keys | 29 |
 | Board families | 17 |
