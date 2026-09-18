@@ -32,7 +32,7 @@ These findings are structural observations only. None is promoted to a confirmed
 
 - 13 target countries are represented by explicit production wiring.
 - 17 registered ATS tenants are all wired.
-- 4 LinkedIn Europe partitions are all wired.
+- 6 LinkedIn Europe partitions are all wired.
 - 6 standalone `portals.py` collectors are accounted for.
 
 Run:
