@@ -445,9 +445,6 @@ def collect(
     form_url=first.url
     facets=discover_country_facets(form_html)
     offer_facet=discover_offer_type_facet(form_html)
-    if not offer_facet:
-        record_coverage(SOURCE_KEY, "offer_type_facet_missing", complete=False)
-        return []
     filter_endpoint=_filter_endpoint(form_html, form_url)
 
     items: list[tuple[dict[str, Any], str | None, str | None, str, str | None]] = []
@@ -455,17 +452,20 @@ def collect(
     fallback_reason: str | None = None
 
     preflight: dict[str, tuple[Any, str]] = {}
-    try:
-        preflight = _preflight_country_filters(
-            s,
-            country_codes=country_codes,
-            facets=facets,
-            offer_facet=offer_facet,
-            filter_endpoint=filter_endpoint,
-            pace_seconds=pace_seconds,
-        )
-    except Exception as exc:
-        fallback_reason = f"{type(exc).__name__}: {exc}"
+    if not offer_facet:
+        fallback_reason = "EURAXESS Job Offer facet missing; using global listing labels"
+    else:
+        try:
+            preflight = _preflight_country_filters(
+                s,
+                country_codes=country_codes,
+                facets=facets,
+                offer_facet=offer_facet,
+                filter_endpoint=filter_endpoint,
+                pace_seconds=pace_seconds,
+            )
+        except Exception as exc:
+            fallback_reason = f"{type(exc).__name__}: {exc}"
 
     if fallback_reason is None:
         filtered_items: list[tuple[dict[str, Any], str | None, str | None, str, str | None]] = []
