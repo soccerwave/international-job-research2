@@ -101,7 +101,9 @@ jobs:
           - euraxess-europe
           - academicpositions
           - linkedin-europe-germany
-          - linkedin-europe-west
+          - linkedin-europe-uk
+          - linkedin-europe-netherlands
+          - linkedin-europe-belgium-ireland
           - linkedin-europe-france-austria
           - linkedin-europe-opportunistic
           - linkedin-australia
