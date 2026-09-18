@@ -1,4 +1,4 @@
-name: Diagnose EURAXESS Live Contract
+name: Diagnose EURAXESS Global Cards
 
 on:
   push:
@@ -18,31 +18,32 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
-      - name: Inspect EURAXESS HTML for alternate search endpoints
+      - name: Inspect global result card markup
         shell: bash
         run: |
           python - <<'PY'
-          import re,html as htmllib
+          import re
+          from bs4 import BeautifulSoup
           from src.sources.shared import euraxess
+
           s=euraxess.make_session(retries=0)
-          r=s.get(euraxess.SEARCH_URL,timeout=(10,45))
+          r=s.get(euraxess.SEARCH_URL,timeout=(10,45),allow_redirects=True)
           r.raise_for_status()
-          html=r.text
-          patterns=[
-              r'https?://[^"\'<> ]+',
-              r'/(?:api|views|search-api|search_api)[^"\'<> ]*',
-              r'data-[a-z0-9_-]+="[^"]*"',
-          ]
+          soup=BeautifulSoup(r.text,'html.parser')
           seen=set()
-          for pat in patterns:
-              for m in re.finditer(pat,html,re.I):
-                  v=htmllib.unescape(m.group(0))
-                  if any(k in v.lower() for k in ('api','view','search','facet','ajax')):
-                      if v not in seen:
-                          seen.add(v)
-                          print('MATCH',v[:1200])
-          for token in ('oe-list-pages-facets-form','job_country','offer_type','search_api','views/ajax','drupalSettings'):
-              i=html.lower().find(token.lower())
-              if i>=0:
-                  print('SNIPPET',token,html[max(0,i-1500):i+2500].replace('\n',' ')[:4000])
+          for a in soup.find_all('a',href=True):
+              m=euraxess.JOB_RE.search(a.get('href') or '')
+              if not m or m.group(1) in seen:
+                  continue
+              seen.add(m.group(1))
+              print('=== JOB',m.group(1),'TITLE',euraxess.clean(a.get_text(' ',strip=True))[:120])
+              node=a
+              for level in range(6):
+                  node=node.parent
+                  if node is None: break
+                  print('LEVEL',level+1,'TAG',node.name,'CLASS',node.get('class'),'TEXT',euraxess.clean(node.get_text(' ',strip=True))[:800])
+                  if level<=3:
+                      print('HTML',str(node)[:3000].replace('\n',' '))
+              if len(seen)>=3:
+                  break
           PY
