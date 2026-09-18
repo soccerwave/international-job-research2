@@ -344,9 +344,24 @@ def _collect_global_fallback(
             offer_type = clean(item.get("offer_type")).upper()
             if offer_type and offer_type != "JOB":
                 continue
+
+            listing_name = clean(item.get("listing_country_name"))
             listing_code = item.get("listing_country_code")
-            if listing_code not in target_codes and listing_code is not None:
-                continue
+            if listing_name:
+                matched_target = next(
+                    (
+                        code for code in country_codes
+                        if _country_matches_requested(listing_name, code)
+                    ),
+                    None,
+                )
+                if matched_target is None:
+                    continue
+                listing_code = matched_target
+                item["listing_country_code"] = matched_target
+            elif listing_code not in target_codes:
+                listing_code = None
+
             if listing_code is None:
                 unresolved_country_rows += 1
             job_id = str(item["id"])
