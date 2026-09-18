@@ -17,106 +17,66 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m pip install --disable-pip-version-check requests==2.32.5 beautifulsoup4==4.13.5
-      - name: Inspect live EURAXESS filter contract
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Inspect live EURAXESS pagination contract
         shell: bash
         run: |
           python - <<'PY'
-          import json, re
+          import re
           from urllib.parse import urljoin
           import requests
           from bs4 import BeautifulSoup
+          from src.sources.shared.pagination import next_listing_url
 
           SEARCH='https://euraxess.ec.europa.eu/jobs/search'
           s=requests.Session()
-          s.headers.update({'User-Agent':'Mozilla/5.0 (compatible; EURAXESS-contract-diagnostic/1.0)'})
+          s.headers.update({'User-Agent':'Mozilla/5.0 (compatible; EURAXESS-contract-diagnostic/1.1)'})
 
           def ids(html):
-              return list(dict.fromkeys(re.findall(r'/jobs/(\\d+)(?:[/?#]|$)', html or '')))[:20]
+              return list(dict.fromkeys(re.findall(r'/jobs/(\d+)(?:[/?#]|$)', html or '')))[:20]
 
           def result_count(html):
               text=BeautifulSoup(html or '', 'html.parser').get_text(' ', strip=True)
-              m=re.search(r'Search results\\s*\\(([0-9,]+)\\)', text, re.I)
+              m=re.search(r'Search results\s*\(([0-9,]+)\)', text, re.I)
               return m.group(1) if m else None
 
-          def next_href(html, base):
+          def candidates(html, base):
               soup=BeautifulSoup(html or '', 'html.parser')
+              out=[]
               for a in soup.find_all('a', href=True):
-                  label=' '.join(a.get_text(' ',strip=True).split()).lower()
-                  rel=' '.join(a.get('rel') or []).lower()
-                  if label == 'next' or 'next' in rel:
-                      return urljoin(base, a['href'])
-              return None
+                  text=' '.join(a.get_text(' ',strip=True).split())
+                  aria=str(a.get('aria-label') or '')
+                  title=str(a.get('title') or '')
+                  rel=' '.join(a.get('rel') or [])
+                  label=' '.join([text,aria,title]).strip().lower()
+                  if 'next' in rel.lower() or re.search(r'\b(next|more jobs|suivant|suivante|volgende|weiter|nächste)\b|^[›»>]$', label):
+                      out.append({'text':text,'aria':aria,'title':title,'rel':rel,'href':str(a['href']),'url':urljoin(base,str(a['href']))})
+              return out
 
-          r=s.get(SEARCH, timeout=45)
-          print('BASE', r.status_code, r.url, 'count=', result_count(r.text), 'ids=', ids(r.text)[:10])
-          soup=BeautifulSoup(r.text, 'html.parser')
+          base=s.get(SEARCH,timeout=45)
+          soup=BeautifulSoup(base.text,'html.parser')
           sel=soup.select_one('select[name="job_country[]"]')
-          form=sel.find_parent('form') if sel else None
-          print('FORM', json.dumps({
-              'method': (form.get('method') if form else None),
-              'action': urljoin(r.url, form.get('action') or '') if form else None,
-              'id': form.get('id') if form else None,
-              'class': form.get('class') if form else None,
-          }))
-          if not form:
-              raise SystemExit('country filter form not found')
-
-          hidden=[]
-          for inp in form.find_all('input'):
-              if (inp.get('type') or '').lower()=='hidden' and inp.get('name'):
-                  hidden.append((inp.get('name'), inp.get('value') or ''))
-          print('HIDDEN_NAMES', [name for name,_ in hidden])
-
+          form=sel.find_parent('form')
+          action=urljoin(base.url,form.get('action') or SEARCH)
           offer=form.select_one('select[name="offer_type[]"]')
-          offer_options=[]
-          if offer:
-              for o in offer.find_all('option'):
-                  offer_options.append((o.get('value'), ' '.join(o.get_text(' ',strip=True).split()), 'selected' if o.has_attr('selected') else ''))
-          print('OFFER_OPTIONS', offer_options[:10])
+          offer_value=next(o.get('value') for o in offer.find_all('option') if o.get('value') and ('job' in o.get_text(' ',strip=True).lower() or 'job' in o.get('value').lower()))
+          cmap={o.get_text(' ',strip=True):o.get('value') for o in sel.find_all('option') if o.get_text(' ',strip=True) in {'Netherlands','Germany'}}
 
-          country_map={}
-          for o in sel.find_all('option'):
-              label=' '.join(o.get_text(' ',strip=True).split())
-              if label in {'Netherlands','Germany'}:
-                  country_map[label]=o.get('value')
-          print('COUNTRY_VALUES', country_map)
-
-          submit=[]
-          for node in form.find_all(['button','input']):
-              if (node.get('type') or '').lower()=='submit':
-                  submit.append({'name':node.get('name'),'value':node.get('value'),'text':' '.join(node.get_text(' ',strip=True).split())})
-          print('SUBMITS', submit)
-
-          offer_value=None
-          for v,label,_ in offer_options:
-              if v and ('job' in (label or '').lower() or 'job' in str(v).lower()):
-                  offer_value=v; break
-          apply_submit=next((x for x in submit if 'apply filters' in ((x.get('value') or '')+' '+(x.get('text') or '')).lower()), None)
-          action=urljoin(r.url, form.get('action') or SEARCH)
-
+          print('FORM_METHOD',form.get('method'),'ACTION',action,'OFFER',offer_value,'COUNTRIES',cmap)
           for label in ('Netherlands','Germany'):
-              cv=country_map[label]
-              print('---', label, '---')
-              get_params=[('f[0]', f'job_country:{cv}' if str(cv).isdigit() else str(cv)), ('f[1]', str(offer_value) if str(offer_value).startswith('offer_type:') else f'offer_type:{offer_value}')]
-              gr=s.get(action, params=get_params, timeout=45, allow_redirects=True)
-              print('GET', gr.status_code, gr.url, 'count=', result_count(gr.text), 'ids=', ids(gr.text)[:10], 'next=', next_href(gr.text,gr.url))
-
-              payload=list(hidden)
-              payload.append(('job_country[]', cv))
-              payload.append(('offer_type[]', offer_value))
-              if apply_submit and apply_submit.get('name'):
-                  payload.append((apply_submit['name'], apply_submit.get('value') or apply_submit.get('text') or 'Apply filters'))
-              pr=s.post(action, data=payload, timeout=45, allow_redirects=True)
-              print('POST', pr.status_code, pr.url, 'history=', [(h.status_code,h.url,h.headers.get('location')) for h in pr.history], 'count=', result_count(pr.text), 'ids=', ids(pr.text)[:10], 'next=', next_href(pr.text,pr.url))
-              ps=BeautifulSoup(pr.text,'html.parser')
-              csel=ps.select_one('select[name="job_country[]"]')
-              selected=[]
-              if csel:
-                  selected=[(' '.join(o.get_text(' ',strip=True).split()),o.get('value')) for o in csel.find_all('option') if o.has_attr('selected')]
-              print('POST_SELECTED_COUNTRY', selected)
-              print('POST_COOKIES', sorted(s.cookies.keys()))
-              if next_href(pr.text,pr.url):
-                  nr=s.get(next_href(pr.text,pr.url),timeout=45,allow_redirects=True)
-                  print('POST_NEXT_FETCH', nr.status_code,nr.url,'count=',result_count(nr.text),'ids=',ids(nr.text)[:10])
+              cv=cmap[label]
+              params=[('f[0]',f'job_country:{cv}'),('f[1]',f'offer_type:{offer_value}')]
+              r=s.get(action,params=params,timeout=45,allow_redirects=True)
+              print('---',label,'---')
+              print('URL',r.url)
+              print('COUNT',result_count(r.text))
+              print('IDS',ids(r.text)[:10])
+              print('CURRENT_HELPER_NEXT',next_listing_url(r.text,r.url))
+              print('NEXT_CANDIDATES',candidates(r.text,r.url))
+              n=next_listing_url(r.text,r.url)
+              if n:
+                  nr=s.get(n,timeout=45,allow_redirects=True)
+                  print('HELPER_NEXT_FETCH_URL',nr.url)
+                  print('HELPER_NEXT_COUNT',result_count(nr.text))
+                  print('HELPER_NEXT_IDS',ids(nr.text)[:10])
           PY
