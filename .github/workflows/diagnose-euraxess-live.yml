@@ -18,41 +18,40 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
-      - name: Reproduce current collector and POST canonicalization
+      - name: Inspect EURAXESS detail country markup
         shell: bash
         run: |
           python - <<'PY'
           import re
-          from urllib.parse import urljoin
           from bs4 import BeautifulSoup
           from src.sources.shared import euraxess
-          from src.sources.shared.pagination import capture_coverage
 
           s=euraxess.make_session(retries=0)
           base=euraxess._get(s,euraxess.SEARCH_URL,pace_seconds=0.2)
-          soup=BeautifulSoup(base.text,'html.parser')
           facets=euraxess.discover_country_facets(base.text)
           offer=euraxess.discover_offer_type_facet(base.text)
           endpoint=euraxess._filter_endpoint(base.text,base.url)
-          form=soup.select_one('select[name="job_country[]"]').find_parent('form')
-          hidden=[(i.get('name'),i.get('value') or '') for i in form.find_all('input') if (i.get('type') or '').lower()=='hidden' and i.get('name')]
-          submit=next(n for n in form.find_all(['button','input']) if (n.get('type') or '').lower()=='submit' and 'apply filters' in ((n.get('value') or '')+' '+n.get_text(' ',strip=True)).lower())
-
-          for code in ('NL','DE'):
-              facet=euraxess._facet_for_code(facets,code)
-              params=euraxess._filter_params(facet,offer)
-              gr=euraxess._get(s,endpoint,params=params,pace_seconds=0.2)
-              print('DIRECT',code,gr.status_code,gr.url,'parsed=',[(x['id'],x['title'][:50]) for x in euraxess.parse_listing(gr.text,gr.url)[:5]],'next=',euraxess.next_listing_url(gr.text,gr.url))
-              cv=facet.split(':',1)[1]
-              ov=offer.split(':',1)[1]
-              payload=list(hidden)+[('job_country[]',cv),('offer_type[]',ov),(submit.get('name'),submit.get('value') or submit.get_text(' ',strip=True))]
-              pr=euraxess._request(s,'POST',endpoint,data=payload,pace_seconds=0.2)
-              print('POST',code,pr.status_code,pr.url,'history=',[(h.status_code,h.headers.get('location')) for h in pr.history],'parsed=',[(x['id'],x['title'][:50]) for x in euraxess.parse_listing(pr.text,pr.url)[:5]],'next=',euraxess.next_listing_url(pr.text,pr.url))
-
-          with capture_coverage() as cov:
-              rows=euraxess.collect(country_codes=('NL','DE'),pages_per_country=2,max_jobs=None,enrich_detail=False,pace_seconds=0.2)
-          print('COLLECT_ROWS',len(rows))
-          print('COLLECT_COUNTS',{c:sum(1 for r in rows if (r.get('raw_extra') or {}).get('requested_country_code')==c) for c in ('NL','DE')})
-          print('COLLECT_FIRST',[(r.get('source_record_id'),(r.get('raw_extra') or {}).get('requested_country_code')) for r in rows[:10]])
-          print('COVERAGE',cov)
+          facet=euraxess._facet_for_code(facets,'NL')
+          r=euraxess._get(s,endpoint,params=euraxess._filter_params(facet,offer),pace_seconds=0.2)
+          rows=euraxess.parse_listing(r.text,r.url)
+          print('LISTING',[(x['id'],x['title']) for x in rows[:3]])
+          u=rows[0]['url']
+          d=euraxess._get(s,u,pace_seconds=0.2)
+          print('DETAIL_URL',d.url)
+          soup=BeautifulSoup(d.text,'html.parser')
+          hits=[]
+          for node in soup.find_all(string=True):
+              t=' '.join(str(node).split())
+              if t.lower()=='country':
+                  p=node.parent
+                  hits.append({
+                      'tag':p.name,
+                      'class':p.get('class'),
+                      'parent_tag':p.parent.name if p.parent else None,
+                      'parent_class':p.parent.get('class') if p.parent else None,
+                      'parent_text':' '.join(p.parent.get_text(' ',strip=True).split())[:500] if p.parent else None,
+                      'parent_html':str(p.parent)[:1800] if p.parent else None,
+                  })
+          print('COUNTRY_HITS',hits)
+          print('PARSED_META',euraxess.parse_detail_metadata(d.text))
           PY
