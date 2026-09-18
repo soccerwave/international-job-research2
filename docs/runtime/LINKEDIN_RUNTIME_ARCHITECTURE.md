@@ -8,7 +8,7 @@ Stage 4.2 made LinkedIn execution observable. Stage 4.3 preserved completed work
 
 ## Fresh profiling evidence
 
-Before changing production topology, a diagnostic-only GitHub Actions run profiled uncapped discovery with the pinned Mads transport and the exact four current Europe queries. Detail enrichment was disabled so discovery cost could be measured independently.
+Before changing production topology, a diagnostic-only GitHub Actions run profiled uncapped discovery with the pinned Mads transport and the then-current four Europe queries. Detail enrichment was disabled so discovery cost could be measured independently.
 
 Profile run: `34042024861`
 Artifact: `9991993739`
@@ -41,16 +41,18 @@ The profile demonstrates that uncapped discovery itself is substantial and seria
 
 ## Runtime partition decision
 
-The former single `linkedin-europe` shard is replaced by four independent GitHub matrix shards:
+The current production topology uses six independent GitHub matrix shards:
 
 - `linkedin-europe-germany`: Germany
-- `linkedin-europe-west`: Netherlands, Ireland, United Kingdom, Belgium
+- `linkedin-europe-uk`: United Kingdom
+- `linkedin-europe-netherlands`: Netherlands
+- `linkedin-europe-belgium-ireland`: Belgium, Ireland
 - `linkedin-europe-france-austria`: France, Austria
 - `linkedin-europe-opportunistic`: Italy, Portugal, Czechia, Poland, Luxembourg
 
-The union is exactly the same twelve countries with no overlap. Germany is isolated because fresh profiling identifies it as a heavy discovery workload.
+The union is exactly the same twelve countries with no overlap. The original Stage 4.4 decomposition isolated Germany. A later production incident showed that the four-country `linkedin-europe-west` shard remained dominated by serial detail enrichment and produced an excessive wall-clock, so it was further decomposed into UK, Netherlands, and Belgium plus Ireland. This changes runtime topology only.
 
-Every partition retains the same logical source ID `linkedin_europe`, report key `linkedin_mads`, four production queries, 14-day job-age window, uncapped pagination, and detail enrichment. This is runtime decomposition, not source expansion.
+Every partition retains the same logical source ID `linkedin_europe`, report key `linkedin_mads`, current production query taxonomy, 14-day job-age window, uncapped pagination, and detail enrichment. This is runtime decomposition, not source expansion.
 
 ## Why GitHub-level partitioning
 
