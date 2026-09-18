@@ -1,0 +1,49 @@
+name: Temporary EURAXESS Global Fallback Validation
+
+on:
+  push:
+    branches:
+      - fix/euraxess-global-fallback
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Regression tests
+        run: python -m unittest tests.test_phase1_stage4_1_euraxess -v
+      - name: Live fallback smoke
+        shell: bash
+        run: |
+          python - <<'PY'
+          from src.sources.shared import euraxess
+          from src.sources.shared.pagination import capture_coverage
+
+          with capture_coverage() as coverage:
+              rows=euraxess.collect(
+                  country_codes=('PL',),
+                  pages_per_country=2,
+                  max_jobs=3,
+                  enrich_detail=True,
+                  pace_seconds=0.75,
+              )
+          print('ROWS',len(rows))
+          print('IDS',[r['source']['source_job_id'] for r in rows])
+          print('COUNTRIES',[r['location']['country_code'] for r in rows])
+          print('TRANSPORTS',[r['raw_extra']['filter_transport'] for r in rows])
+          print('VALIDATIONS',[r['raw_extra']['country_validation'] for r in rows])
+          print('FALLBACK_REASONS',[r['raw_extra']['fallback_reason'] for r in rows])
+          print('COVERAGE',coverage)
+          assert rows
+          assert all(r['location']['country_code']=='PL' for r in rows)
+          assert all(r['raw_extra']['filter_transport']=='GLOBAL_LISTING_FALLBACK' for r in rows)
+          assert all(r['raw_extra']['detail_country_code']=='PL' for r in rows)
+          PY
