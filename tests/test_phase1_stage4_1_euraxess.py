@@ -30,6 +30,16 @@ FILTER_FORM = """
 """
 
 
+FILTER_FORM_NO_OFFER = """
+<form method="post" action="/jobs/search">
+  <select name="job_country[]">
+    <option value="794">Germany</option>
+  </select>
+  <button type="submit" name="op" value="Apply filters">Apply filters</button>
+</form>
+"""
+
+
 def selected_form(code):
     country_value = {"DE": "794", "NL": "798"}[code]
     country_label = {"DE": "Germany", "NL": "Netherlands"}[code]
@@ -163,6 +173,28 @@ class EuraxessStage41Tests(unittest.TestCase):
         self.assertEqual(rows[0]["raw_extra"]["listing_country"], "Germany")
         self.assertEqual(rows[0]["raw_extra"]["country_validation"], "LISTING_CARD_VALIDATED")
         self.assertIn("rendered country filter is inactive", rows[0]["raw_extra"]["fallback_reason"])
+        self.assertTrue(all(event["complete"] for event in coverage), coverage)
+
+    def test_missing_offer_facet_uses_global_listing_fallback(self):
+        global_page = global_card("150", "German Job Without Offer Facet", "Germany")
+        gets = []
+
+        def get(url, **kwargs):
+            gets.append((url, kwargs.get("params")))
+            if len(gets) == 1:
+                return Response(FILTER_FORM_NO_OFFER)
+            return Response(global_page, euraxess.SEARCH_URL)
+
+        with capture_coverage() as coverage:
+            rows = euraxess.collect(
+                country_codes=("DE",), pages_per_country=None, max_jobs=None,
+                enrich_detail=False, session=SimpleNamespace(get=get), pace_seconds=0,
+            )
+
+        self.assertEqual([row["source"]["source_job_id"] for row in rows], ["150"])
+        self.assertEqual(rows[0]["raw_extra"]["filter_transport"], "GLOBAL_LISTING_FALLBACK")
+        self.assertIsNone(rows[0]["raw_extra"]["offer_type_facet"])
+        self.assertIn("Job Offer facet missing", rows[0]["raw_extra"]["fallback_reason"])
         self.assertTrue(all(event["complete"] for event in coverage), coverage)
 
     def test_identical_filtered_result_sets_are_discarded_and_global_fallback_wins(self):
