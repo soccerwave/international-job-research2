@@ -94,6 +94,55 @@ def _assert_filtered_url(url: str, country_facet: str, offer_facet: str) -> None
         )
 
 
+def _selected_option_values(html: str, select_name: str) -> set[str]:
+    soup = BeautifulSoup(html or "", "html.parser")
+    select = soup.select_one(f'select[name="{select_name}"]')
+    if select is None:
+        return set()
+    return {
+        clean(option.get("value"))
+        for option in select.find_all("option")
+        if option.has_attr("selected") and clean(option.get("value"))
+    }
+
+
+def _assert_active_filter_response(response: Any, country_facet: str, offer_facet: str) -> str | None:
+    """Reject HTTP-200 pages where EURAXESS silently ignored the requested facets."""
+    _assert_filtered_url(response.url, country_facet, offer_facet)
+    country_value = country_facet.split(":", 1)[-1]
+    offer_value = offer_facet.split(":", 1)[-1]
+    selected_countries = _selected_option_values(response.text, "job_country[]")
+    selected_offers = _selected_option_values(response.text, "offer_type[]")
+    if country_value not in selected_countries and country_facet not in selected_countries:
+        raise RuntimeError(
+            "EURAXESS response URL retained facets but rendered country filter is inactive: "
+            f"country={country_facet}, url={response.url}"
+        )
+    if offer_value not in selected_offers and offer_facet not in selected_offers:
+        raise RuntimeError(
+            "EURAXESS response URL retained facets but rendered offer filter is inactive: "
+            f"offer={offer_facet}, url={response.url}"
+        )
+    next_url = next_listing_url(response.text, response.url)
+    if next_url and not _url_has_facets(next_url, (country_facet, offer_facet)):
+        raise RuntimeError(
+            "EURAXESS filtered navigation lost active facets: "
+            f"country={country_facet}, offer={offer_facet}, url={next_url}"
+        )
+    return next_url
+
+
+def _description_list_value(soup: BeautifulSoup, labels: tuple[str, ...]) -> str:
+    wanted = {clean(label).lower() for label in labels}
+    for dt in soup.find_all("dt"):
+        if clean(dt.get_text(" ", strip=True)).lower() not in wanted:
+            continue
+        dd = dt.find_next_sibling("dd")
+        if dd is not None:
+            return clean(dd.get_text(" ", strip=True))
+    return ""
+
+
 def _country_matches_requested(country_name: str, code: str) -> bool:
     normalized = clean(country_name).lower()
     labels = COUNTRY_LABEL_ALIASES.get(code) or (CODE_TO_COUNTRY_NAME.get(code) or "",)
@@ -181,24 +230,20 @@ def parse_detail_metadata(html: str) -> dict[str,str]:
     if title.lower() in GENERIC_DETAIL_TITLES:
         title=""
 
-    def after(labels: tuple[str,...]) -> str:
-        for label in labels:
-            m=re.search(rf"{label}\s*:?\s*(.+?)(?=(?:Application Deadline|Research Field|Researcher Profile|Organisation|Organization|Work Location|Work Locations|Posted on|Offer Description|$))", text, re.I)
-            if m:
-                return clean(m.group(1))
-        return ""
-
-    institution=after((r"Organisation",r"Organization"))
-    deadline=after((r"Application Deadline",))
-    posted=after((r"Posted on",))
-    country=""
-    m=re.search(
-        r"\bCountry\s*:?\s*(.+?)(?=(?:Type of Contract|Job Status|Hours Per Week|Is the job funded|Offer Description|Work Location|Work Locations|Geofield|$))",
+    institution=_description_list_value(
+        soup,
+        ("Organisation/Company", "Organisation", "Organization", "Company/Institute"),
+    )
+    deadline=_description_list_value(soup, ("Application Deadline",))
+    country=_description_list_value(soup, ("Country",))
+    posted=""
+    posted_match=re.search(
+        r"Posted on\s*:\s*([0-9]{1,2}\s+[A-Za-z]+\s+[0-9]{4})",
         text,
         re.I,
     )
-    if m:
-        country=clean(m.group(1))
+    if posted_match:
+        posted=clean(posted_match.group(1))
     return {"title":title,"institution":institution,"deadline":deadline,"posted":posted,"country":country}
 
 
@@ -247,7 +292,7 @@ def collect(
                 pace_seconds=pace_seconds,
             )
             filtered.raise_for_status()
-            _assert_filtered_url(filtered.url, facet, offer_facet)
+            _assert_active_filter_response(filtered, facet, offer_facet)
         except Exception as exc:
             record_coverage(
                 f"{SOURCE_KEY}:{code}", "filter_validation_failed",
@@ -269,9 +314,8 @@ def collect(
                 _assert_filtered_url(next_url, facet, offer_facet)
                 r=_get(s, next_url, pace_seconds=pace_seconds)
                 r.raise_for_status()
-                _assert_filtered_url(r.url, facet, offer_facet)
+            next_url=_assert_active_filter_response(r, facet, offer_facet)
             batch=parse_listing(r.text,r.url)
-            next_url=next_listing_url(r.text,r.url)
             return batch, None, bool(next_url)
 
         try:
