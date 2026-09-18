@@ -9,83 +9,40 @@ permissions:
   contents: read
 
 jobs:
-  probe:
+  inspect:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-    strategy:
-      fail-fast: false
-      matrix:
-        code: [NL, IE]
-        variant: [normal_get, no_cache_get, cache_bust_get, page0_get, browser_get, post_form]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
-      - name: Probe EURAXESS request variant
+      - name: Inspect EURAXESS HTML for alternate search endpoints
         shell: bash
-        env:
-          CODE: ${{ matrix.code }}
-          VARIANT: ${{ matrix.variant }}
         run: |
           python - <<'PY'
-          import os,re,time
-          from bs4 import BeautifulSoup
+          import re,html as htmllib
           from src.sources.shared import euraxess
-
-          code=os.environ['CODE']
-          variant=os.environ['VARIANT']
           s=euraxess.make_session(retries=0)
-          if variant == 'browser_get':
-              s.headers.update({
-                  'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/151.0.0.0 Safari/537.36',
-                  'Accept':'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-                  'Referer':'https://euraxess.ec.europa.eu/jobs/search',
-              })
-
-          base=s.get(euraxess.SEARCH_URL,timeout=(10,45),allow_redirects=True)
-          base.raise_for_status()
-          facets=euraxess.discover_country_facets(base.text)
-          offer=euraxess.discover_offer_type_facet(base.text)
-          endpoint=euraxess._filter_endpoint(base.text,base.url)
-          facet=euraxess._facet_for_code(facets,code)
-          params=euraxess._filter_params(facet,offer)
-
-          if variant == 'normal_get' or variant == 'browser_get':
-              r=s.get(endpoint,params=params,timeout=(10,45),allow_redirects=True)
-          elif variant == 'no_cache_get':
-              r=s.get(endpoint,params=params,headers={'Cache-Control':'no-cache','Pragma':'no-cache'},timeout=(10,45),allow_redirects=True)
-          elif variant == 'cache_bust_get':
-              r=s.get(endpoint,params=params+[('_cb',str(time.time_ns()))],timeout=(10,45),allow_redirects=True)
-          elif variant == 'page0_get':
-              r=s.get(endpoint,params=params+[('page','0')],timeout=(10,45),allow_redirects=True)
-          elif variant == 'post_form':
-              action,payload=euraxess._filter_submission(base.text,base.url,facet,offer)
-              r=s.post(action,data=payload,timeout=(10,45),allow_redirects=True)
-          else:
-              raise SystemExit(variant)
-
-          text=BeautifulSoup(r.text,'html.parser').get_text(' ',strip=True)
-          m=re.search(r'Search results\s*\(([0-9,]+)\)',text,re.I)
-          rows=euraxess.parse_listing(r.text,r.url)
-          try:
-              euraxess._assert_active_filter_response(r,facet,offer)
-              active=True
-              error=''
-          except Exception as exc:
-              active=False
-              error=f'{type(exc).__name__}: {exc}'
-          interesting={k:v for k,v in r.headers.items() if k.lower() in {
-              'age','cache-control','cf-cache-status','server','via','vary','x-cache','x-drupal-cache','x-varnish','x-cache-hits','set-cookie'
-          }}
-          print('PROBE',code,variant)
-          print('STATUS',r.status_code,'URL',r.url)
-          print('HISTORY',[(h.status_code,h.url,h.headers.get('location')) for h in r.history])
-          print('COUNT',m.group(1) if m else None)
-          print('SELECTED',sorted(euraxess._selected_option_values(r.text,'job_country[]')))
-          print('NEXT',euraxess.next_listing_url(r.text,r.url))
-          print('IDS',[x['id'] for x in rows[:5]])
-          print('ACTIVE',active,'ERROR',error)
-          print('HEADERS',interesting)
+          r=s.get(euraxess.SEARCH_URL,timeout=(10,45))
+          r.raise_for_status()
+          html=r.text
+          patterns=[
+              r'https?://[^"\'<> ]+',
+              r'/(?:api|views|search-api|search_api)[^"\'<> ]*',
+              r'data-[a-z0-9_-]+="[^"]*"',
+          ]
+          seen=set()
+          for pat in patterns:
+              for m in re.finditer(pat,html,re.I):
+                  v=htmllib.unescape(m.group(0))
+                  if any(k in v.lower() for k in ('api','view','search','facet','ajax')):
+                      if v not in seen:
+                          seen.add(v)
+                          print('MATCH',v[:1200])
+          for token in ('oe-list-pages-facets-form','job_country','offer_type','search_api','views/ajax','drupalSettings'):
+              i=html.lower().find(token.lower())
+              if i>=0:
+                  print('SNIPPET',token,html[max(0,i-1500):i+2500].replace('\n',' ')[:4000])
           PY
