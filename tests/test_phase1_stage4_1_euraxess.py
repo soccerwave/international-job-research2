@@ -346,6 +346,51 @@ class EuraxessStage41Tests(unittest.TestCase):
         self.assertEqual(len(calls), 2)
         sleep.assert_called_once_with(2.0)
 
+    def test_global_fallback_survives_sustained_429_with_slow_backoff(self):
+        stale_filtered = FILTER_FORM + global_card("999", "Wrong Result", "Croatia")
+        global_page1 = (
+            global_card("600", "German Job A", "Germany")
+            + '<a rel="next" href="/jobs/search?page=1">Next</a>'
+        )
+        global_page2 = global_card("601", "German Job B", "Germany")
+        responses = [
+            Response(FILTER_FORM),
+            Response(stale_filtered, filtered_url("job_country:794")),
+            Response(global_page1, euraxess.SEARCH_URL),
+            Response(status_code=429),
+            Response(status_code=429),
+            Response(global_page2, euraxess.SEARCH_URL + "?page=1"),
+        ]
+        calls = []
+
+        def get(url, **kwargs):
+            calls.append((url, kwargs.get("params")))
+            return responses.pop(0)
+
+        with patch.object(euraxess.time, "sleep") as sleep, capture_coverage() as coverage:
+            rows = euraxess.collect(
+                country_codes=("DE",), pages_per_country=None, max_jobs=None,
+                enrich_detail=False, session=SimpleNamespace(get=get), pace_seconds=0,
+            )
+
+        self.assertEqual(
+            [row["source"]["source_job_id"] for row in rows],
+            ["600", "601"],
+        )
+        self.assertEqual(
+            {row["raw_extra"]["filter_transport"] for row in rows},
+            {"GLOBAL_LISTING_FALLBACK"},
+        )
+        fallback = next(event for event in coverage if event["source"] == "euraxess:global_fallback")
+        self.assertTrue(fallback["complete"], fallback)
+        self.assertEqual(fallback["stop_reason"], "last_page")
+        self.assertEqual(fallback["pages"], 2)
+        self.assertEqual(len(calls), 6)
+        self.assertEqual(
+            [call.args[0] for call in sleep.call_args_list],
+            [2.5, 2.5, 15.0, 2.5, 30.0, 2.5],
+        )
+
     def test_czechia_accepts_current_or_legacy_country_label(self):
         facets = {"czech republic": "job_country:203"}
         self.assertEqual(euraxess._facet_for_code(facets, "CZ"), "job_country:203")

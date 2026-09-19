@@ -149,21 +149,46 @@ def _country_matches_requested(country_name: str, code: str) -> bool:
     return any(normalized == clean(label).lower() for label in labels if clean(label))
 
 
-def _retry_after_seconds(response: Any, attempt: int) -> float:
+def _retry_after_seconds(
+    response: Any,
+    attempt: int,
+    *,
+    backoff_base_seconds: float = 5.0,
+    backoff_cap_seconds: float = 60.0,
+    minimum_backoff_seconds: float = 0.0,
+) -> float:
+    """Return a conservative retry delay while respecting Retry-After.
+
+    Retry-After is treated as a lower bound rather than the only delay. This matters
+    for EURAXESS global pagination, where repeated 429s can outlive a short server
+    hint and a longer collector-side cooldown is safer than exhausting the retry
+    budget quickly.
+    """
+    exponential = min(
+        max(0.0, float(backoff_base_seconds)) * (2.0 ** attempt),
+        max(0.0, float(backoff_cap_seconds)),
+    )
+    minimum = max(0.0, float(minimum_backoff_seconds))
     headers = getattr(response, "headers", {}) or {}
     raw = clean(headers.get("Retry-After"))
     if raw:
         try:
-            return max(0.0, min(float(raw), 60.0))
+            retry_after = max(0.0, float(raw))
+            if minimum > 0:
+                return min(max(minimum, exponential, retry_after), float(backoff_cap_seconds))
+            return min(retry_after, float(backoff_cap_seconds))
         except ValueError:
             try:
                 target = parsedate_to_datetime(raw)
                 if target.tzinfo is None:
                     target = target.replace(tzinfo=timezone.utc)
-                return max(0.0, min((target - datetime.now(timezone.utc)).total_seconds(), 60.0))
+                retry_after = max(0.0, (target - datetime.now(timezone.utc)).total_seconds())
+                if minimum > 0:
+                    return min(max(minimum, exponential, retry_after), float(backoff_cap_seconds))
+                return min(retry_after, float(backoff_cap_seconds))
             except (TypeError, ValueError, OverflowError):
                 pass
-    return min(5.0 * (2.0 ** attempt), 60.0)
+    return max(minimum, exponential)
 
 
 def _request(
@@ -175,6 +200,9 @@ def _request(
     data=None,
     attempts: int = 5,
     pace_seconds: float = 1.25,
+    backoff_base_seconds: float = 5.0,
+    backoff_cap_seconds: float = 60.0,
+    minimum_backoff_seconds: float = 0.0,
 ):
     """EURAXESS-specific bounded request retries with Retry-After support."""
     method = method.upper()
@@ -195,12 +223,40 @@ def _request(
             return response
         if attempt + 1 >= attempts:
             break
-        time.sleep(_retry_after_seconds(response, attempt))
+        time.sleep(
+            _retry_after_seconds(
+                response,
+                attempt,
+                backoff_base_seconds=backoff_base_seconds,
+                backoff_cap_seconds=backoff_cap_seconds,
+                minimum_backoff_seconds=minimum_backoff_seconds,
+            )
+        )
     return last
 
 
-def _get(session, url: str, *, params=None, attempts: int = 5, pace_seconds: float = 1.25):
-    return _request(session, "GET", url, params=params, attempts=attempts, pace_seconds=pace_seconds)
+def _get(
+    session,
+    url: str,
+    *,
+    params=None,
+    attempts: int = 5,
+    pace_seconds: float = 1.25,
+    backoff_base_seconds: float = 5.0,
+    backoff_cap_seconds: float = 60.0,
+    minimum_backoff_seconds: float = 0.0,
+):
+    return _request(
+        session,
+        "GET",
+        url,
+        params=params,
+        attempts=attempts,
+        pace_seconds=pace_seconds,
+        backoff_base_seconds=backoff_base_seconds,
+        backoff_cap_seconds=backoff_cap_seconds,
+        minimum_backoff_seconds=minimum_backoff_seconds,
+    )
 
 
 def _listing_card_metadata(link) -> tuple[str, str, str | None, str]:
@@ -323,7 +379,15 @@ def _collect_global_fallback(
             break
         visited.add(current_url)
         try:
-            response = _get(session, current_url, pace_seconds=pace_seconds)
+            response = _get(
+                session,
+                current_url,
+                attempts=8,
+                pace_seconds=max(pace_seconds, 2.5),
+                backoff_base_seconds=15.0,
+                backoff_cap_seconds=180.0,
+                minimum_backoff_seconds=15.0,
+            )
             response.raise_for_status()
         except Exception as exc:
             reason = "request_failed"
