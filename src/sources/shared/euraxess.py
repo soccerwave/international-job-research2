@@ -168,23 +168,27 @@ def _retry_after_seconds(
         max(0.0, float(backoff_base_seconds)) * (2.0 ** attempt),
         max(0.0, float(backoff_cap_seconds)),
     )
-    floor = max(0.0, float(minimum_backoff_seconds), exponential)
+    minimum = max(0.0, float(minimum_backoff_seconds))
     headers = getattr(response, "headers", {}) or {}
     raw = clean(headers.get("Retry-After"))
     if raw:
         try:
             retry_after = max(0.0, float(raw))
-            return min(max(floor, retry_after), max(floor, float(backoff_cap_seconds)))
+            if minimum > 0:
+                return min(max(minimum, exponential, retry_after), float(backoff_cap_seconds))
+            return min(retry_after, float(backoff_cap_seconds))
         except ValueError:
             try:
                 target = parsedate_to_datetime(raw)
                 if target.tzinfo is None:
                     target = target.replace(tzinfo=timezone.utc)
                 retry_after = max(0.0, (target - datetime.now(timezone.utc)).total_seconds())
-                return min(max(floor, retry_after), max(floor, float(backoff_cap_seconds)))
+                if minimum > 0:
+                    return min(max(minimum, exponential, retry_after), float(backoff_cap_seconds))
+                return min(retry_after, float(backoff_cap_seconds))
             except (TypeError, ValueError, OverflowError):
                 pass
-    return floor
+    return max(minimum, exponential)
 
 
 def _request(
