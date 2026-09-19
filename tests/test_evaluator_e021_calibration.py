@@ -49,7 +49,7 @@ class CalibratedEvaluatorE021Tests(unittest.TestCase):
         self.assertEqual(result["recommendation"], "REVIEW")
         self.assertEqual(result["dimensions"]["scientific"], "ADJACENT")
 
-    def test_high_altitude_sport_physiology_postdoc_is_strong(self):
+    def test_high_altitude_specialist_physiology_is_review_not_auto_apply(self):
         result = evaluate_calibrated(
             vacancy(
                 title="Universitätsassistent:in - Postdoc",
@@ -59,8 +59,9 @@ class CalibratedEvaluatorE021Tests(unittest.TestCase):
                 ),
             )
         )
-        self.assertEqual(result["recommendation"], "STRONG_APPLY")
-        self.assertEqual(result["dimensions"]["scientific"], "STRONG")
+        self.assertEqual(result["recommendation"], "REVIEW")
+        self.assertEqual(result["dimensions"]["scientific"], "ADJACENT")
+        self.assertIn("SPECIALIST_PHYSIOLOGY_ADJACENT_E022", result["review_codes"])
 
     def test_computational_neuroscience_machine_learning_is_not_apply(self):
         result = evaluate_calibrated(
@@ -114,6 +115,26 @@ class CalibratedEvaluatorE021Tests(unittest.TestCase):
         )
         self.assertEqual(result["recommendation"], "SKIP")
         self.assertIn("SPECIALIST_BIOLOGY_TITLE_E021", result["blocker_codes"])
+
+    def test_physiology_education_with_academic_strengths_is_review_not_skip(self):
+        result = evaluate_calibrated(
+            vacancy(
+                title="Lecturer in Physiology Education",
+                role="LECTURER",
+                level="ACCEPTABLE",
+                jd=(
+                    "The successful applicant will contribute to undergraduate teaching in physiological sciences, including "
+                    "cardiovascular physiology, respiratory physiology and neurophysiology. The role includes curriculum development, "
+                    "supervision of undergraduate and postgraduate students, and contribution to student projects. Applicants should "
+                    "have postdoctoral research experience, a record of peer-reviewed publications, and experience of university teaching. "
+                    "The post combines education, scholarship and research within a physiology department."
+                ),
+            )
+        )
+        self.assertEqual(result["recommendation"], "REVIEW")
+        self.assertEqual(result["dimensions"]["scientific"], "ADJACENT")
+        self.assertIn("SECONDARY_PROFILE_EVIDENCE_REVIEW_E022", result["review_codes"])
+        self.assertNotIn("NO_PROFILE_ANCHOR_IN_FULL_JD_E021", result["blocker_codes"])
 
     def test_substantial_full_jd_without_profile_anchor_is_skip_not_low(self):
         result = evaluate_calibrated(

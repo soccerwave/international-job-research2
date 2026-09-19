@@ -7,7 +7,7 @@ from typing import Any
 
 from src.evaluation.calibrated_e02 import evaluate_calibrated as evaluate_e02
 
-EVALUATOR_VERSION = "E0.2.1_CALIBRATED_SHADOW"
+EVALUATOR_VERSION = "E0.2.2_CALIBRATED_SHADOW"
 GOOD_DETAIL = {"FULL", "PARTIAL"}
 
 _DIRECT_CORE = re.compile(
@@ -15,8 +15,7 @@ _DIRECT_CORE = re.compile(
     r"kinesiology|clinical exercise|exercise intervention|exercise training|aerobic exercise|"
     r"resistance training|sports medicine|psychophysiolog(?:y|ical)|psychosocial stress|"
     r"psychological stress|stress recovery|stress response|cortisol|hpa(?:-| )axis|brain health|"
-    r"neurocognitive health|high-altitude physiology|altitude physiology|performance physiology|"
-    r"environmental physiology|sportwissenschaft\w*|bewegungswissenschaft\w*|trainingswissenschaft\w*|"
+    r"neurocognitive health|sportwissenschaft\w*|bewegungswissenschaft\w*|trainingswissenschaft\w*|"
     r"leistungsphysiologie|sportmedizin)\b",
     re.I,
 )
@@ -32,6 +31,30 @@ _ADVANCED_AI_TITLE = re.compile(r"\b(?:neuroai|machine learning|computational ne
 _ADVANCED_AI_BODY = re.compile(
     r"\b(?:artificial intelligence|machine learning|deep learning|self-attention|neural network|"
     r"in-context learning|computational model(?:ling|ing))\b",
+    re.I,
+)
+
+_SECONDARY_PROFILE_DOMAIN = re.compile(
+    r"\b(?:physiology education|physiological sciences?|human physiology|systems physiology|"
+    r"cardiovascular physiology|respiratory physiology|neurophysiology)\b",
+    re.I,
+)
+_HIGHER_ED_TEACHING = re.compile(
+    r"\b(?:university|undergraduate|postgraduate|higher education|medical school)\b.{0,100}\b(?:teach|teaching|lectur(?:e|ing)|curriculum|module)\b|"
+    r"\b(?:teach|teaching|lectur(?:e|ing)|curriculum|module)\b.{0,100}\b(?:university|undergraduate|postgraduate|higher education|medical school)\b",
+    re.I,
+)
+_STUDENT_SUPERVISION = re.compile(
+    r"\b(?:supervis(?:e|es|ed|ing|ion)|mentor(?:ing)?)\b.{0,100}\b(?:student|students|undergraduate|postgraduate|msc|master|doctoral|phd)\b|"
+    r"\b(?:student|students|undergraduate|postgraduate|msc|master|doctoral|phd)\b.{0,100}\b(?:supervis(?:e|es|ed|ing|ion)|mentor(?:ing)?)\b",
+    re.I,
+)
+_ACADEMIC_RESEARCH_TRACK = re.compile(
+    r"\b(?:postdoctoral|post-doctoral|peer[- ]reviewed publications?|research experience|independent research|research programme|research program)\b",
+    re.I,
+)
+_SPECIALIST_PHYSIOLOGY = re.compile(
+    r"\b(?:high-altitude physiology|altitude physiology|environmental physiology|performance physiology)\b",
     re.I,
 )
 
@@ -148,21 +171,19 @@ def evaluate_calibrated(job: dict[str, Any]) -> dict[str, Any]:
             scientific="ADJACENT",
         )
 
-    # High-altitude/performance physiology is a direct extension of exercise physiology,
-    # even when the generic ATS title is only 'University Assistant - Postdoc'.
-    physiology_hits = sum(
-        bool(re.search(pattern, full_jd, re.I))
-        for pattern in (
-            r"\bhigh-altitude physiology\b",
-            r"\bperformance physiology\b",
-            r"\benvironmental physiology\b",
-            r"\bsport(?:s)? science\b",
-        )
-    )
-    if physiology_hits >= 2 and str(result.get("role_family") or "").upper() == "POSTDOC":
-        result = _strong(
+    # Specialist physiology subdomains are adjacent unless the posting also contains
+    # an independently established direct profile anchor. Do not infer capability from
+    # the generic word "physiology" or from a Sport Science department name.
+    if (
+        _SPECIALIST_PHYSIOLOGY.search(full_jd)
+        and not direct_subject_core
+        and str(result.get("role_family") or "").upper() == "POSTDOC"
+    ):
+        result = _review(
             result,
-            "Multiple direct exercise/performance-physiology anchors establish strong scientific fit.",
+            "SPECIALIST_PHYSIOLOGY_ADJACENT_E022",
+            "The vacancy centres on a specialist physiology subdomain not independently established in the profile; retain for review rather than auto-apply.",
+            scientific="ADJACENT",
         )
 
     # Advanced AI/ML is a declared non-established capability. When it is central in the
@@ -229,9 +250,10 @@ def evaluate_calibrated(job: dict[str, Any]) -> dict[str, Any]:
             scientific="ADJACENT",
         )
 
-    # This is the main review/low-priority tightening: with a substantial Full JD, a
-    # target-role title and no direct or adjacent profile anchor should not remain in the
-    # user's weak-fit queue. It is a non-fit and is archived as SKIP.
+    # Distinguish "no relevant evidence" from "relevant evidence not represented in
+    # the narrow direct-anchor vocabulary". A target-stage role with a secondary profile
+    # domain plus multiple independently documented academic strengths is surfaced for
+    # human review. Generic academic language alone is not enough.
     scientific = str((result.get("dimensions") or {}).get("scientific") or "UNCLEAR").upper()
     if (
         str(result.get("recommendation") or "").upper() == "LOW_PRIORITY"
@@ -240,10 +262,25 @@ def evaluate_calibrated(job: dict[str, Any]) -> dict[str, Any]:
         and not direct_subject_core
         and not direct_body_core
     ):
+        secondary_domain = bool(_SECONDARY_PROFILE_DOMAIN.search(f"{subject_title} {full_jd}"))
+        academic_signal_count = sum(
+            (
+                bool(_HIGHER_ED_TEACHING.search(full_jd)),
+                bool(_STUDENT_SUPERVISION.search(full_jd)),
+                bool(_ACADEMIC_RESEARCH_TRACK.search(full_jd)),
+            )
+        )
+        if secondary_domain and academic_signal_count >= 2:
+            return _review(
+                result,
+                "SECONDARY_PROFILE_EVIDENCE_REVIEW_E022",
+                "The posting contains a profile-adjacent scientific domain together with multiple documented academic strengths; lack of a narrow direct anchor is not treated as negative evidence.",
+                scientific="ADJACENT",
+            )
         return _skip(
             result,
             "NO_PROFILE_ANCHOR_IN_FULL_JD_E021",
-            "A substantial Full JD was available but contained no reliable scientific anchor to the candidate profile; the vacancy is treated as non-fit rather than retained as Low Priority.",
+            "A substantial Full JD was available but contained neither a reliable direct profile anchor nor enough secondary profile evidence to justify surfacing the vacancy.",
         )
 
     return result
