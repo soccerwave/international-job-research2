@@ -1,0 +1,19 @@
+name: Temporary E0.2.2 Evaluator Regression
+
+on:
+  push:
+    branches:
+      - fix/e021-recall-safe-profile-evidence
+
+jobs:
+  evaluator-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test dependencies
+        run: pip install -r requirements.txt
+      - name: Run E0.2.2 evaluator regressions
+        run: python -m unittest -v tests.test_evaluator_e021_calibration tests.test_review_more tests.test_user_excel
