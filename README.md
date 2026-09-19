@@ -15,10 +15,10 @@ Personal academic vacancy search with daily GitHub Actions collection, persisten
 - **Collection:** 14 shards feed one central finalizer. The finalizer deduplicates, evaluates, and updates authoritative R2 state using compare-and-swap.
 - **State prerequisite:** scheduled operation requires existing authoritative state. Use the recovery workflow only for an actual recovery need.
 - **Telegram scheduled delivery:** successful scheduled finalization sends the E0.1 operational summary; its audit Excel is attached when `today_actionable > 0` or `TELEGRAM_SEND_REPORT_ALWAYS` is enabled.
-- **Telegram control-center Excel button:** the Worker in `soccerwave/researcher-job-search/cloudflare-worker/src/index.js` reads the R2 latest pointer and delivers the E0.2.1 clean Excel. It is a real user-facing report, not just an evaluation artifact.
-- **Manual production completion:** after successful publication, the publisher now sends the E0.2.1 summary and clean Excel to the configured Telegram chats, even with zero actionable changes. This applies to manual production runs, including the control-center Run button. Push-triggered publication and standalone publisher dispatch do not send a report. Delivery failure fails the publisher job after the report has been stored; the Excel button can still retrieve it.
+- **Telegram control-center Excel button:** the Worker in `soccerwave/researcher-job-search/cloudflare-worker/src/index.js` reads the R2 latest pointer and delivers the E0.2.2 clean Excel. It is a real user-facing report, not just an evaluation artifact.
+- **Manual production completion:** after successful publication, the publisher now sends the E0.2.2 summary and clean Excel to the configured Telegram chats, even with zero actionable changes. This applies to manual production runs, including the control-center Run button. Push-triggered publication and standalone publisher dispatch do not send a report. Delivery failure fails the publisher job after the report has been stored; the Excel button can still retrieve it.
 - **Actionable changes:** non-closed vacancies classified STRONG_APPLY, APPLY, or REVIEW with NEW, MATERIALLY_CHANGED, or REOPENED events. This includes review candidates; it is not a guarantee of suitability.
-- **Evaluator distinction:** production state and direct Telegram reporting use frozen **E0.1**. The separate control-plane publisher builds the cleaner **E0.2.1** report after successful production runs. These reports have different filters.
+- **Evaluator distinction:** production state and direct Telegram reporting use frozen **E0.1**. The separate control-plane publisher builds the cleaner **E0.2.2** report after successful production runs. These reports have different filters.
 - **No LLM work is planned:** Roadmap 3 is stopped under the personal project's no-paid-API constraint. E1.1 is used only for the supplemental REVIEW_MORE sheet; production state evaluation remains E0.1. This is a user-authorized visibility supplement, not a claim of validated classifier superiority.
 
 ## Actions to use
@@ -56,7 +56,7 @@ For runtime details see [production contract](docs/runtime/PRODUCTION_CONTRACT.m
 
 ## Two-sheet user report
 
-- `JOBS` preserves the E0.2.1 clean list and its eight columns.
+- `JOBS` preserves the E0.2.2 clean list and its eight columns.
 - `REVIEW_MORE` adds nonclosed records excluded from JOBS but surfaced by the pinned E1.1 candidate. `RESCUE_REVIEW` means evaluator disagreement; `NEEDS_DETAIL_REVIEW` means insufficient or delegated evidence. These are unconfirmed candidates for manual review.
 - Review rows include a reason and state event, with NEW/MATERIALLY_CHANGED/REOPENED first. Unchanged records stay available without being labelled new. Closed records and JOBS records are excluded from the supplement.
 - E1.0/E1.1 implementations were copied unchanged from commit b447229f7ab466e3635963467cd4a4de375714a4. No state or accepted evaluator files were changed.
