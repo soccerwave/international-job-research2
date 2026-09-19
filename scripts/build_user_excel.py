@@ -25,7 +25,7 @@ def apply_tier2_active_report_filter(records: list[dict]) -> list[dict]:
 
 
 def _calibrated_report_view(record: dict) -> dict:
-    """Attach E0.2.1 evaluation without deep-copying the immutable canonical payload."""
+    """Attach E0.2.2 evaluation without deep-copying the immutable canonical payload."""
     clone = dict(record)
     raw_extra = dict(record.get("raw_extra") or {})
     raw_extra["evaluation"] = evaluate_calibrated(record)
@@ -74,7 +74,7 @@ def build_user_summary(
             low_priority += 1
 
     summary = dict(base_summary)
-    summary["reporting_version"] = "CONTROL_PLANE_USER_REPORT_E021_E11_REVIEW_V1"
+    summary["reporting_version"] = "CONTROL_PLANE_USER_REPORT_E022_E11_REVIEW_V1"
     summary["base_reporting_version"] = base_summary.get("reporting_version")
     summary["evaluator_version"] = EVALUATOR_VERSION
     summary["recommendations"] = {
@@ -87,7 +87,7 @@ def build_user_summary(
     summary["low_priority"] = low_priority
     summary["skipped"] = int(recommendation_counts.get("SKIP", 0))
     summary["calibration"] = {
-        "mode": "E0.2.1_CALIBRATED_SHADOW",
+        "mode": EVALUATOR_VERSION,
         "production_evaluator_unchanged": True,
         "audit_workbook_preserves_e0_1": True,
         "clean_excel_contains": ["STRONG_APPLY", "APPLY", "REVIEW"],
