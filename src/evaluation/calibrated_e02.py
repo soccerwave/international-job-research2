@@ -114,7 +114,7 @@ UNRELATED_TITLE_PATTERNS = {
     "engineering": r"\b(?:power systems?|civil engineering|electrical and electronic engineering|engineering materials|structural engineering)\b",
     "economics": r"\b(?:economics?|econometrics)\b",
     "archaeology": r"\barchaeolog(?:y|ical)\b",
-    "mathematics": r"\b(?:mathematics|mathematical)\b",
+    "mathematics": r"\b(?:mathematics|mathematical|mathematik)\b",
     "school_teaching": r"\bteacher\b",
     "field_service_engineering": r"\bfield service engineer(?:ing)?\b",
     "banking_stress_testing": r"\bstress testing associate\b",
