@@ -98,6 +98,9 @@ TITLE_ADJACENT = {
     "population health": r"\bpopulation health\b",
     "brain ageing": r"\bbrain ag(?:e|ei)ing\b",
     "parkinson": r"\bparkinson(?:'s|s)?\b",
+    "Sportpsychologie": r"\bsportpsycholog\w*\b",
+    "Gesundheit und Bewegung": r"\bgesundheit und bewegung\b",
+    "Sport und Gesellschaft": r"\bsport und gesellschaft\b",
 }
 
 UNRELATED_TITLE_PATTERNS = {
@@ -140,6 +143,12 @@ OUT_OF_SCOPE_SUPPORT = re.compile(
     re.I,
 )
 POSTDOC_TOKEN = re.compile(r"\b(?:postdoc|post-doc|postdoctoral|post-doctoral)\b", re.I)
+ACADEMIC_TITLE_SIGNAL = re.compile(
+    r"\b(?:postdoc|post-doc|postdoctoral|post-doctoral|research fellow|research associate|"
+    r"assistant professor|research assistant professor|lecturer|tenure[- ]track|juniorprofessur|"
+    r"juniorprofessor|universit[aä]tsprofess(?:ur|or)|professur)\b",
+    re.I,
+)
 
 
 def _norm(value: Any) -> str:
@@ -317,6 +326,7 @@ def evaluate_calibrated(job: dict[str, Any]) -> dict[str, Any]:
             role_family in PRIMARY_FAMILIES
             or role_family in SECONDARY_FAMILIES
             or role_family == "OTHER_RESEARCH"
+            or bool(ACADEMIC_TITLE_SIGNAL.search(title))
         )
         if target_or_research_role and plausible_positive:
             recommendation = "REVIEW"
