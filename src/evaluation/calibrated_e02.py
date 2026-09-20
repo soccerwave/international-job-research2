@@ -114,6 +114,11 @@ UNRELATED_TITLE_PATTERNS = {
     "engineering": r"\b(?:power systems?|civil engineering|electrical and electronic engineering|engineering materials|structural engineering)\b",
     "economics": r"\b(?:economics?|econometrics)\b",
     "archaeology": r"\barchaeolog(?:y|ical)\b",
+    "mathematics": r"\b(?:mathematics|mathematical)\b",
+    "school_teaching": r"\bteacher\b",
+    "field_service_engineering": r"\bfield service engineer(?:ing)?\b",
+    "banking_stress_testing": r"\bstress testing associate\b",
+    "practitioner_psychology": r"\b(?:clinical|counselling|counseling|educational|forensic|practitioner) psychologist\b",
 }
 
 SPECIALIST_REVIEW_TITLE = {
@@ -200,10 +205,11 @@ def _scientific_dimension(title: str, text: str) -> tuple[str, list[str], str | 
     if adjacent_hits:
         evidence.append("Calibrated adjacent signals: " + ", ".join(adjacent_hits[:6]))
 
-    # A clearly unrelated title wins only when the title itself carries no relevant
-    # core/adjacent signal. This prevents e.g. NeuroAI from being treated like pure AI.
-    if title_unrelated and not title_core and not title_adjacent:
-        evidence.append("High-confidence unrelated title domain: " + ", ".join(title_unrelated[:4]))
+    # Clear occupational/domain identity takes precedence over generic adjacent words.
+    # Direct core title evidence can still override this guard, preserving genuine
+    # exercise/stress/neuroscience target roles that contain an otherwise unrelated token.
+    if title_unrelated and not title_core:
+        evidence.append("High-confidence unrelated title domain/occupation: " + ", ".join(title_unrelated[:4]))
         return "WEAK", evidence, "HIGH_CONFIDENCE_UNRELATED_TITLE_E02", specialist_review
     if len(core_hits) >= 2 or title_core:
         return "STRONG", evidence, None, specialist_review
@@ -306,8 +312,18 @@ def evaluate_calibrated(job: dict[str, Any]) -> dict[str, Any]:
         recommendation = "SKIP"
         routing_reason = "Calibrated explicit out-of-scope, unrelated-domain, or hard-blocker evidence takes precedence."
     elif detail_missing:
-        recommendation = "REVIEW"
-        routing_reason = "Full JD/detail evidence is missing; calibrated routing remains fail-open."
+        plausible_positive = scientific in {"STRONG", "GOOD", "ADJACENT"}
+        target_or_research_role = (
+            role_family in PRIMARY_FAMILIES
+            or role_family in SECONDARY_FAMILIES
+            or role_family == "OTHER_RESEARCH"
+        )
+        if target_or_research_role and plausible_positive:
+            recommendation = "REVIEW"
+            routing_reason = "Full JD/detail evidence is missing, but the title/available metadata contains plausible positive profile evidence for a target research/academic role."
+        else:
+            recommendation = "LOW_PRIORITY"
+            routing_reason = "Full JD/detail evidence is missing and available metadata does not establish enough positive profile evidence for JOBS; preserve in the safety net."
     elif role_family == "OUT_OF_SCOPE":
         recommendation = "SKIP"
         routing_reason = "The title is explicitly outside the target career-stage families."
