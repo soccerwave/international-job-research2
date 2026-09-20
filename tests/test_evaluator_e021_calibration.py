@@ -266,5 +266,39 @@ class CalibratedEvaluatorE021Tests(unittest.TestCase):
         self.assertNotEqual(result["recommendation"], "REVIEW")
 
 
+    def test_missing_detail_german_sport_psychology_academic_role_stays_review(self):
+        result = evaluate_calibrated(
+            vacancy(
+                title="Universitätsprofessur (W2) für Sportpsychologie",
+                role="UNKNOWN",
+                level="UNKNOWN",
+                detail_status="UNAVAILABLE",
+            )
+        )
+        self.assertEqual(result["recommendation"], "REVIEW")
+
+    def test_missing_detail_german_health_and_movement_academic_role_stays_review(self):
+        result = evaluate_calibrated(
+            vacancy(
+                title="Juniorprofessur (W1) für Gesundheit und Bewegung",
+                role="JUNIOR_PROFESSOR",
+                level="ACCEPTABLE",
+                detail_status="UNAVAILABLE",
+            )
+        )
+        self.assertEqual(result["recommendation"], "REVIEW")
+
+    def test_missing_detail_german_sport_and_society_academic_role_stays_review(self):
+        result = evaluate_calibrated(
+            vacancy(
+                title="Juniorprofessur (W1) für Sport und Gesellschaft",
+                role="JUNIOR_PROFESSOR",
+                level="ACCEPTABLE",
+                detail_status="UNAVAILABLE",
+            )
+        )
+        self.assertEqual(result["recommendation"], "REVIEW")
+
+
 if __name__ == "__main__":
     unittest.main()
