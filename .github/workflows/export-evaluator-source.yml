@@ -1,4 +1,4 @@
-name: Temporary Export Replay Source
+name: Temporary Export Main Replay Source
 
 on:
   pull_request:
@@ -13,9 +13,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
       - uses: actions/upload-artifact@v4
         with:
-          name: replay-source-e022
+          name: replay-source-main
           path: |
             src
             scripts/build_user_excel.py
