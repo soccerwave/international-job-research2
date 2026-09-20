@@ -1,4 +1,4 @@
-name: Temporary Focused Replay Verification Final
+name: Temporary Focused Replay Verification Final Config
 
 on:
   pull_request:
@@ -24,6 +24,7 @@ jobs:
           name: replay-source-e022-final
           path: |
             src
+            config
             scripts/build_user_excel.py
             requirements.txt
             requirements-cloud.txt
