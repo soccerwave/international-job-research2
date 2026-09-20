@@ -146,7 +146,7 @@ POSTDOC_TOKEN = re.compile(r"\b(?:postdoc|post-doc|postdoctoral|post-doctoral)\b
 ACADEMIC_TITLE_SIGNAL = re.compile(
     r"\b(?:postdoc|post-doc|postdoctoral|post-doctoral|research fellow|research associate|"
     r"assistant professor|research assistant professor|lecturer|tenure[- ]track|juniorprofessur|"
-    r"juniorprofessor|universit[aä]tsprofess(?:ur|or)|professur)\b",
+    r"juniorprofessor|universit[aä]tsprofess(?:ur|or|eur)|professur|professeur)\b",
     re.I,
 )
 
@@ -218,8 +218,10 @@ def _scientific_dimension(title: str, text: str) -> tuple[str, list[str], str | 
     # Direct core title evidence can still override this guard, preserving genuine
     # exercise/stress/neuroscience target roles that contain an otherwise unrelated token.
     if title_unrelated and not title_core:
-        evidence.append("High-confidence unrelated title domain/occupation: " + ", ".join(title_unrelated[:4]))
-        return "WEAK", evidence, "HIGH_CONFIDENCE_UNRELATED_TITLE_E02", specialist_review
+        multi_adjacent_research = bool(ACADEMIC_TITLE_SIGNAL.search(title)) and len(title_adjacent) >= 2
+        if not multi_adjacent_research:
+            evidence.append("High-confidence unrelated title domain/occupation: " + ", ".join(title_unrelated[:4]))
+            return "WEAK", evidence, "HIGH_CONFIDENCE_UNRELATED_TITLE_E02", specialist_review
     if len(core_hits) >= 2 or title_core:
         return "STRONG", evidence, None, specialist_review
     if core_hits:
