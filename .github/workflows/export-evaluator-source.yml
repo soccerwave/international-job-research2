@@ -1,9 +1,7 @@
 name: Temporary Export Evaluator Source
 
 on:
-  push:
-    branches:
-      - fix/e022-occupational-precedence-detail-routing
+  pull_request:
     paths:
       - '.github/workflows/export-evaluator-source.yml'
 
