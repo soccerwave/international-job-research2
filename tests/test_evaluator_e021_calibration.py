@@ -269,7 +269,7 @@ class CalibratedEvaluatorE021Tests(unittest.TestCase):
     def test_missing_detail_german_sport_psychology_academic_role_stays_review(self):
         result = evaluate_calibrated(
             vacancy(
-                title="Universitätsprofessur (W2) für Sportpsychologie",
+                title="Universitätsprofesseur (W2) für Sportpsychologie",
                 role="UNKNOWN",
                 level="UNKNOWN",
                 detail_status="UNAVAILABLE",
@@ -298,6 +298,19 @@ class CalibratedEvaluatorE021Tests(unittest.TestCase):
             )
         )
         self.assertEqual(result["recommendation"], "REVIEW")
+
+
+    def test_multi_signal_adjacent_research_title_is_not_blocked_by_ai_token(self):
+        result = evaluate_calibrated(
+            vacancy(
+                title="Research Fellow, Data Scientist (Wearable Technologies, Digital Health & Artificial Intelligence)",
+                role="RESEARCH_FELLOW_POSTDOC",
+                level="ACCEPTABLE",
+                jd="Research on wearable technologies and digital health methods using artificial intelligence.",
+            )
+        )
+        self.assertEqual(result["recommendation"], "REVIEW")
+        self.assertNotIn("HIGH_CONFIDENCE_UNRELATED_TITLE_E02", result["blocker_codes"])
 
 
 if __name__ == "__main__":
