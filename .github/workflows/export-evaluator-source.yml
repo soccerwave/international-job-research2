@@ -1,4 +1,4 @@
-name: Temporary Export Evaluator Source
+name: Temporary Export Replay Source
 
 on:
   pull_request:
@@ -15,8 +15,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/upload-artifact@v4
         with:
-          name: evaluator-source-e022
+          name: replay-source-e022
           path: |
-            src/evaluation/calibrated_e02.py
-            src/evaluation/calibrated_e021.py
+            src
+            scripts/build_user_excel.py
+            requirements.txt
+            requirements-cloud.txt
           retention-days: 1
