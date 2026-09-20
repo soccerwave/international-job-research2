@@ -5,10 +5,17 @@ import unittest
 from src.evaluation.calibrated_e021 import evaluate_calibrated
 
 
-def vacancy(*, title: str, jd: str, role: str = "POSTDOC", level: str = "STRONG"):
+def vacancy(
+    *,
+    title: str,
+    jd: str = "",
+    role: str = "POSTDOC",
+    level: str = "STRONG",
+    detail_status: str = "FULL",
+):
     return {
         "position": {"title_raw": title, "role_family": role},
-        "description": {"detail_status": "FULL", "full_jd": jd},
+        "description": {"detail_status": detail_status, "full_jd": jd},
         "requirements": {},
         "raw_extra": {
             "evaluation": {
@@ -160,6 +167,103 @@ class CalibratedEvaluatorE021Tests(unittest.TestCase):
             )
         )
         self.assertEqual(result["recommendation"], "REVIEW")
+
+
+    def test_psychology_teacher_is_not_promoted_by_adjacent_keyword(self):
+        result = evaluate_calibrated(
+            vacancy(
+                title="Psychology Teacher & Portuguese as a Second Language",
+                role="UNKNOWN",
+                level="UNKNOWN",
+                jd="Teach psychology and Portuguese language classes in a secondary-school setting.",
+            )
+        )
+        self.assertEqual(result["recommendation"], "SKIP")
+        self.assertIn("HIGH_CONFIDENCE_UNRELATED_TITLE_E02", result["blocker_codes"])
+
+    def test_field_service_engineer_neuroscience_is_not_review(self):
+        result = evaluate_calibrated(
+            vacancy(
+                title="Field Service Engineer – Microscopy (Neuroscience)",
+                role="UNKNOWN",
+                level="UNKNOWN",
+                jd="Install, maintain and repair microscopy systems for neuroscience customers.",
+            )
+        )
+        self.assertEqual(result["recommendation"], "SKIP")
+        self.assertIn("HIGH_CONFIDENCE_UNRELATED_TITLE_E02", result["blocker_codes"])
+
+    def test_stress_testing_associate_is_not_review(self):
+        result = evaluate_calibrated(
+            vacancy(
+                title="Stress Testing Associate",
+                role="UNKNOWN",
+                level="UNKNOWN",
+                jd="Support financial stress testing, capital planning and banking risk analysis.",
+            )
+        )
+        self.assertEqual(result["recommendation"], "SKIP")
+        self.assertIn("HIGH_CONFIDENCE_UNRELATED_TITLE_E02", result["blocker_codes"])
+
+    def test_mental_health_nursing_occupational_identity_takes_precedence(self):
+        result = evaluate_calibrated(
+            vacancy(
+                title="Lecturer in Mental Health Nursing",
+                role="LECTURER",
+                level="ACCEPTABLE",
+                jd="Teach and supervise students in mental health nursing and professional nursing practice.",
+            )
+        )
+        self.assertEqual(result["recommendation"], "SKIP")
+        self.assertIn("HIGH_CONFIDENCE_UNRELATED_TITLE_E02", result["blocker_codes"])
+
+    def test_mathematics_public_health_is_not_rescued_by_public_health(self):
+        result = evaluate_calibrated(
+            vacancy(
+                title="Professor für Mathematik im Bereich Digital & Public Health",
+                role="ASSISTANT_PROFESSOR",
+                level="ACCEPTABLE",
+                jd="Academic appointment centred on mathematics for digital and public health applications.",
+            )
+        )
+        self.assertEqual(result["recommendation"], "SKIP")
+        self.assertIn("HIGH_CONFIDENCE_UNRELATED_TITLE_E02", result["blocker_codes"])
+
+    def test_genuine_health_psychology_lecturer_remains_review(self):
+        result = evaluate_calibrated(
+            vacancy(
+                title="Lecturer in Health Psychology",
+                role="LECTURER",
+                level="ACCEPTABLE",
+                jd="University teaching and research in health psychology, behaviour and health outcomes.",
+            )
+        )
+        self.assertEqual(result["recommendation"], "REVIEW")
+        self.assertNotIn("HIGH_CONFIDENCE_UNRELATED_TITLE_E02", result["blocker_codes"])
+
+    def test_target_postdoc_with_missing_detail_and_positive_title_stays_review(self):
+        result = evaluate_calibrated(
+            vacancy(
+                title="Postdoctoral Researcher in Exercise Neuroscience",
+                role="POSTDOC",
+                level="STRONG",
+                detail_status="NOT_ATTEMPTED",
+            )
+        )
+        self.assertEqual(result["recommendation"], "REVIEW")
+        self.assertEqual(result["pre_evaluation_disposition"], "NEEDS_DETAIL_REVIEW")
+
+    def test_unknown_missing_detail_without_positive_profile_evidence_is_safety_net(self):
+        result = evaluate_calibrated(
+            vacancy(
+                title="Project Associate",
+                role="UNKNOWN",
+                level="UNKNOWN",
+                detail_status="NOT_ATTEMPTED",
+            )
+        )
+        self.assertEqual(result["recommendation"], "LOW_PRIORITY")
+        self.assertNotEqual(result["recommendation"], "REVIEW")
 
 
 if __name__ == "__main__":
