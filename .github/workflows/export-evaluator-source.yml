@@ -1,0 +1,24 @@
+name: Temporary Export Evaluator Source
+
+on:
+  push:
+    branches:
+      - fix/e022-occupational-precedence-detail-routing
+    paths:
+      - '.github/workflows/export-evaluator-source.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: evaluator-source-e022
+          path: |
+            src/evaluation/calibrated_e02.py
+            src/evaluation/calibrated_e021.py
+          retention-days: 1
