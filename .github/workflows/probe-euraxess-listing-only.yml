@@ -1,0 +1,46 @@
+name: Temporary EURAXESS Listing-Only Validation
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/probe-euraxess-listing-only.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Run full listing pagination without detail enrichment
+        run: |
+          python - <<'PY'
+          import json
+          from src.sources.shared import euraxess
+          from src.sources.shared.pagination import capture_coverage
+
+          with capture_coverage() as coverage:
+              rows = euraxess.collect(
+                  country_codes=euraxess.TARGET_CODES,
+                  pages_per_country=None,
+                  max_jobs=None,
+                  enrich_detail=False,
+                  pace_seconds=0.25,
+              )
+
+          print(json.dumps({
+              "records": len(rows),
+              "coverage": coverage,
+              "first_ids": [r["source"]["source_job_id"] for r in rows[:10]],
+              "last_ids": [r["source"]["source_job_id"] for r in rows[-10:]],
+          }, indent=2))
+          fallback = next((e for e in coverage if e["source"] == "euraxess:global_fallback"), None)
+          if not fallback or not fallback.get("complete"):
+              raise SystemExit("EURAXESS listing pagination is still incomplete")
+          PY
