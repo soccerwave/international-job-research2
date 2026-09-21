@@ -727,6 +727,9 @@ def collect(
 
     records=[]
     target_codes=set(country_codes)
+    detail_pace_seconds = 0.0 if pace_seconds <= 0 else max(pace_seconds, 3.0)
+    if enrich_detail and items and detail_pace_seconds > 0:
+        time.sleep(30.0)
     for item, code, facet, filter_transport, item_fallback_reason in items[:max_jobs]:
         detail_text=None
         detail_status="NOT_ATTEMPTED"
@@ -734,7 +737,15 @@ def collect(
         meta={}
         if enrich_detail:
             try:
-                rr=_get(s, item["url"], pace_seconds=pace_seconds)
+                rr=_get(
+                    s,
+                    item["url"],
+                    attempts=3,
+                    pace_seconds=detail_pace_seconds,
+                    backoff_base_seconds=15.0,
+                    backoff_cap_seconds=90.0,
+                    minimum_backoff_seconds=30.0,
+                )
                 if rr.status_code == 404:
                     detail_status="UNAVAILABLE"
                     failure="HTTP 404"
