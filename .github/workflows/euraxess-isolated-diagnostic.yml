@@ -1,0 +1,61 @@
+name: EURAXESS Isolated Diagnostic
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  euraxess-diagnostic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      ARTIFACT_ENCRYPTION_KEY: ${{ secrets.ARTIFACT_ENCRYPTION_KEY }}
+      DIAGNOSTIC_RUN_ID: diag-euraxess-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements.txt -r requirements-cloud.txt
+
+      - name: Require encrypted artifact transport
+        shell: bash
+        run: test -n "${ARTIFACT_ENCRYPTION_KEY:-}" || { echo 'Missing ARTIFACT_ENCRYPTION_KEY secret' >&2; exit 2; }
+
+      - name: Run isolated EURAXESS shard
+        run: |
+          python scripts/run_production_shard.py             --run-id "$DIAGNOSTIC_RUN_ID"             --shard-id euraxess-europe             --output-root diagnostic-artifacts | tee euraxess-diagnostic-output.json
+
+      - name: Summarize EURAXESS diagnostic
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("diagnostic-artifacts") / __import__("os").environ["DIAGNOSTIC_RUN_ID"]
+          report = root / "diagnostics" / "euraxess-europe" / "source_lifecycle.jsonl"
+          bundle = root / "shards" / "euraxess-europe"
+          print(json.dumps({
+              "diagnostic_run_id": __import__("os").environ["DIAGNOSTIC_RUN_ID"],
+              "lifecycle_exists": report.exists(),
+              "bundle_exists": bundle.exists(),
+          }, indent=2))
+          PY
+
+      - name: Encrypt diagnostic artifact
+        shell: bash
+        run: |
+          bash scripts/secure_artifact.sh pack             "diagnostic-artifacts/$DIAGNOSTIC_RUN_ID"             "euraxess-diagnostic-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.tar.gz.enc"
+
+      - name: Upload encrypted diagnostic artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: euraxess-diagnostic-${{ github.run_id }}-${{ github.run_attempt }}
+          path: euraxess-diagnostic-${{ github.run_id }}-${{ github.run_attempt }}.tar.gz.enc
+          retention-days: 2
