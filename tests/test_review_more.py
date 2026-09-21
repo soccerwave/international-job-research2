@@ -29,9 +29,21 @@ class ReviewMoreTests(unittest.TestCase):
                     self.assertEqual(build_review_rows([job]), [])
                     self.assertEqual(job, before)
 
-    def test_generic_research_and_research_on_drivers_are_preserved(self):
-        for title in ["Research Fellow", "Postdoctoral Research Fellow",
-                      "Lecturer in Exercise Science",
+    def test_generic_research_missing_detail_uses_change_event_safety_net(self):
+        for title in ["Research Fellow", "Postdoctoral Research Fellow"]:
+            with self.subTest(title=title):
+                job = record(priority="APPLY", title=title)
+                self.assertTrue(build_user_rows([job]))
+
+                job["description"] = {"detail_status": "UNAVAILABLE", "full_jd": ""}
+                self.assertEqual(build_user_rows([job]), [])
+                self.assertEqual(build_review_rows([job]), [])
+
+                job["raw_extra"]["state"]["seen_status"] = "NEW"
+                self.assertTrue(build_review_rows([job]))
+
+    def test_research_counterexamples_are_preserved(self):
+        for title in ["Lecturer in Exercise Science",
                       "Postdoc studying stress in bus drivers",
                       "Research Fellow in information security and mental health"]:
             with self.subTest(title=title):
