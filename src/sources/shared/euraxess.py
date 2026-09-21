@@ -427,7 +427,7 @@ def _collect_global_fallback(
 
         if not batch:
             reason = "empty_page"
-            complete = next_url is None
+            complete = True
             break
 
         batch_ids = {str(item["id"]) for item in batch}
