@@ -129,7 +129,7 @@ class EuraxessStage41Tests(unittest.TestCase):
         with capture_coverage() as coverage:
             rows = euraxess.collect(
                 country_codes=("DE",), pages_per_country=None, max_jobs=None,
-                enrich_detail=False, session=SimpleNamespace(get=get), pace_seconds=0,
+                enrich_detail=False, session=SimpleNamespace(get=get, post=get), pace_seconds=0,
             )
 
         self.assertEqual([row["source"]["source_job_id"] for row in rows], ["100", "101"])
@@ -164,7 +164,7 @@ class EuraxessStage41Tests(unittest.TestCase):
         with capture_coverage() as coverage:
             rows = euraxess.collect(
                 country_codes=("DE",), pages_per_country=2, max_jobs=None,
-                enrich_detail=False, session=SimpleNamespace(get=get), pace_seconds=0,
+                enrich_detail=False, session=SimpleNamespace(get=get, post=get), pace_seconds=0,
             )
 
         self.assertEqual([row["source"]["source_job_id"] for row in rows], ["100"])
@@ -188,7 +188,7 @@ class EuraxessStage41Tests(unittest.TestCase):
         with capture_coverage() as coverage:
             rows = euraxess.collect(
                 country_codes=("DE",), pages_per_country=None, max_jobs=None,
-                enrich_detail=False, session=SimpleNamespace(get=get), pace_seconds=0,
+                enrich_detail=False, session=SimpleNamespace(get=get, post=get), pace_seconds=0,
             )
 
         self.assertEqual([row["source"]["source_job_id"] for row in rows], ["150"])
@@ -223,7 +223,7 @@ class EuraxessStage41Tests(unittest.TestCase):
         with capture_coverage() as coverage:
             rows = euraxess.collect(
                 country_codes=("DE", "NL"), pages_per_country=None, max_jobs=None,
-                enrich_detail=False, session=SimpleNamespace(get=get), pace_seconds=0,
+                enrich_detail=False, session=SimpleNamespace(get=get, post=get), pace_seconds=0,
             )
 
         self.assertEqual(
@@ -261,7 +261,7 @@ class EuraxessStage41Tests(unittest.TestCase):
         with capture_coverage() as coverage:
             rows = euraxess.collect(
                 country_codes=("DE",), pages_per_country=None, max_jobs=None,
-                enrich_detail=True, session=SimpleNamespace(get=get), pace_seconds=0,
+                enrich_detail=True, session=SimpleNamespace(get=get, post=get), pace_seconds=0,
             )
 
         self.assertEqual(len(rows), 1)
@@ -294,7 +294,7 @@ class EuraxessStage41Tests(unittest.TestCase):
         with capture_coverage() as coverage:
             rows = euraxess.collect(
                 country_codes=("DE",), pages_per_country=None, max_jobs=None,
-                enrich_detail=True, session=SimpleNamespace(get=get), pace_seconds=0,
+                enrich_detail=True, session=SimpleNamespace(get=get, post=get), pace_seconds=0,
             )
 
         self.assertEqual(rows[0]["location"]["country_code"], "ES")
@@ -338,7 +338,7 @@ class EuraxessStage41Tests(unittest.TestCase):
 
         with patch.object(euraxess.time, "sleep") as sleep:
             response = euraxess._request(
-                SimpleNamespace(get=get), "GET", euraxess.SEARCH_URL,
+                SimpleNamespace(get=get, post=get), "GET", euraxess.SEARCH_URL,
                 attempts=3, pace_seconds=0,
             )
 
@@ -370,7 +370,7 @@ class EuraxessStage41Tests(unittest.TestCase):
         with patch.object(euraxess.time, "sleep") as sleep, capture_coverage() as coverage:
             rows = euraxess.collect(
                 country_codes=("DE",), pages_per_country=None, max_jobs=None,
-                enrich_detail=False, session=SimpleNamespace(get=get), pace_seconds=0,
+                enrich_detail=False, session=SimpleNamespace(get=get, post=get), pace_seconds=0,
             )
 
         self.assertEqual(
@@ -420,7 +420,7 @@ class EuraxessStage41Tests(unittest.TestCase):
         with patch.object(euraxess.time, "sleep"), capture_coverage() as coverage:
             rows = euraxess.collect(
                 country_codes=("DE",), pages_per_country=None, max_jobs=None,
-                enrich_detail=False, session=SimpleNamespace(get=get), pace_seconds=0,
+                enrich_detail=False, session=SimpleNamespace(get=get, post=get), pace_seconds=0,
             )
 
         self.assertEqual(
@@ -445,6 +445,8 @@ class EuraxessStage41Tests(unittest.TestCase):
             Response(page0, euraxess.SEARCH_URL),
             Response(page1, euraxess.SEARCH_URL + "?page=1"),
             Response(repeated, euraxess.SEARCH_URL + "?page=2"),
+            Response(repeated, euraxess.SEARCH_URL + "?page=2"),
+            Response(repeated, euraxess.SEARCH_URL + "?page=2"),
         ]
 
         def get(url, **kwargs):
@@ -453,7 +455,7 @@ class EuraxessStage41Tests(unittest.TestCase):
         with patch.object(euraxess.time, "sleep"), capture_coverage() as coverage:
             rows = euraxess.collect(
                 country_codes=("DE",), pages_per_country=None, max_jobs=None,
-                enrich_detail=False, session=SimpleNamespace(get=get), pace_seconds=0,
+                enrich_detail=False, session=SimpleNamespace(get=get, post=get), pace_seconds=0,
             )
 
         self.assertEqual(
@@ -463,6 +465,109 @@ class EuraxessStage41Tests(unittest.TestCase):
         fallback = next(event for event in coverage if event["source"] == "euraxess:global_fallback")
         self.assertFalse(fallback["complete"], fallback)
         self.assertEqual(fallback["stop_reason"], "repeated_page_content")
+
+
+    def test_global_fallback_recovers_when_repeated_page_is_transient(self):
+        stale_filtered = FILTER_FORM + global_card("999", "Wrong Result", "Croatia")
+        page0 = global_card("730", "German Job A", "Germany") + '<a rel="next" href="/jobs/search?page=1">Next</a>'
+        repeated_page0 = global_card("730", "German Job A", "Germany") + '<a rel="next" href="/jobs/search?page=1">Next</a>'
+        page1 = global_card("731", "German Job B", "Germany")
+
+        responses = [
+            Response(FILTER_FORM),
+            Response(stale_filtered, filtered_url("job_country:794")),
+            Response(page0, euraxess.SEARCH_URL),
+            Response(repeated_page0, euraxess.SEARCH_URL + "?page=1"),
+            Response(page1, euraxess.SEARCH_URL + "?page=1"),
+        ]
+
+        def get(url, **kwargs):
+            return responses.pop(0)
+
+        with patch.object(euraxess.time, "sleep"), capture_coverage() as coverage:
+            rows = euraxess.collect(
+                country_codes=("DE",), pages_per_country=None, max_jobs=None,
+                enrich_detail=False, session=SimpleNamespace(get=get, post=get), pace_seconds=0,
+            )
+
+        self.assertEqual(
+            [row["source"]["source_job_id"] for row in rows],
+            ["730", "731"],
+        )
+        fallback = next(event for event in coverage if event["source"] == "euraxess:global_fallback")
+        self.assertTrue(fallback["complete"], fallback)
+        self.assertEqual(fallback["stop_reason"], "last_page")
+        self.assertEqual(fallback["semantic_duplicate_retries"], 1)
+
+
+    def test_global_fallback_treats_first_page_replay_after_progress_as_terminal(self):
+        stale_filtered = FILTER_FORM + global_card("999", "Wrong Result", "Croatia")
+        page0 = global_card("720", "German Job A", "Germany") + '<a rel="next" href="/jobs/search?page=1">Next</a>'
+        page1 = global_card("721", "German Job B", "Germany") + '<a rel="next" href="/jobs/search?page=2">Next</a>'
+        page2 = global_card("722", "German Job C", "Germany") + '<a rel="next" href="/jobs/search?page=3">Next</a>'
+        reset = global_card("720", "German Job A", "Germany") + '<a rel="next" href="/jobs/search?page=1">Next</a>'
+
+        responses = [
+            Response(FILTER_FORM),
+            Response(stale_filtered, filtered_url("job_country:794")),
+            Response(page0, euraxess.SEARCH_URL),
+            Response(page1, euraxess.SEARCH_URL + "?page=1"),
+            Response(page2, euraxess.SEARCH_URL + "?page=2"),
+            Response(reset, euraxess.SEARCH_URL + "?page=3"),
+            Response(reset, euraxess.SEARCH_URL + "?page=3"),
+            Response(reset, euraxess.SEARCH_URL + "?page=3"),
+        ]
+
+        def get(url, **kwargs):
+            return responses.pop(0)
+
+        with patch.object(euraxess.time, "sleep"), capture_coverage() as coverage:
+            rows = euraxess.collect(
+                country_codes=("DE",), pages_per_country=None, max_jobs=None,
+                enrich_detail=False, session=SimpleNamespace(get=get, post=get), pace_seconds=0,
+            )
+
+        self.assertEqual(
+            [row["source"]["source_job_id"] for row in rows],
+            ["720", "721", "722"],
+        )
+        fallback = next(event for event in coverage if event["source"] == "euraxess:global_fallback")
+        self.assertTrue(fallback["complete"], fallback)
+        self.assertEqual(fallback["stop_reason"], "last_page_reset")
+        self.assertEqual(fallback["pages"], 4)
+
+
+    def test_global_fallback_treats_successful_empty_post_page_as_terminal(self):
+        stale_filtered = FILTER_FORM + global_card("999", "Wrong Result", "Croatia")
+        page0 = global_card("740", "German Job A", "Germany") + '<a rel="next" href="/jobs/search?page=1">Next</a>'
+        page1 = global_card("741", "German Job B", "Germany") + '<a rel="next" href="/jobs/search?page=2">Next</a>'
+        empty = '<a rel="next" href="/jobs/search?page=3">Next</a>'
+
+        responses = [
+            Response(FILTER_FORM),
+            Response(stale_filtered, filtered_url("job_country:794")),
+            Response(page0, euraxess.SEARCH_URL),
+            Response(page1, euraxess.SEARCH_URL + "?page=1"),
+            Response(empty, euraxess.SEARCH_URL + "?page=2"),
+        ]
+
+        def request(url, **kwargs):
+            return responses.pop(0)
+
+        with patch.object(euraxess.time, "sleep"), capture_coverage() as coverage:
+            rows = euraxess.collect(
+                country_codes=("DE",), pages_per_country=None, max_jobs=None,
+                enrich_detail=False,
+                session=SimpleNamespace(get=request, post=request), pace_seconds=0,
+            )
+
+        self.assertEqual(
+            [row["source"]["source_job_id"] for row in rows],
+            ["740", "741"],
+        )
+        fallback = next(event for event in coverage if event["source"] == "euraxess:global_fallback")
+        self.assertTrue(fallback["complete"], fallback)
+        self.assertEqual(fallback["stop_reason"], "empty_page")
 
 
 if __name__ == "__main__":
