@@ -67,7 +67,7 @@
     "src/sources/shared/common.py": "c2367f8ff13d84b3b2e57f02e9bea5bdf1738d53",
     "src/sources/shared/dvs.py": "ca366ed16979581cafb6081cdece1cf0858c44fa",
     "src/sources/shared/ecss.py": "9aa855e489c0fd0af625ddf0780677733ba7fbc4",
-    "src/sources/shared/euraxess.py": "e391044425c44f2583576a852a11f2eeb339c54f",
+    "src/sources/shared/euraxess.py": "29b195b0dbf9e30dfb1bb9edd8a812388a970913",
     "src/sources/shared/fens.py": "b3998e27964fc6ffcc5c2e19dea9ac8b3a85c6f9",
     "src/sources/shared/jobs_ac_uk.py": "d2ea23b7c056cf11c1a7b0a0862e52869946bafd",
     "src/sources/shared/linkedin_mads.py": "412c638dcc620e675b92c5d7f9b05cde32f7fb44",
