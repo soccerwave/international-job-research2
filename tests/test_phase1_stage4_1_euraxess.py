@@ -129,7 +129,7 @@ class EuraxessStage41Tests(unittest.TestCase):
         with capture_coverage() as coverage:
             rows = euraxess.collect(
                 country_codes=("DE",), pages_per_country=None, max_jobs=None,
-                enrich_detail=False, session=SimpleNamespace(get=get), pace_seconds=0,
+                enrich_detail=False, session=SimpleNamespace(get=get, post=get), pace_seconds=0,
             )
 
         self.assertEqual([row["source"]["source_job_id"] for row in rows], ["100", "101"])
@@ -164,7 +164,7 @@ class EuraxessStage41Tests(unittest.TestCase):
         with capture_coverage() as coverage:
             rows = euraxess.collect(
                 country_codes=("DE",), pages_per_country=2, max_jobs=None,
-                enrich_detail=False, session=SimpleNamespace(get=get), pace_seconds=0,
+                enrich_detail=False, session=SimpleNamespace(get=get, post=get), pace_seconds=0,
             )
 
         self.assertEqual([row["source"]["source_job_id"] for row in rows], ["100"])
@@ -188,7 +188,7 @@ class EuraxessStage41Tests(unittest.TestCase):
         with capture_coverage() as coverage:
             rows = euraxess.collect(
                 country_codes=("DE",), pages_per_country=None, max_jobs=None,
-                enrich_detail=False, session=SimpleNamespace(get=get), pace_seconds=0,
+                enrich_detail=False, session=SimpleNamespace(get=get, post=get), pace_seconds=0,
             )
 
         self.assertEqual([row["source"]["source_job_id"] for row in rows], ["150"])
@@ -223,7 +223,7 @@ class EuraxessStage41Tests(unittest.TestCase):
         with capture_coverage() as coverage:
             rows = euraxess.collect(
                 country_codes=("DE", "NL"), pages_per_country=None, max_jobs=None,
-                enrich_detail=False, session=SimpleNamespace(get=get), pace_seconds=0,
+                enrich_detail=False, session=SimpleNamespace(get=get, post=get), pace_seconds=0,
             )
 
         self.assertEqual(
@@ -261,7 +261,7 @@ class EuraxessStage41Tests(unittest.TestCase):
         with capture_coverage() as coverage:
             rows = euraxess.collect(
                 country_codes=("DE",), pages_per_country=None, max_jobs=None,
-                enrich_detail=True, session=SimpleNamespace(get=get), pace_seconds=0,
+                enrich_detail=True, session=SimpleNamespace(get=get, post=get), pace_seconds=0,
             )
 
         self.assertEqual(len(rows), 1)
@@ -294,7 +294,7 @@ class EuraxessStage41Tests(unittest.TestCase):
         with capture_coverage() as coverage:
             rows = euraxess.collect(
                 country_codes=("DE",), pages_per_country=None, max_jobs=None,
-                enrich_detail=True, session=SimpleNamespace(get=get), pace_seconds=0,
+                enrich_detail=True, session=SimpleNamespace(get=get, post=get), pace_seconds=0,
             )
 
         self.assertEqual(rows[0]["location"]["country_code"], "ES")
@@ -338,7 +338,7 @@ class EuraxessStage41Tests(unittest.TestCase):
 
         with patch.object(euraxess.time, "sleep") as sleep:
             response = euraxess._request(
-                SimpleNamespace(get=get), "GET", euraxess.SEARCH_URL,
+                SimpleNamespace(get=get, post=get), "GET", euraxess.SEARCH_URL,
                 attempts=3, pace_seconds=0,
             )
 
@@ -370,7 +370,7 @@ class EuraxessStage41Tests(unittest.TestCase):
         with patch.object(euraxess.time, "sleep") as sleep, capture_coverage() as coverage:
             rows = euraxess.collect(
                 country_codes=("DE",), pages_per_country=None, max_jobs=None,
-                enrich_detail=False, session=SimpleNamespace(get=get), pace_seconds=0,
+                enrich_detail=False, session=SimpleNamespace(get=get, post=get), pace_seconds=0,
             )
 
         self.assertEqual(
@@ -420,7 +420,7 @@ class EuraxessStage41Tests(unittest.TestCase):
         with patch.object(euraxess.time, "sleep"), capture_coverage() as coverage:
             rows = euraxess.collect(
                 country_codes=("DE",), pages_per_country=None, max_jobs=None,
-                enrich_detail=False, session=SimpleNamespace(get=get), pace_seconds=0,
+                enrich_detail=False, session=SimpleNamespace(get=get, post=get), pace_seconds=0,
             )
 
         self.assertEqual(
@@ -455,7 +455,7 @@ class EuraxessStage41Tests(unittest.TestCase):
         with patch.object(euraxess.time, "sleep"), capture_coverage() as coverage:
             rows = euraxess.collect(
                 country_codes=("DE",), pages_per_country=None, max_jobs=None,
-                enrich_detail=False, session=SimpleNamespace(get=get), pace_seconds=0,
+                enrich_detail=False, session=SimpleNamespace(get=get, post=get), pace_seconds=0,
             )
 
         self.assertEqual(
@@ -487,7 +487,7 @@ class EuraxessStage41Tests(unittest.TestCase):
         with patch.object(euraxess.time, "sleep"), capture_coverage() as coverage:
             rows = euraxess.collect(
                 country_codes=("DE",), pages_per_country=None, max_jobs=None,
-                enrich_detail=False, session=SimpleNamespace(get=get), pace_seconds=0,
+                enrich_detail=False, session=SimpleNamespace(get=get, post=get), pace_seconds=0,
             )
 
         self.assertEqual(
@@ -524,7 +524,7 @@ class EuraxessStage41Tests(unittest.TestCase):
         with patch.object(euraxess.time, "sleep"), capture_coverage() as coverage:
             rows = euraxess.collect(
                 country_codes=("DE",), pages_per_country=None, max_jobs=None,
-                enrich_detail=False, session=SimpleNamespace(get=get), pace_seconds=0,
+                enrich_detail=False, session=SimpleNamespace(get=get, post=get), pace_seconds=0,
             )
 
         self.assertEqual(
