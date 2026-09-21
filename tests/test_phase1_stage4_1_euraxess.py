@@ -445,6 +445,8 @@ class EuraxessStage41Tests(unittest.TestCase):
             Response(page0, euraxess.SEARCH_URL),
             Response(page1, euraxess.SEARCH_URL + "?page=1"),
             Response(repeated, euraxess.SEARCH_URL + "?page=2"),
+            Response(repeated, euraxess.SEARCH_URL + "?page=2"),
+            Response(repeated, euraxess.SEARCH_URL + "?page=2"),
         ]
 
         def get(url, **kwargs):
@@ -465,6 +467,39 @@ class EuraxessStage41Tests(unittest.TestCase):
         self.assertEqual(fallback["stop_reason"], "repeated_page_content")
 
 
+    def test_global_fallback_recovers_when_repeated_page_is_transient(self):
+        stale_filtered = FILTER_FORM + global_card("999", "Wrong Result", "Croatia")
+        page0 = global_card("730", "German Job A", "Germany") + '<a rel="next" href="/jobs/search?page=1">Next</a>'
+        repeated_page0 = global_card("730", "German Job A", "Germany") + '<a rel="next" href="/jobs/search?page=1">Next</a>'
+        page1 = global_card("731", "German Job B", "Germany")
+
+        responses = [
+            Response(FILTER_FORM),
+            Response(stale_filtered, filtered_url("job_country:794")),
+            Response(page0, euraxess.SEARCH_URL),
+            Response(repeated_page0, euraxess.SEARCH_URL + "?page=1"),
+            Response(page1, euraxess.SEARCH_URL + "?page=1"),
+        ]
+
+        def get(url, **kwargs):
+            return responses.pop(0)
+
+        with patch.object(euraxess.time, "sleep"), capture_coverage() as coverage:
+            rows = euraxess.collect(
+                country_codes=("DE",), pages_per_country=None, max_jobs=None,
+                enrich_detail=False, session=SimpleNamespace(get=get), pace_seconds=0,
+            )
+
+        self.assertEqual(
+            [row["source"]["source_job_id"] for row in rows],
+            ["730", "731"],
+        )
+        fallback = next(event for event in coverage if event["source"] == "euraxess:global_fallback")
+        self.assertTrue(fallback["complete"], fallback)
+        self.assertEqual(fallback["stop_reason"], "last_page")
+        self.assertEqual(fallback["semantic_duplicate_retries"], 1)
+
+
     def test_global_fallback_treats_first_page_replay_after_progress_as_terminal(self):
         stale_filtered = FILTER_FORM + global_card("999", "Wrong Result", "Croatia")
         page0 = global_card("720", "German Job A", "Germany") + '<a rel="next" href="/jobs/search?page=1">Next</a>'
@@ -478,6 +513,8 @@ class EuraxessStage41Tests(unittest.TestCase):
             Response(page0, euraxess.SEARCH_URL),
             Response(page1, euraxess.SEARCH_URL + "?page=1"),
             Response(page2, euraxess.SEARCH_URL + "?page=2"),
+            Response(reset, euraxess.SEARCH_URL + "?page=3"),
+            Response(reset, euraxess.SEARCH_URL + "?page=3"),
             Response(reset, euraxess.SEARCH_URL + "?page=3"),
         ]
 
