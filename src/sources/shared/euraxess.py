@@ -5,7 +5,7 @@ import time
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from typing import Any
-from urllib.parse import parse_qsl, urljoin, urlparse
+from urllib.parse import parse_qsl, urlencode, urljoin, urlparse, urlunparse
 
 from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
@@ -343,6 +343,29 @@ def _preflight_country_filters(
     return responses
 
 
+def _increment_euraxess_page(url: str) -> str | None:
+    """Advance EURAXESS' zero-based page query when its rendered Next link resets to self."""
+    parsed = urlparse(url)
+    pairs = parse_qsl(parsed.query, keep_blank_values=True)
+    page_index = None
+    current_page = 0
+    for index, (key, value) in enumerate(pairs):
+        if key != "page":
+            continue
+        try:
+            current_page = int(value)
+        except (TypeError, ValueError):
+            return None
+        page_index = index
+        break
+    next_page = current_page + 1
+    if page_index is None:
+        pairs.append(("page", str(next_page)))
+    else:
+        pairs[page_index] = ("page", str(next_page))
+    return urlunparse(parsed._replace(query=urlencode(pairs, doseq=True)))
+
+
 def _collect_global_fallback(
     session,
     *,
@@ -365,6 +388,7 @@ def _collect_global_fallback(
     visited: set[str] = set()
     items: list[dict[str, Any]] = []
     seen: set[str] = set()
+    global_seen_ids: set[str] = set()
     pages = 0
     reason = "unknown"
     complete = False
@@ -403,6 +427,13 @@ def _collect_global_fallback(
             reason = "empty_page"
             complete = next_url is None
             break
+
+        batch_ids = {str(item["id"]) for item in batch}
+        if batch_ids and batch_ids.issubset(global_seen_ids):
+            reason = "repeated_page_content"
+            error = f"EURAXESS global pagination returned no new listing IDs at {response.url}"
+            break
+        global_seen_ids.update(batch_ids)
 
         for item in batch:
             offer_type = clean(item.get("offer_type")).upper()
@@ -446,6 +477,14 @@ def _collect_global_fallback(
         if page_limit is not None and pages >= page_limit:
             reason = "configured_page_limit"
             break
+        if next_url in visited:
+            advanced = _increment_euraxess_page(response.url)
+            if advanced and advanced not in visited:
+                next_url = advanced
+            else:
+                reason = "repeated_page_url"
+                error = f"Repeated global pagination URL: {next_url}"
+                break
         current_url = next_url
 
     record_coverage(
