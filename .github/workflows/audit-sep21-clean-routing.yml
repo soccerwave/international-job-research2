@@ -1,0 +1,68 @@
+name: Temporary Audit Sep21 Clean Routing
+
+on:
+  push:
+    branches:
+      - ops/dispatch-publisher-35559436411
+    paths:
+      - '.github/workflows/audit-sep21-clean-routing.yml'
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    env:
+      ARTIFACT_ENCRYPTION_KEY: ${{ secrets.ARTIFACT_ENCRYPTION_KEY }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt -r requirements-cloud.txt
+      - name: Download source production artifact
+        run: |
+          gh run download 35559436411 --repo "${GITHUB_REPOSITORY}" --name production-35559436411-1 --dir encrypted
+          enc="$(find encrypted -type f -name '*.tar.gz.enc' -print -quit)"
+          bash scripts/secure_artifact.sh unpack "$enc" unpacked
+      - name: Audit clean routing
+        run: |
+          python - <<'PY' > /tmp/audit.txt
+          import json
+          from pathlib import Path
+          from src.reporting.user_excel import build_user_rows
+
+          records=json.loads(Path('unpacked/production/canonical_records.json').read_text())
+          rows=build_user_rows(records)
+          titles=[r['title'] for r in rows]
+          print('JOBS_COUNT',len(rows))
+          patterns=[
+            'Psychology Teacher','Field Service Engineer','Stress Testing Associate',
+            'Mental Health Nursing','Mathematik','Senior Specialist Teacher',
+          ]
+          for p in patterns:
+              ms=[t for t in titles if p.casefold() in t.casefold()]
+              print('BAD',p,len(ms))
+              for t in ms[:10]: print(' ',t)
+          guards=[
+            'Lecturer in Physiology Education',
+            'Sportpsychologie','Gesundheit und Bewegung','Sport und Gesellschaft',
+            'Wearable Technologies, Digital Health & Artificial Intelligence'
+          ]
+          for p in guards:
+              ms=[t for t in titles if p.casefold() in t.casefold()]
+              print('GUARD',p,len(ms))
+              for t in ms[:10]: print(' ',t)
+          print('TOP_NEW')
+          for r in rows:
+              if str(r.get('seen_status') or '').upper() in {'NEW','MATERIALLY_CHANGED','REOPENED'}:
+                  print(r.get('seen_status'),r.get('Priority') or r.get('priority'),r.get('title'))
+          PY
+          cat /tmp/audit.txt
+          payload="$(base64 -w0 /tmp/audit.txt)"
+          gh api --method PUT -H "Accept: application/vnd.github+json"             "/repos/${GITHUB_REPOSITORY}/contents/ops/sep21-clean-routing-audit.txt"             -f message='Record Sep21 clean routing audit'             -f content="$payload"             -f branch='ops/dispatch-publisher-35559436411'
