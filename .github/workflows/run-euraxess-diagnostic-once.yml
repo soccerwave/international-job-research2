@@ -1,0 +1,40 @@
+name: Temporary Run EURAXESS Diagnostic Once
+
+on:
+  push:
+    branches:
+      - ops/run-euraxess-diagnostic-once
+    paths:
+      - '.github/workflows/run-euraxess-diagnostic-once.yml'
+
+permissions:
+  actions: write
+  contents: write
+
+jobs:
+  dispatch-and-watch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Dispatch isolated EURAXESS diagnostic
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          before="$(date -u +%s)"
+          gh workflow run euraxess-isolated-diagnostic.yml             --repo "${GITHUB_REPOSITORY}"             --ref main
+
+          run_id=""
+          for i in $(seq 1 30); do
+            run_id="$(gh run list               --repo "${GITHUB_REPOSITORY}"               --workflow euraxess-isolated-diagnostic.yml               --event workflow_dispatch               --limit 5               --json databaseId,createdAt               --jq '.[0].databaseId // empty')"
+            [ -n "$run_id" ] && break
+            sleep 2
+          done
+          test -n "$run_id"
+
+          gh run watch "$run_id"             --repo "${GITHUB_REPOSITORY}"             --exit-status
+
+          result="$(gh run view "$run_id"             --repo "${GITHUB_REPOSITORY}"             --json databaseId,status,conclusion,url,headSha,createdAt             --jq '[.databaseId,.status,.conclusion,.url,.headSha,.createdAt] | @tsv')"
+
+          payload="$(printf '%s\n' "$result" | base64 -w0)"
+          gh api             --method PUT             -H "Accept: application/vnd.github+json"             "/repos/${GITHUB_REPOSITORY}/contents/ops/euraxess-diagnostic-once-result.txt"             -f message='Record isolated EURAXESS diagnostic result'             -f content="$payload"             -f branch='ops/run-euraxess-diagnostic-once'
