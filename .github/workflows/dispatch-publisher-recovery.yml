@@ -9,7 +9,7 @@ on:
 
 permissions:
   actions: write
-  contents: read
+  contents: write
 
 jobs:
   dispatch:
@@ -19,4 +19,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
           gh workflow run publish-control-plane-report.yml             --repo "${GITHUB_REPOSITORY}"             --ref main             -f source_run_id=35559436411
+
+          payload="$(printf 'publisher recovery dispatched for source_run_id=35559436411\n' | base64 -w0)"
+          gh api             --method PUT             -H "Accept: application/vnd.github+json"             "/repos/${GITHUB_REPOSITORY}/contents/ops/publisher-dispatch-confirmation.txt"             -f message='Record publisher recovery dispatch'             -f content="$payload"             -f branch='ops/dispatch-publisher-35559436411'
