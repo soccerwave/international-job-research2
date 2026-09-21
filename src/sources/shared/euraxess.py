@@ -396,6 +396,7 @@ def _collect_global_fallback(
     error = None
     global_rows_seen = 0
     unresolved_country_rows = 0
+    semantic_duplicate_retries = 0
 
     while True:
         if current_url in visited:
@@ -421,7 +422,6 @@ def _collect_global_fallback(
 
         pages += 1
         batch = parse_listing(response.text, response.url)
-        global_rows_seen += len(batch)
         next_url = next_listing_url(response.text, response.url)
 
         if not batch:
@@ -433,13 +433,54 @@ def _collect_global_fallback(
         if not first_page_ids:
             first_page_ids = set(batch_ids)
         elif batch_ids and batch_ids.issubset(global_seen_ids):
-            if pages >= 3 and batch_ids == first_page_ids:
-                reason = "last_page_reset"
-                complete = True
+            original_batch_ids = set(batch_ids)
+            recovered_duplicate = False
+            terminal_after_retry = False
+            for retry_index in range(2):
+                semantic_duplicate_retries += 1
+                time.sleep(5.0 * (retry_index + 1))
+                try:
+                    retry_response = _get(
+                        session,
+                        current_url,
+                        attempts=4,
+                        pace_seconds=max(pace_seconds, 2.5),
+                        backoff_base_seconds=15.0,
+                        backoff_cap_seconds=180.0,
+                        minimum_backoff_seconds=15.0,
+                    )
+                    retry_response.raise_for_status()
+                except Exception:
+                    continue
+                retry_batch = parse_listing(retry_response.text, retry_response.url)
+                retry_next_url = next_listing_url(retry_response.text, retry_response.url)
+                if not retry_batch:
+                    if retry_next_url is None:
+                        reason = "last_page_after_retry"
+                        complete = True
+                        terminal_after_retry = True
+                        break
+                    continue
+                retry_ids = {str(item["id"]) for item in retry_batch}
+                if retry_ids and not retry_ids.issubset(global_seen_ids):
+                    response = retry_response
+                    batch = retry_batch
+                    batch_ids = retry_ids
+                    next_url = retry_next_url
+                    recovered_duplicate = True
+                    break
+            if terminal_after_retry:
                 break
-            reason = "repeated_page_content"
-            error = f"EURAXESS global pagination returned no new listing IDs at {response.url}"
-            break
+            if not recovered_duplicate:
+                if pages >= 3 and original_batch_ids == first_page_ids:
+                    reason = "last_page_reset"
+                    complete = True
+                    break
+                reason = "repeated_page_content"
+                error = f"EURAXESS global pagination returned no new listing IDs at {response.url}"
+                break
+
+        global_rows_seen += len(batch)
         global_seen_ids.update(batch_ids)
 
         for item in batch:
@@ -502,6 +543,7 @@ def _collect_global_fallback(
         records=len(items),
         global_rows_seen=global_rows_seen,
         unresolved_country_rows=unresolved_country_rows,
+        semantic_duplicate_retries=semantic_duplicate_retries,
         error=error,
     )
     return items, complete
