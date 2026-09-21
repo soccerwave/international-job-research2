@@ -537,5 +537,38 @@ class EuraxessStage41Tests(unittest.TestCase):
         self.assertEqual(fallback["pages"], 4)
 
 
+    def test_global_fallback_treats_successful_empty_post_page_as_terminal(self):
+        stale_filtered = FILTER_FORM + global_card("999", "Wrong Result", "Croatia")
+        page0 = global_card("740", "German Job A", "Germany") + '<a rel="next" href="/jobs/search?page=1">Next</a>'
+        page1 = global_card("741", "German Job B", "Germany") + '<a rel="next" href="/jobs/search?page=2">Next</a>'
+        empty = '<a rel="next" href="/jobs/search?page=3">Next</a>'
+
+        responses = [
+            Response(FILTER_FORM),
+            Response(stale_filtered, filtered_url("job_country:794")),
+            Response(page0, euraxess.SEARCH_URL),
+            Response(page1, euraxess.SEARCH_URL + "?page=1"),
+            Response(empty, euraxess.SEARCH_URL + "?page=2"),
+        ]
+
+        def request(url, **kwargs):
+            return responses.pop(0)
+
+        with patch.object(euraxess.time, "sleep"), capture_coverage() as coverage:
+            rows = euraxess.collect(
+                country_codes=("DE",), pages_per_country=None, max_jobs=None,
+                enrich_detail=False,
+                session=SimpleNamespace(get=request, post=request), pace_seconds=0,
+            )
+
+        self.assertEqual(
+            [row["source"]["source_job_id"] for row in rows],
+            ["740", "741"],
+        )
+        fallback = next(event for event in coverage if event["source"] == "euraxess:global_fallback")
+        self.assertTrue(fallback["complete"], fallback)
+        self.assertEqual(fallback["stop_reason"], "empty_page")
+
+
 if __name__ == "__main__":
     unittest.main()
