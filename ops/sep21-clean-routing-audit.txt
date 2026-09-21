@@ -1,0 +1,28 @@
+JOBS_COUNT 281
+BAD Psychology Teacher 0
+BAD Field Service Engineer 0
+BAD Stress Testing Associate 0
+BAD Mental Health Nursing 0
+BAD Mathematik 0
+BAD Senior Specialist Teacher 0
+GUARD Lecturer in Physiology Education 1
+  Lecturer in Physiology Education
+GUARD Sportpsychologie 2
+  Universitätsprofesseur (W2) für Sportpsychologie [ ] 12.10.2026
+  Universitätsprofessur für Sportpsychologie Johannes Gutenberg-Universität Mainz Mainz Vollzeit Unbefristet 15.09.2026
+GUARD Gesundheit und Bewegung 2
+  Juniorprofessur (W1) für Gesundheit und Bewegung [ ] 11.10.2026
+  Juniorprofessur für Gesundheit und Bewegung Johannes Gutenberg-Universität Mainz Mainz Vollzeit Befristet 14.09.2026
+GUARD Sport und Gesellschaft 2
+  Juniorprofessur (W1) für Sport und Gesellschaft [ ] 12.10.2026
+  Juniorprofessur für Sport und Gesellschaft Johannes Gutenberg-Universität Mainz Mainz Vollzeit Befristet 14.09.2026
+GUARD Wearable Technologies, Digital Health & Artificial Intelligence 1
+  Research Fellow, Data Scientist (Wearable Technologies, Digital Health & Artificial Intelligence)
+TOP_NEW
+NEW None Executive Assistant (Student Support & Wellbeing Services).
+NEW None Lecturer (Physiotherapy Clinical Educator)
+NEW None Online Tutor – School of Psychology (Part-Time Register)
+NEW None Research Coordinator
+NEW None Research Associate in Public Health
+MATERIALLY_CHANGED None Research Associate in Public Health
+REOPENED None Sportwissenschaftler:in (m/w/d) (100%, unbefristet) [ ] 30.09.2026
