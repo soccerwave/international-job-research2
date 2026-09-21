@@ -2,6 +2,11 @@ name: EURAXESS Isolated Diagnostic
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - 'src/sources/shared/euraxess.py'
+      - 'tests/test_phase1_stage4_1_euraxess.py'
+      - '.github/workflows/euraxess-isolated-diagnostic.yml'
 
 permissions:
   contents: read
@@ -29,29 +34,90 @@ jobs:
 
       - name: Run isolated EURAXESS shard
         run: |
-          python scripts/run_production_shard.py             --run-id "$DIAGNOSTIC_RUN_ID"             --shard-id euraxess-europe             --output-root diagnostic-artifacts | tee euraxess-diagnostic-output.json
+          python scripts/run_production_shard.py \
+            --run-id "$DIAGNOSTIC_RUN_ID" \
+            --shard-id euraxess-europe \
+            --output-root diagnostic-artifacts | tee euraxess-diagnostic-output.json
+
+      - name: Capture live EURAXESS pagination snapshot
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from src.sources.shared import euraxess
+
+          session = euraxess.make_session(retries=0)
+          pages = []
+          for page in range(6):
+              url = euraxess.SEARCH_URL if page == 0 else f"{euraxess.SEARCH_URL}?page={page}"
+              response = euraxess._get(
+                  session,
+                  url,
+                  attempts=4,
+                  pace_seconds=1.5,
+                  backoff_base_seconds=10.0,
+                  backoff_cap_seconds=60.0,
+                  minimum_backoff_seconds=10.0,
+              )
+              response.raise_for_status()
+              rows = euraxess.parse_listing(response.text, response.url)
+              pages.append({
+                  "page": page,
+                  "requested_url": url,
+                  "response_url": response.url,
+                  "ids": [row["id"] for row in rows],
+                  "next_url": euraxess.next_listing_url(response.text, response.url),
+              })
+          root = Path("diagnostic-artifacts") / os.environ["DIAGNOSTIC_RUN_ID"]
+          (root / "euraxess-pagination-probe.json").write_text(
+              json.dumps(pages, ensure_ascii=False, indent=2),
+              encoding="utf-8",
+          )
+          print(json.dumps(pages, ensure_ascii=False, indent=2))
+          PY
 
       - name: Summarize EURAXESS diagnostic
         shell: bash
         run: |
           python - <<'PY'
           import json
+          import os
           from pathlib import Path
 
-          root = Path("diagnostic-artifacts") / __import__("os").environ["DIAGNOSTIC_RUN_ID"]
+          root = Path("diagnostic-artifacts") / os.environ["DIAGNOSTIC_RUN_ID"]
           report = root / "diagnostics" / "euraxess-europe" / "source_lifecycle.jsonl"
           bundle = root / "shards" / "euraxess-europe"
+          output = Path("euraxess-diagnostic-output.json")
+          if output.exists():
+              (root / output.name).write_bytes(output.read_bytes())
           print(json.dumps({
-              "diagnostic_run_id": __import__("os").environ["DIAGNOSTIC_RUN_ID"],
+              "diagnostic_run_id": os.environ["DIAGNOSTIC_RUN_ID"],
               "lifecycle_exists": report.exists(),
               "bundle_exists": bundle.exists(),
+              "pagination_probe_exists": (root / "euraxess-pagination-probe.json").exists(),
           }, indent=2))
           PY
 
       - name: Encrypt diagnostic artifact
         shell: bash
         run: |
-          bash scripts/secure_artifact.sh pack             "diagnostic-artifacts/$DIAGNOSTIC_RUN_ID"             "euraxess-diagnostic-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.tar.gz.enc"
+          base="diagnostic-artifacts/$DIAGNOSTIC_RUN_ID"
+          paths=()
+          for path in \
+            "shards/euraxess-europe" \
+            "diagnostics/euraxess-europe" \
+            "euraxess-pagination-probe.json" \
+            "euraxess-diagnostic-output.json"
+          do
+            [ -e "$base/$path" ] && paths+=("$path")
+          done
+          [ "${#paths[@]}" -gt 0 ]
+          bash scripts/secure_artifact.sh pack \
+            "$base" \
+            "euraxess-diagnostic-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.tar.gz.enc" \
+            "${paths[@]}"
 
       - name: Upload encrypted diagnostic artifact
         uses: actions/upload-artifact@v4
