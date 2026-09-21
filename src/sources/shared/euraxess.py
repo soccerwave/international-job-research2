@@ -405,8 +405,9 @@ def _collect_global_fallback(
             break
         visited.add(current_url)
         try:
-            response = _get(
+            response = _request(
                 session,
+                "GET" if pages == 0 else "POST",
                 current_url,
                 attempts=8,
                 pace_seconds=max(pace_seconds, 2.5),
@@ -440,8 +441,9 @@ def _collect_global_fallback(
                 semantic_duplicate_retries += 1
                 time.sleep(5.0 * (retry_index + 1))
                 try:
-                    retry_response = _get(
+                    retry_response = _request(
                         session,
+                        "GET" if pages == 1 else "POST",
                         current_url,
                         attempts=4,
                         pace_seconds=max(pace_seconds, 2.5),
