@@ -82,6 +82,25 @@ jobs:
               timeout=(10,45), allow_redirects=True,
           ))
 
+          time.sleep(2)
+          capture("standard_post_page1_empty", base_session.post(
+              euraxess.SEARCH_URL + "?page=1",
+              data={},
+              timeout=(10,45), allow_redirects=True,
+          ))
+          time.sleep(2)
+          capture("standard_post_page2_empty", base_session.post(
+              euraxess.SEARCH_URL + "?page=2",
+              data={},
+              timeout=(10,45), allow_redirects=True,
+          ))
+          time.sleep(2)
+          capture("standard_post_page3_empty", base_session.post(
+              euraxess.SEARCH_URL + "?page=3",
+              data={},
+              timeout=(10,45), allow_redirects=True,
+          ))
+
           browser_headers = {
               "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36",
               "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
@@ -107,6 +126,20 @@ jobs:
               timeout=(10,45), allow_redirects=True,
           )
           capture("browser_like_post_page1_empty", post_plain)
+
+          time.sleep(2)
+          capture("browser_like_post_page2_empty", browser.post(
+              euraxess.SEARCH_URL + "?page=2",
+              data={},
+              timeout=(10,45), allow_redirects=True,
+          ))
+
+          time.sleep(2)
+          capture("browser_like_post_page3_empty", browser.post(
+              euraxess.SEARCH_URL + "?page=3",
+              data={},
+              timeout=(10,45), allow_redirects=True,
+          ))
 
           offer = euraxess.discover_offer_type_facet(r0.text)
           if offer:
