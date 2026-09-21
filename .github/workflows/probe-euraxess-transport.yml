@@ -82,6 +82,32 @@ jobs:
               timeout=(10,45), allow_redirects=True,
           ))
 
+          browser_headers = {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36",
+              "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+              "Accept-Language": "en-GB,en;q=0.9",
+              "Referer": euraxess.SEARCH_URL,
+              "Sec-Fetch-Dest": "document",
+              "Sec-Fetch-Mode": "navigate",
+              "Sec-Fetch-Site": "same-origin",
+              "Upgrade-Insecure-Requests": "1",
+          }
+          browser = euraxess.make_session(retries=0)
+          browser.headers.update(browser_headers)
+          time.sleep(2)
+          capture("browser_like_get_page1", browser.get(
+              euraxess.SEARCH_URL + "?page=1",
+              timeout=(10,45), allow_redirects=True,
+          ))
+
+          time.sleep(2)
+          post_plain = browser.post(
+              euraxess.SEARCH_URL + "?page=1",
+              data={},
+              timeout=(10,45), allow_redirects=True,
+          )
+          capture("browser_like_post_page1_empty", post_plain)
+
           offer = euraxess.discover_offer_type_facet(r0.text)
           if offer:
               offer_params = [("f[0]", offer)]
@@ -105,6 +131,14 @@ jobs:
                   timeout=(10,45), allow_redirects=True,
               )
               capture("offer_facet_page2", offer_page2)
+
+              time.sleep(2)
+              post_offer = browser.post(
+                  euraxess.SEARCH_URL + "?page=1",
+                  data=[("f[0]", offer)],
+                  timeout=(10,45), allow_redirects=True,
+              )
+              capture("browser_like_post_offer_page1", post_offer)
 
           print(json.dumps({
               "page0_ids": page0_ids,
