@@ -389,6 +389,7 @@ def _collect_global_fallback(
     items: list[dict[str, Any]] = []
     seen: set[str] = set()
     global_seen_ids: set[str] = set()
+    first_page_ids: set[str] = set()
     pages = 0
     reason = "unknown"
     complete = False
@@ -429,7 +430,13 @@ def _collect_global_fallback(
             break
 
         batch_ids = {str(item["id"]) for item in batch}
-        if batch_ids and batch_ids.issubset(global_seen_ids):
+        if not first_page_ids:
+            first_page_ids = set(batch_ids)
+        elif batch_ids and batch_ids.issubset(global_seen_ids):
+            if pages >= 3 and batch_ids == first_page_ids:
+                reason = "last_page_reset"
+                complete = True
+                break
             reason = "repeated_page_content"
             error = f"EURAXESS global pagination returned no new listing IDs at {response.url}"
             break
