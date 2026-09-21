@@ -82,9 +82,34 @@ jobs:
               timeout=(10,45), allow_redirects=True,
           ))
 
+          offer = euraxess.discover_offer_type_facet(r0.text)
+          if offer:
+              offer_params = [("f[0]", offer)]
+              filtered0 = base_session.get(
+                  euraxess.SEARCH_URL,
+                  params=offer_params,
+                  timeout=(10,45), allow_redirects=True,
+              )
+              capture("offer_facet_page0", filtered0)
+
+              offer_page1 = base_session.get(
+                  euraxess.SEARCH_URL,
+                  params=offer_params + [("page","1")],
+                  timeout=(10,45), allow_redirects=True,
+              )
+              capture("offer_facet_page1", offer_page1)
+
+              offer_page2 = base_session.get(
+                  euraxess.SEARCH_URL,
+                  params=offer_params + [("page","2")],
+                  timeout=(10,45), allow_redirects=True,
+              )
+              capture("offer_facet_page2", offer_page2)
+
           print(json.dumps({
               "page0_ids": page0_ids,
               "page0_next": euraxess.next_listing_url(r0.text, r0.url),
+              "offer_facet": offer,
               "variants": variants,
           }, indent=2))
           PY
