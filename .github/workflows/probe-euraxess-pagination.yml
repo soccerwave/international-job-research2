@@ -1,0 +1,55 @@
+name: Temporary EURAXESS Pagination Probe
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/probe-euraxess-pagination.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Focused EURAXESS regressions
+        run: python -m unittest -v tests.test_phase1_stage4_1_euraxess
+      - name: Live pagination probe
+        run: |
+          python - <<'PY'
+          import json
+          from src.sources.shared import euraxess
+
+          s = euraxess.make_session(retries=0)
+          out=[]
+          for page in [0,1,2]:
+              url = euraxess.SEARCH_URL if page == 0 else f"{euraxess.SEARCH_URL}?page={page}"
+              r = euraxess._get(
+                  s, url,
+                  attempts=4,
+                  pace_seconds=2.5,
+                  backoff_base_seconds=10,
+                  backoff_cap_seconds=60,
+                  minimum_backoff_seconds=10,
+              )
+              r.raise_for_status()
+              rows=euraxess.parse_listing(r.text,r.url)
+              nxt=euraxess.next_listing_url(r.text,r.url)
+              out.append({
+                  "requested":url,
+                  "response_url":r.url,
+                  "ids":[x["id"] for x in rows],
+                  "next_url":nxt,
+              })
+          print(json.dumps(out,indent=2))
+          if not out[0]["ids"] or not out[1]["ids"] or not out[2]["ids"]:
+              raise SystemExit("One of the first three live EURAXESS pages was empty")
+          if set(out[0]["ids"]) == set(out[1]["ids"]) or set(out[1]["ids"]) == set(out[2]["ids"]):
+              raise SystemExit("Adjacent live EURAXESS pages repeated the same listing IDs")
+          PY
