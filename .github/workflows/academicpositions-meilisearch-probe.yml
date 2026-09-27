@@ -1,0 +1,41 @@
+name: AcademicPositions Meilisearch Probe
+
+on:
+  push:
+    branches:
+      - diag/academicpositions-meilisearch
+    paths:
+      - '.github/workflows/academicpositions-meilisearch-probe.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Probe public Meilisearch metadata
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, urllib.request, urllib.error
+          base='https://search.staging.academicpositions.com'
+          paths=['/','/health','/version','/indexes','/stats']
+          results=[]
+          for path in paths:
+              req=urllib.request.Request(base+path,headers={'Accept':'application/json','User-Agent':'academic-job-monitor/1.0'})
+              try:
+                  with urllib.request.urlopen(req,timeout=20) as r:
+                      body=r.read().decode('utf-8','replace')
+                      results.append({'path':path,'status':r.status,'content_type':r.headers.get('content-type'),'body':body[:30000]})
+              except urllib.error.HTTPError as e:
+                  body=e.read().decode('utf-8','replace')
+                  results.append({'path':path,'status':e.code,'content_type':e.headers.get('content-type'),'body':body[:10000]})
+              except Exception as exc:
+                  results.append({'path':path,'error':f'{type(exc).__name__}: {exc}'})
+          print(json.dumps(results,indent=2))
+          PY
