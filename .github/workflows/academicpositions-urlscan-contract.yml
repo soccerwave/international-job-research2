@@ -47,6 +47,24 @@ jobs:
                       'time': task.get('time'),
                   })
           print(json.dumps({'chosen':chosen[:20]}, indent=2))
+          if results:
+              sample=results[0]
+              print("SAMPLE_KEYS", sorted(sample.keys()))
+              print(json.dumps({
+                  "sample_task": sample.get("task"),
+                  "sample_page": sample.get("page"),
+                  "sample_lists": sample.get("lists"),
+                  "sample_stats": sample.get("stats"),
+                  "sample_domains": sample.get("domains"),
+                  "sample_urls": sample.get("urls"),
+              }, indent=2)[:30000])
+          domain_hits={}
+          for item in results:
+              lists=item.get("lists") or {}
+              for d in (lists.get("domains") or []):
+                  domain_hits[d]=domain_hits.get(d,0)+1
+          print("DOMAIN_HITS")
+          print(json.dumps(sorted(domain_hits.items(), key=lambda kv:(-kv[1],kv[0]))[:200], indent=2))
 
           seen=set()
           for entry in chosen[:10]:
