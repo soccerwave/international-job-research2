@@ -56,4 +56,72 @@ jobs:
                   item["error"] = f"{type(exc).__name__}: {exc}"
               results.append(item)
           print(json.dumps(results, ensure_ascii=False, indent=2))
+
+          reader_base = "https://r.jina.ai/http://academicpositions.com"
+          pages = []
+          seen = set()
+          detail_url = None
+          for page in range(1, 6):
+              suffix = "/jobs/country/germany" if page == 1 else f"/jobs/country/germany?page={page}"
+              url = reader_base + suffix
+              req = urllib.request.Request(url, headers={
+                  "User-Agent": "Mozilla/5.0 (compatible; academic-job-monitor-probe/1.0)",
+                  "Accept": "text/plain,text/markdown,*/*",
+              })
+              try:
+                  with urllib.request.urlopen(req, timeout=60) as r:
+                      text = r.read().decode("utf-8", "replace")
+              except Exception as exc:
+                  pages.append({"page": page, "error": f"{type(exc).__name__}: {exc}"})
+                  break
+              links = sorted(set(re.findall(
+                  r"https?://academicpositions\\.com/(?:[a-z]{2}/)?ad/[^\\s)\\]>]+/\\d+",
+                  text, re.I
+              )))
+              ids = []
+              for link in links:
+                  m = re.search(r"/(\\d+)(?:[/?#]|$)", link)
+                  if m:
+                      ids.append(m.group(1))
+              new_ids = [x for x in ids if x not in seen]
+              seen.update(ids)
+              if detail_url is None and links:
+                  detail_url = links[0]
+              pages.append({
+                  "page": page,
+                  "status": r.status,
+                  "length": len(text),
+                  "count": len(ids),
+                  "new_count": len(new_ids),
+                  "ids": ids[:10],
+                  "has_next_hint": f"page={page+1}" in text,
+                  "challenge_marker": any(x in text.lower() for x in ("just a moment", "checking your browser", "cf-chl-")),
+              })
+              if not new_ids:
+                  break
+
+          detail = None
+          if detail_url:
+              target = detail_url.replace("https://", "http://", 1)
+              detail_reader = "https://r.jina.ai/" + target
+              req = urllib.request.Request(detail_reader, headers={
+                  "User-Agent": "Mozilla/5.0 (compatible; academic-job-monitor-probe/1.0)",
+                  "Accept": "text/plain,text/markdown,*/*",
+              })
+              try:
+                  with urllib.request.urlopen(req, timeout=60) as r:
+                      text = r.read().decode("utf-8", "replace")
+                      detail = {
+                          "source_url": detail_url,
+                          "status": r.status,
+                          "length": len(text),
+                          "challenge_marker": any(x in text.lower() for x in ("just a moment", "checking your browser", "cf-chl-")),
+                          "has_description_markers": any(x in text.lower() for x in ("job description", "about the position", "about the job", "requirements", "qualifications")),
+                          "prefix": text[:800],
+                      }
+              except Exception as exc:
+                  detail = {"source_url": detail_url, "error": f"{type(exc).__name__}: {exc}"}
+
+          print("PAGINATION_AND_DETAIL")
+          print(json.dumps({"pages": pages, "unique_ids": len(seen), "detail": detail}, ensure_ascii=False, indent=2))
           PY
