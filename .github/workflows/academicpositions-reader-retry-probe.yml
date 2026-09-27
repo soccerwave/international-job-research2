@@ -64,3 +64,39 @@ jobs:
                   time.sleep(3.2)
           print(json.dumps(results,ensure_ascii=False,indent=2))
           PY
+
+      - name: Probe Czechia regional routes
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, re, time, urllib.request, urllib.error
+          link_re = re.compile(r"https?://academicpositions\.com/(?:[a-z]{2}/)?ad/[^\s)\]>]+/\d+", re.I)
+          results=[]
+          for prefix in ("no","dk","at","be","se","de"):
+              url=f"https://r.jina.ai/http://academicpositions.com/{prefix}/jobs/country/czechia"
+              req=urllib.request.Request(url,headers={
+                  "User-Agent":"Mozilla/5.0 (compatible; academic-job-monitor-retry-probe/1.0)",
+                  "Accept":"text/plain,text/markdown,*/*",
+                  "X-No-Cache":"true",
+              })
+              item={"prefix":prefix}
+              try:
+                  with urllib.request.urlopen(req,timeout=90) as r:
+                      text=r.read().decode("utf-8","replace")
+                      item.update({
+                          "status":r.status,
+                          "length":len(text),
+                          "challenge":any(x in text.lower() for x in ("just a moment","checking your browser","cf-chl-")),
+                          "count":len(set(link_re.findall(text))),
+                          "title":next((ln for ln in text.splitlines() if ln.startswith("Title:")),"")[:180],
+                      })
+              except urllib.error.HTTPError as e:
+                  body=e.read().decode("utf-8","replace")
+                  item.update({"status":e.code,"length":len(body),"prefix_body":body[:200]})
+              except Exception as exc:
+                  item["error"]=f"{type(exc).__name__}: {exc}"
+              results.append(item)
+              time.sleep(3.2)
+          print("CZECHIA_REGIONAL")
+          print(json.dumps(results,ensure_ascii=False,indent=2))
+          PY
