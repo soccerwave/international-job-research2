@@ -225,10 +225,11 @@ def collect(
 ) -> list[dict[str,Any]]:
     s=session or make_session()
     reader=reader_session or make_session(retries=1,backoff=1.0)
-    reader.headers.update({
-        "User-Agent":"Mozilla/5.0 (compatible; academic-job-monitor/1.0)",
-        "Accept":"text/plain,text/markdown,*/*",
-    })
+    if hasattr(reader,"headers"):
+        reader.headers.update({
+            "User-Agent":"Mozilla/5.0 (compatible; academic-job-monitor/1.0)",
+            "Accept":"text/plain,text/markdown,*/*",
+        })
     reader_pace=0.0 if reader_session is not None else READER_MIN_INTERVAL_SECONDS
     last_reader_at=0.0
     reader_mode=False
