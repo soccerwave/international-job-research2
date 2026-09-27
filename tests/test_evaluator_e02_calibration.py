@@ -158,6 +158,21 @@ class CalibratedEvaluatorTests(unittest.TestCase):
         self.assertNotIn("ROLE_STUDENT", result["blocker_codes"])
         self.assertEqual(result["recommendation"], "REVIEW")
 
+    def test_spaced_post_doctoral_title_is_not_misclassified_as_student(self):
+        job = vacancy(
+            title="Post Doctoral Researcher (Level 1) in Digital Health",
+            role="OUT_OF_SCOPE",
+            level="MISMATCH",
+            jd="Digital health research using human participant data and behaviour change methods.",
+        )
+        job["raw_extra"]["evaluation"]["role_policy_status"] = "OUT_OF_SCOPE"
+        job["raw_extra"]["evaluation"]["blocker_codes"] = ["ROLE_STUDENT"]
+        result = evaluate_calibrated(job)
+        self.assertEqual(result["role_family"], "POSTDOC")
+        self.assertEqual(result["role_policy_status"], "PRIMARY")
+        self.assertNotIn("ROLE_STUDENT", result["blocker_codes"])
+        self.assertEqual(result["recommendation"], "REVIEW")
+
     def test_coru_requirement_blocks_social_care_role(self):
         job = vacancy(
             title="Lecturer in Social Care",
