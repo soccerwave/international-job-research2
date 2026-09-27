@@ -163,3 +163,99 @@ jobs:
               "page3_engines": page3_engines,
           }, ensure_ascii=False, indent=2))
           PY
+
+      - name: Stress-test reader coverage and detail sampling
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, re, time, urllib.request, urllib.error
+
+          countries = {
+              "NL":"netherlands","DE":"germany","IE":"ireland","GB":"united-kingdom",
+              "BE":"belgium","FR":"france","AT":"austria","IT":"italy",
+              "PT":"portugal","CZ":"czechia","PL":"poland","LU":"luxembourg",
+          }
+          headers = {
+              "User-Agent": "Mozilla/5.0 (compatible; academic-job-monitor-stress-probe/1.0)",
+              "Accept": "text/plain,text/markdown,*/*",
+          }
+          link_re = re.compile(r"https?://academicpositions\.com/(?:[a-z]{2}/)?ad/[^\s)\]>]+/\d+", re.I)
+          total_re = re.compile(r"Title:\s*(\d+)\s+jobs?\s+in\b", re.I)
+
+          def get(url):
+              req = urllib.request.Request(url, headers=headers)
+              try:
+                  with urllib.request.urlopen(req, timeout=90) as r:
+                      return r.status, r.read().decode("utf-8", "replace"), None
+              except urllib.error.HTTPError as e:
+                  return e.code, e.read().decode("utf-8", "replace"), None
+              except Exception as exc:
+                  return None, "", f"{type(exc).__name__}: {exc}"
+
+          summary = {}
+          detail_candidates = []
+          for code, slug in countries.items():
+              seen = {}
+              advertised = None
+              pages = []
+              for page in range(1, 11):
+                  suffix = f"/jobs/country/{slug}" if page == 1 else f"/jobs/country/{slug}?page={page}"
+                  url = "https://r.jina.ai/http://academicpositions.com" + suffix
+                  status, text, error = get(url)
+                  if page == 1:
+                      m = total_re.search(text)
+                      advertised = int(m.group(1)) if m else None
+                  links = sorted(set(link_re.findall(text))) if text else []
+                  new_links = []
+                  for link in links:
+                      tail = link.split("?",1)[0].split("#",1)[0].rstrip("/").rsplit("/",1)[-1]
+                      if tail.isdigit() and tail not in seen:
+                          seen[tail] = link
+                          new_links.append(link)
+                  challenge = any(x in text.lower() for x in ("just a moment", "checking your browser", "cf-chl-")) if text else False
+                  pages.append({
+                      "page": page, "status": status, "count": len(links),
+                      "new_count": len(new_links), "challenge": challenge, "error": error,
+                  })
+                  if status != 200 or error:
+                      break
+                  if not new_links:
+                      break
+                  time.sleep(3.2)
+              summary[code] = {
+                  "advertised_total": advertised,
+                  "unique_ids": len(seen),
+                  "complete_against_advertised": advertised is not None and len(seen) == advertised,
+                  "pages": pages,
+              }
+              detail_candidates.extend(list(seen.values())[:2])
+              time.sleep(3.2)
+
+          details = []
+          for link in detail_candidates[:20]:
+              target = link.replace("https://", "http://", 1)
+              status, text, error = get("https://r.jina.ai/" + target)
+              details.append({
+                  "source_url": link,
+                  "status": status,
+                  "length": len(text),
+                  "challenge": any(x in text.lower() for x in ("just a moment", "checking your browser", "cf-chl-")) if text else False,
+                  "has_description_markers": any(x in text.lower() for x in ("job description", "about the position", "about the job", "requirements", "qualifications")) if text else False,
+                  "error": error,
+              })
+              time.sleep(3.2)
+
+          result = {
+              "countries": summary,
+              "country_count": len(summary),
+              "countries_complete_against_advertised": sum(1 for x in summary.values() if x["complete_against_advertised"]),
+              "total_unique_ids": sum(x["unique_ids"] for x in summary.values()),
+              "detail_sample_count": len(details),
+              "detail_200": sum(1 for x in details if x["status"] == 200),
+              "detail_challenges": sum(1 for x in details if x["challenge"]),
+              "detail_errors": sum(1 for x in details if x["error"]),
+              "details": details,
+          }
+          print("STRESS_RESULT")
+          print(json.dumps(result, ensure_ascii=False, indent=2))
+          PY
