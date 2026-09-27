@@ -121,7 +121,8 @@ def _role_detection(job: dict[str, Any], title: str, text: str) -> tuple[str, st
     existing = ((job.get("position") or {}).get("role_family") or "UNKNOWN").upper()
     evidence: list[str] = []
 
-    if re.search(r"\b(?:phd|doctoral)\s+(?:student|candidate|trainee)\b|\bdoctoral researcher\b", title, re.I) and "postdoc" not in title:
+    postdoctoral_title = bool(re.search(r"\bpost\s*-?\s*doc(?:toral)?\b", title, re.I))
+    if re.search(r"\b(?:phd|doctoral)\s+(?:student|candidate|trainee)\b|\bdoctoral researcher\b", title, re.I) and not postdoctoral_title:
         return "OUT_OF_SCOPE", "OUT_OF_SCOPE", ["Title explicitly identifies a doctoral/student role"]
 
     if country == "FR" and re.search(r"\b(?:maitre de conferences|mcf)\b", title, re.I):
@@ -543,7 +544,8 @@ def evaluate_vacancy(job: dict[str, Any]) -> dict[str, Any]:
     review_codes = list(dict.fromkeys(existing_review + scientific_review + level_review + method_review + language_review + mobility_review + registration_review + contract_review))
 
     if role_family == "OUT_OF_SCOPE":
-        if re.search(r"\b(?:phd|doctoral)\s+(?:student|candidate|trainee)\b|\bdoctoral researcher\b", title, re.I) and "postdoc" not in title:
+        postdoctoral_title = bool(re.search(r"\bpost\s*-?\s*doc(?:toral)?\b", title, re.I))
+        if re.search(r"\b(?:phd|doctoral)\s+(?:student|candidate|trainee)\b|\bdoctoral researcher\b", title, re.I) and not postdoctoral_title:
             blocker_codes.append("ROLE_STUDENT")
         country = ((job.get("location") or {}).get("country_code") or "").upper()
         if country == "FR" and re.search(r"\b(?:maitre de conferences|mcf)\b", title, re.I):
