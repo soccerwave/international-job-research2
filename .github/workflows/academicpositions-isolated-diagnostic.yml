@@ -137,6 +137,60 @@ jobs:
           print(json.dumps(summary, indent=2))
           PY
 
+      - name: Probe static discovery endpoints
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import requests
+          from pathlib import Path
+
+          paths = [
+              "/robots.txt",
+              "/sitemap.xml",
+              "/sitemap_index.xml",
+              "/sitemap-index.xml",
+              "/sitemaps.xml",
+              "/feed",
+              "/rss",
+              "/jobs/feed",
+              "/jobs/rss",
+              "/find-jobs",
+              "/browse",
+          ]
+          s = requests.Session()
+          s.headers.update({
+              "User-Agent": "Mozilla/5.0 (compatible; academic-job-monitor/1.0)",
+              "Accept-Language": "en-GB,en;q=0.9",
+          })
+          results = []
+          for path in paths:
+              url = "https://academicpositions.com" + path
+              try:
+                  r = s.get(url, timeout=(10, 45), allow_redirects=True)
+                  text = r.text or ""
+                  low = text.lower()
+                  results.append({
+                      "path": path,
+                      "status": r.status_code,
+                      "response_url": r.url,
+                      "content_type": r.headers.get("content-type"),
+                      "length": len(text),
+                      "challenge_marker": any(x in low for x in ("just a moment", "checking your browser", "cf-chl-")),
+                      "contains_sitemap": "sitemap" in low,
+                      "contains_job_ad": "/ad/" in low,
+                  })
+              except Exception as exc:
+                  results.append({"path": path, "error": f"{type(exc).__name__}: {exc}"})
+
+          root = Path("diagnostic-artifacts") / os.environ["DIAGNOSTIC_RUN_ID"]
+          (root / "static-endpoint-probe.json").write_text(
+              json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8"
+          )
+          print(json.dumps(results, ensure_ascii=False, indent=2))
+          PY
+
       - name: Run current collector in isolation
         continue-on-error: true
         shell: bash
@@ -172,7 +226,8 @@ jobs:
         run: |
           base="diagnostic-artifacts/$DIAGNOSTIC_RUN_ID"
           bash scripts/secure_artifact.sh pack             "$base"             "academicpositions-diagnostic-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.tar.gz.enc"             "access-probe.json"             "collector-summary.json" \
-            "chrome-probe.json"
+            "chrome-probe.json" \
+            "static-endpoint-probe.json"
 
       - name: Upload encrypted diagnostic artifact
         uses: actions/upload-artifact@v4
