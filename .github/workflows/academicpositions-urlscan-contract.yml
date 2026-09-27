@@ -1,0 +1,86 @@
+name: AcademicPositions URLScan Contract Probe
+
+on:
+  push:
+    branches:
+      - diag/academicpositions-urlscan-contract
+    paths:
+      - '.github/workflows/academicpositions-urlscan-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Query recent public URLScan records
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, requests, re
+          from urllib.parse import urlparse
+
+          q='domain:academicpositions.com'
+          r=requests.get('https://urlscan.io/api/v1/search/', params={'q':q,'size':50}, timeout=30)
+          print('SEARCH_STATUS', r.status_code)
+          r.raise_for_status()
+          data=r.json()
+          results=data.get('results') or []
+          print('SEARCH_RESULTS', len(results))
+          chosen=[]
+          for item in results:
+              task=item.get('task') or {}
+              page=item.get('page') or {}
+              url=task.get('url') or page.get('url') or ''
+              if 'academicpositions.com' in url:
+                  chosen.append({
+                      'uuid': item.get('_id') or item.get('uuid'),
+                      'url': url,
+                      'domain': page.get('domain'),
+                      'time': task.get('time'),
+                  })
+          print(json.dumps({'chosen':chosen[:20]}, indent=2))
+
+          seen=set()
+          for entry in chosen[:10]:
+              uuid=entry.get('uuid')
+              if not uuid: continue
+              rr=requests.get(f'https://urlscan.io/api/v1/result/{uuid}/', timeout=30)
+              print('RESULT_STATUS', uuid, rr.status_code)
+              if rr.status_code != 200: continue
+              obj=rr.json()
+              requests_list=((obj.get('data') or {}).get('requests') or [])
+              urls=[]
+              for req in requests_list:
+                  raw=(req.get('request') or {}).get('request') or {}
+                  u=raw.get('url') or ''
+                  if not u: continue
+                  parsed=urlparse(u)
+                  host=parsed.netloc.lower()
+                  path=parsed.path
+                  if (
+                      'academicpositions' in host
+                      or '/api/' in path.lower()
+                      or 'graphql' in path.lower()
+                      or 'search' in path.lower()
+                      or 'job' in path.lower()
+                  ):
+                      key=(host,path,parsed.query[:200])
+                      if key in seen: continue
+                      seen.add(key)
+                      urls.append({
+                          'method': raw.get('method'),
+                          'url': u[:1000],
+                          'host': host,
+                          'path': path,
+                          'type': (req.get('request') or {}).get('type'),
+                      })
+              print(json.dumps({'scan':entry,'candidate_requests':urls[:250]}, indent=2))
+          PY
