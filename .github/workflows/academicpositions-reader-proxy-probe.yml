@@ -1,0 +1,59 @@
+name: AcademicPositions Reader Proxy Probe
+
+on:
+  push:
+    branches:
+      - diag/academicpositions-reader-proxy
+    paths:
+      - '.github/workflows/academicpositions-reader-proxy-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Probe public reader transports
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, re, urllib.request, urllib.error
+
+          target = "https://academicpositions.com/jobs/country/germany"
+          candidates = {
+              "jina_https": "https://r.jina.ai/https://academicpositions.com/jobs/country/germany",
+              "jina_http": "https://r.jina.ai/http://academicpositions.com/jobs/country/germany",
+          }
+          results = []
+          for name, url in candidates.items():
+              req = urllib.request.Request(url, headers={
+                  "User-Agent": "Mozilla/5.0 (compatible; academic-job-monitor-probe/1.0)",
+                  "Accept": "text/plain,text/markdown,*/*",
+              })
+              item = {"name": name, "url": url}
+              try:
+                  with urllib.request.urlopen(req, timeout=60) as r:
+                      text = r.read().decode("utf-8", "replace")
+                      low = text.lower()
+                      item.update({
+                          "status": r.status,
+                          "response_url": r.geturl(),
+                          "content_type": r.headers.get("content-type"),
+                          "length": len(text),
+                          "challenge_marker": any(x in low for x in ("just a moment", "checking your browser", "cf-chl-")),
+                          "jobs_heading": bool(re.search(r"\b\d+\s+jobs?\s+in\s+germany\b", text, re.I)),
+                          "academicpositions_links": len(set(re.findall(r"https?://academicpositions\.com/[^\s)\]>]+", text, re.I))),
+                          "ad_links": len(set(re.findall(r"https?://academicpositions\.com/(?:[a-z]{2}/)?ad/[^\s)\]>]+/\d+", text, re.I))),
+                          "prefix": text[:500],
+                      })
+              except urllib.error.HTTPError as e:
+                  text = e.read().decode("utf-8", "replace")
+                  item.update({"status": e.code, "length": len(text), "prefix": text[:500]})
+              except Exception as exc:
+                  item["error"] = f"{type(exc).__name__}: {exc}"
+              results.append(item)
+          print(json.dumps(results, ensure_ascii=False, indent=2))
+          PY
