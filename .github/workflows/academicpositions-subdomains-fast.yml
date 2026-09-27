@@ -1,0 +1,41 @@
+name: AcademicPositions Fast Subdomain Enumeration
+
+on:
+  push:
+    branches:
+      - diag/academicpositions-subdomains-fast
+    paths:
+      - '.github/workflows/academicpositions-subdomains-fast.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  enumerate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Enumerate likely backend hosts
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, urllib.request
+          url='https://crt.sh/?q=%25.academicpositions.com&output=json'
+          with urllib.request.urlopen(url, timeout=30) as r:
+              certs=json.load(r)
+          names=set()
+          for row in certs:
+              for name in str(row.get('name_value') or '').splitlines():
+                  name=name.strip().lower().lstrip('*.')
+                  if name.endswith('.academicpositions.com'):
+                      names.add(name)
+          interesting=sorted(n for n in names if any(tok in n for tok in (
+              'api','search','job','gateway','app','auth','data','backend','service','graphql','edge','web','prod'
+          )))
+          print('ALL_COUNT',len(names))
+          print('INTERESTING_COUNT',len(interesting))
+          print(json.dumps(interesting,indent=2))
+          PY
