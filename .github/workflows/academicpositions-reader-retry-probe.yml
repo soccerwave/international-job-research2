@@ -1,0 +1,66 @@
+name: AcademicPositions Reader Retry Probe
+
+on:
+  push:
+    branches:
+      - diag/academicpositions-reader-retry
+    paths:
+      - '.github/workflows/academicpositions-reader-retry-probe.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Probe challenge recovery variants
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, re, time, urllib.request, urllib.error
+
+          targets = {
+              "NL_page4": ("nl", "https://r.jina.ai/http://academicpositions.com/jobs/country/netherlands?page=4"),
+              "GB_page1": ("gb", "https://r.jina.ai/http://academicpositions.com/jobs/country/united-kingdom"),
+              "BE_page1": ("be", "https://r.jina.ai/http://academicpositions.com/jobs/country/belgium"),
+              "CZ_page1": ("cz", "https://r.jina.ai/http://academicpositions.com/jobs/country/czechia"),
+          }
+          link_re = re.compile(r"https?://academicpositions\.com/(?:[a-z]{2}/)?ad/[^\s)\]>]+/\d+", re.I)
+          variants = [
+              ("default", {}),
+              ("no_cache", {"X-No-Cache":"true"}),
+              ("direct_no_cache", {"X-Engine":"direct","X-No-Cache":"true"}),
+              ("proxy_auto_no_cache", {"X-Proxy":"auto","X-No-Cache":"true"}),
+          ]
+          results = []
+          for name, (cc, url) in targets.items():
+              for variant, extra in variants:
+                  headers = {
+                      "User-Agent":"Mozilla/5.0 (compatible; academic-job-monitor-retry-probe/1.0)",
+                      "Accept":"text/plain,text/markdown,*/*",
+                      **extra,
+                  }
+                  req = urllib.request.Request(url, headers=headers)
+                  item = {"target":name,"variant":variant}
+                  try:
+                      with urllib.request.urlopen(req, timeout=90) as r:
+                          text = r.read().decode("utf-8","replace")
+                          links = sorted(set(link_re.findall(text)))
+                          item.update({
+                              "status":r.status,
+                              "length":len(text),
+                              "challenge":any(x in text.lower() for x in ("just a moment","checking your browser","cf-chl-")),
+                              "count":len(links),
+                              "title":next((ln for ln in text.splitlines() if ln.startswith("Title:")), "")[:180],
+                          })
+                  except urllib.error.HTTPError as e:
+                      body=e.read().decode("utf-8","replace")
+                      item.update({"status":e.code,"length":len(body),"prefix":body[:250]})
+                  except Exception as exc:
+                      item["error"]=f"{type(exc).__name__}: {exc}"
+                  results.append(item)
+                  time.sleep(3.2)
+          print(json.dumps(results,ensure_ascii=False,indent=2))
+          PY
