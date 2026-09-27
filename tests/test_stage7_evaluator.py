@@ -154,6 +154,20 @@ class Stage7EvaluatorTests(unittest.TestCase):
         self.assertEqual(result["recommendation"], "SKIP")
         self.assertIn("ROLE_STUDENT", result["blocker_codes"])
 
+    def test_postdoctoral_title_variants_are_not_student_roles(self):
+        for title in [
+            "Postdoctoral Researcher in Exercise Physiology",
+            "Post-doctoral Researcher in Exercise Physiology",
+            "Post doctoral Researcher in Exercise Physiology",
+            "Postdoc Researcher in Exercise Physiology",
+        ]:
+            with self.subTest(title=title):
+                result = self.evaluate(base_job(title=title))
+                self.assertNotIn("ROLE_STUDENT", result["blocker_codes"])
+                self.assertNotEqual(result["role_family"], "OUT_OF_SCOPE")
+                self.assertNotEqual(result["recommendation"], "SKIP")
+
+
     def test_mandatory_professional_registration_blocks(self):
         job = base_job(title="Lecturer in Clinical Exercise Physiology", country="AU")
         job["requirements"]["professional_registration_text"] = "Current AHPRA registration is required."
