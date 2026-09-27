@@ -80,9 +80,10 @@ jobs:
               )))
               ids = []
               for link in links:
-                  m = re.search(r"/(\d+)(?:[/?#]|$)", link)
-                  if m:
-                      ids.append(m.group(1))
+                  clean_link = link.split("?", 1)[0].split("#", 1)[0].rstrip("/")
+                  tail = clean_link.rsplit("/", 1)[-1]
+                  if tail.isdigit():
+                      ids.append(tail)
               new_ids = [x for x in ids if x not in seen]
               seen.update(ids)
               if detail_url is None and links:
