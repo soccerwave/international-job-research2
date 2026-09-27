@@ -1,0 +1,91 @@
+name: AcademicPositions Regional Host Probe
+
+on:
+  push:
+    branches:
+      - diag/academicpositions-regional-hosts
+    paths:
+      - '.github/workflows/academicpositions-regional-host-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install project dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements.txt
+
+      - name: Probe regional AcademicPositions hosts
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import requests
+          from src.sources.shared.academicpositions import parse_listing, parse_advertised_total, is_blocked
+
+          hosts = [
+              "academicpositions.com",
+              "academicpositions.co.uk",
+              "academicpositions.nl",
+              "academicpositions.de",
+              "academicpositions.fr",
+              "academicpositions.be",
+              "academicpositions.es",
+          ]
+          s=requests.Session()
+          s.headers.update({
+              "User-Agent":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/151 Safari/537.36",
+              "Accept":"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+              "Accept-Language":"en-GB,en;q=0.9",
+          })
+          results=[]
+          first_detail=None
+          for host in hosts:
+              url=f"https://{host}/jobs/country/germany"
+              try:
+                  r=s.get(url,timeout=(10,45),allow_redirects=True)
+                  rows=parse_listing(r.text,r.url) if r.status_code==200 else []
+                  results.append({
+                      "host":host,
+                      "status":r.status_code,
+                      "response_url":r.url,
+                      "server":r.headers.get("server"),
+                      "blocked":is_blocked(r.text),
+                      "length":len(r.text),
+                      "listing_count":len(rows),
+                      "advertised_total":parse_advertised_total(r.text) if r.status_code==200 else None,
+                      "sample_ids":[x["id"] for x in rows[:5]],
+                  })
+                  if rows and first_detail is None:
+                      first_detail=rows[0]["urls"][0]
+              except Exception as exc:
+                  results.append({"host":host,"error":f"{type(exc).__name__}: {exc}"})
+
+          detail_results=[]
+          if first_detail:
+              from urllib.parse import urlparse
+              p=urlparse(first_detail)
+              detail_path=p.path
+              for host in hosts:
+                  url=f"https://{host}{detail_path}"
+                  try:
+                      r=s.get(url,timeout=(10,45),allow_redirects=True)
+                      detail_results.append({
+                          "host":host,
+                          "status":r.status_code,
+                          "response_url":r.url,
+                          "blocked":is_blocked(r.text),
+                          "length":len(r.text),
+                      })
+                  except Exception as exc:
+                      detail_results.append({"host":host,"error":f"{type(exc).__name__}: {exc}"})
+          print(json.dumps({"listing_probes":results,"detail_path": first_detail, "detail_probes":detail_results}, ensure_ascii=False, indent=2))
+          PY
