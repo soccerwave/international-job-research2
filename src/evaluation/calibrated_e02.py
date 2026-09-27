@@ -142,7 +142,7 @@ OUT_OF_SCOPE_SUPPORT = re.compile(
     r"\b(?:research assistant|research technician|research support officer|support officer|discipline librarian|research officer)\b",
     re.I,
 )
-POSTDOC_TOKEN = re.compile(r"\b(?:postdoc|post-doc|postdoctoral|post-doctoral)\b", re.I)
+POSTDOC_TOKEN = re.compile(r"\bpost\s*-?\s*doc(?:toral)?\b", re.I)
 ACADEMIC_TITLE_SIGNAL = re.compile(
     r"\b(?:postdoc|post-doc|postdoctoral|post-doctoral|research fellow|research associate|"
     r"assistant professor|research assistant professor|lecturer|tenure[- ]track|juniorprofessur|"
