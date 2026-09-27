@@ -137,6 +137,54 @@ jobs:
           print(json.dumps(summary, indent=2))
           PY
 
+      - name: Extract robots sitemap targets
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import re
+          import requests
+          from pathlib import Path
+          from urllib.parse import urlparse
+
+          s = requests.Session()
+          s.headers.update({"User-Agent": "Mozilla/5.0 (compatible; academic-job-monitor/1.0)"})
+          robots = s.get("https://academicpositions.com/robots.txt", timeout=(10,45))
+          robots.raise_for_status()
+          sitemap_urls = re.findall(r"(?im)^\s*Sitemap:\s*(\S+)\s*$", robots.text)
+          probes = []
+          for url in sitemap_urls:
+              try:
+                  r = s.get(url, timeout=(10,45), allow_redirects=True)
+                  text = r.text or ""
+                  low = text.lower()
+                  probes.append({
+                      "url": url,
+                      "host": urlparse(url).netloc,
+                      "status": r.status_code,
+                      "response_url": r.url,
+                      "content_type": r.headers.get("content-type"),
+                      "length": len(text),
+                      "challenge_marker": any(x in low for x in ("just a moment", "checking your browser", "cf-chl-")),
+                      "loc_count": len(re.findall(r"<loc>\s*[^<]+\s*</loc>", text, re.I)),
+                      "job_ad_count": len(set(re.findall(r"https?://[^<\s]+/ad/[^<\s]+/\d+", text, re.I))),
+                  })
+              except Exception as exc:
+                  probes.append({"url": url, "error": f"{type(exc).__name__}: {exc}"})
+          result = {
+              "robots_status": robots.status_code,
+              "sitemap_urls": sitemap_urls,
+              "probes": probes,
+              "robots_prefix": robots.text[:2000],
+          }
+          root = Path("diagnostic-artifacts") / os.environ["DIAGNOSTIC_RUN_ID"]
+          (root / "robots-sitemap-probe.json").write_text(
+              json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8"
+          )
+          print(json.dumps(result, ensure_ascii=False, indent=2))
+          PY
+
       - name: Run current collector in isolation
         continue-on-error: true
         shell: bash
@@ -172,7 +220,8 @@ jobs:
         run: |
           base="diagnostic-artifacts/$DIAGNOSTIC_RUN_ID"
           bash scripts/secure_artifact.sh pack             "$base"             "academicpositions-diagnostic-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.tar.gz.enc"             "access-probe.json"             "collector-summary.json" \
-            "chrome-probe.json"
+            "chrome-probe.json" \
+            "robots-sitemap-probe.json"
 
       - name: Upload encrypted diagnostic artifact
         uses: actions/upload-artifact@v4
