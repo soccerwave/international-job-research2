@@ -1,0 +1,86 @@
+name: AcademicPositions Subdomain Probe
+
+on:
+  push:
+    branches:
+      - diag/academicpositions-subdomains
+    paths:
+      - '.github/workflows/academicpositions-subdomain-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Enumerate and probe AcademicPositions subdomains
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, re, socket, ssl, urllib.request, urllib.error
+          from urllib.parse import urlparse
+
+          url='https://crt.sh/?q=%25.academicpositions.com&output=json'
+          with urllib.request.urlopen(url, timeout=45) as r:
+              certs=json.load(r)
+
+          names=set()
+          for row in certs:
+              raw=str(row.get('name_value') or '')
+              for name in raw.splitlines():
+                  name=name.strip().lower().lstrip('*.')
+                  if name.endswith('.academicpositions.com') or name=='academicpositions.com':
+                      names.add(name)
+
+          interesting=sorted(
+              n for n in names
+              if any(tok in n for tok in ('api','search','job','gateway','app','auth','data','backend','service','graphql','edge','web'))
+          )
+          print('INTERESTING_SUBDOMAINS', len(interesting))
+          print(json.dumps(interesting, indent=2))
+
+          def probe(host):
+              result={'host':host}
+              try:
+                  result['ip']=socket.gethostbyname(host)
+              except Exception as exc:
+                  result['dns_error']=f'{type(exc).__name__}: {exc}'
+                  return result
+              for path in ('/','/health','/api','/api/','/graphql','/jobs','/search'):
+                  url=f'https://{host}{path}'
+                  req=urllib.request.Request(url,headers={
+                      'User-Agent':'Mozilla/5.0 (compatible; academic-job-monitor/1.0)',
+                      'Accept':'application/json,text/html;q=0.9,*/*;q=0.8'
+                  })
+                  try:
+                      with urllib.request.urlopen(req, timeout=15) as r:
+                          body=r.read(8000).decode('utf-8','replace')
+                          result.setdefault('probes',[]).append({
+                              'path':path,'status':r.status,'content_type':r.headers.get('content-type'),
+                              'length_prefix':len(body),'location':r.geturl(),
+                              'challenge':any(x in body.lower() for x in ('just a moment','cf-chl-','checking your browser')),
+                              'prefix':body[:180].replace('\n',' ')
+                          })
+                  except urllib.error.HTTPError as e:
+                      body=e.read(2000).decode('utf-8','replace')
+                      result.setdefault('probes',[]).append({
+                          'path':path,'status':e.code,'content_type':e.headers.get('content-type'),
+                          'length_prefix':len(body),'location':e.geturl(),
+                          'challenge':any(x in body.lower() for x in ('just a moment','cf-chl-','checking your browser')),
+                          'prefix':body[:180].replace('\n',' ')
+                      })
+                  except Exception as exc:
+                      result.setdefault('probes',[]).append({'path':path,'error':f'{type(exc).__name__}: {exc}'})
+              return result
+
+          results=[probe(h) for h in interesting[:40]]
+          print('PROBE_RESULTS')
+          print(json.dumps(results, indent=2)[:120000])
+          PY
