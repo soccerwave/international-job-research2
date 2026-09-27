@@ -105,6 +105,38 @@ jobs:
           print(json.dumps(variants, ensure_ascii=False, indent=2))
           PY
 
+      - name: Probe with real headless Chrome
+        continue-on-error: true
+        shell: bash
+        run: |
+          root="diagnostic-artifacts/$DIAGNOSTIC_RUN_ID"
+          chrome="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          if [ -z "$chrome" ]; then
+            printf '{"available":false,"reason":"chrome_not_found"}\n' > "$root/chrome-probe.json"
+            cat "$root/chrome-probe.json"
+            exit 0
+          fi
+          "$chrome"             --headless=new             --no-sandbox             --disable-dev-shm-usage             --disable-gpu             --virtual-time-budget=12000             --dump-dom             "https://academicpositions.com/jobs/country/germany"             > "$root/chrome-dom.html" 2> "$root/chrome-stderr.txt" || true
+          python - <<'PY'
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          root = Path("diagnostic-artifacts") / os.environ["DIAGNOSTIC_RUN_ID"]
+          html = (root / "chrome-dom.html").read_text(encoding="utf-8", errors="replace") if (root / "chrome-dom.html").exists() else ""
+          low = html.lower()
+          summary = {
+              "available": True,
+              "dom_length": len(html),
+              "challenge_marker": any(x in low for x in ("just a moment", "checking your browser", "cf-chl-")),
+              "job_ad_link_count": len(set(re.findall(r"/ad/[^\"'<> ]+/\d+", html, re.I))),
+              "has_jobs_heading": bool(re.search(r"\b\d+\s+jobs?\s+in\s+germany\b", html, re.I)),
+          }
+          (root / "chrome-probe.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+          print(json.dumps(summary, indent=2))
+          PY
+
       - name: Run current collector in isolation
         continue-on-error: true
         shell: bash
@@ -139,7 +171,8 @@ jobs:
         shell: bash
         run: |
           base="diagnostic-artifacts/$DIAGNOSTIC_RUN_ID"
-          bash scripts/secure_artifact.sh pack             "$base"             "academicpositions-diagnostic-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.tar.gz.enc"             "access-probe.json"             "collector-summary.json"
+          bash scripts/secure_artifact.sh pack             "$base"             "academicpositions-diagnostic-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.tar.gz.enc"             "access-probe.json"             "collector-summary.json" \
+            "chrome-probe.json"
 
       - name: Upload encrypted diagnostic artifact
         uses: actions/upload-artifact@v4
