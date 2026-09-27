@@ -167,12 +167,50 @@ jobs:
           print(json.dumps(summary, ensure_ascii=False, indent=2))
           PY
 
+      - name: Run bounded live detail sample
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from collections import Counter
+          from pathlib import Path
+          from src.sources.shared import academicpositions
+
+          root = Path("diagnostic-artifacts") / os.environ["DIAGNOSTIC_RUN_ID"]
+          records = academicpositions.collect(
+              country_codes=("DE",),
+              max_pages_per_country=None,
+              max_jobs=3,
+              enrich_detail=True,
+          )
+          statuses = Counter((row.get("description") or {}).get("detail_status") or "UNKNOWN" for row in records)
+          summary = {
+              "record_count": len(records),
+              "detail_status_counts": dict(statuses),
+              "rows": [{
+                  "source_job_id": (row.get("source") or {}).get("source_job_id"),
+                  "title": (row.get("position") or {}).get("title_raw"),
+                  "detail_status": (row.get("description") or {}).get("detail_status"),
+                  "detail_length": len((row.get("description") or {}).get("full_jd") or ""),
+                  "transport": (row.get("raw_extra") or {}).get("access_transport"),
+              } for row in records],
+          }
+          (root / "detail-sample.json").write_text(
+              json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8"
+          )
+          print(json.dumps(summary, ensure_ascii=False, indent=2))
+          if len(records) != 3 or statuses.get("FULL", 0) != 3:
+              raise SystemExit("AcademicPositions live detail sample did not recover 3 FULL details")
+          PY
+
       - name: Encrypt diagnostic artifact
         shell: bash
         run: |
           base="diagnostic-artifacts/$DIAGNOSTIC_RUN_ID"
           bash scripts/secure_artifact.sh pack             "$base"             "academicpositions-diagnostic-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.tar.gz.enc"             "access-probe.json"             "collector-summary.json" \
-            "chrome-probe.json"
+            "chrome-probe.json" \
+            "detail-sample.json"
 
       - name: Upload encrypted diagnostic artifact
         uses: actions/upload-artifact@v4
