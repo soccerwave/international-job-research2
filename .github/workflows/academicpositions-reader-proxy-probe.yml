@@ -75,12 +75,12 @@ jobs:
                   pages.append({"page": page, "error": f"{type(exc).__name__}: {exc}"})
                   break
               links = sorted(set(re.findall(
-                  r"https?://academicpositions\\.com/(?:[a-z]{2}/)?ad/[^\\s)\\]>]+/\\d+",
+                  r"https?://academicpositions\.com/(?:[a-z]{2}/)?ad/[^\s)\]>]+/\d+",
                   text, re.I
               )))
               ids = []
               for link in links:
-                  m = re.search(r"/(\\d+)(?:[/?#]|$)", link)
+                  m = re.search(r"/(\d+)(?:[/?#]|$)", link)
                   if m:
                       ids.append(m.group(1))
               new_ids = [x for x in ids if x not in seen]
