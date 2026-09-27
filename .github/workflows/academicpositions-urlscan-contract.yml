@@ -24,14 +24,14 @@ jobs:
         shell: bash
         run: |
           python - <<'PY'
-          import json, requests, re
+          import json, re, urllib.parse, urllib.request
           from urllib.parse import urlparse
 
           q='domain:academicpositions.com'
-          r=requests.get('https://urlscan.io/api/v1/search/', params={'q':q,'size':50}, timeout=30)
-          print('SEARCH_STATUS', r.status_code)
-          r.raise_for_status()
-          data=r.json()
+          search_url='https://urlscan.io/api/v1/search/?'+urllib.parse.urlencode({'q':q,'size':50})
+          with urllib.request.urlopen(search_url, timeout=30) as r:
+              print('SEARCH_STATUS', r.status)
+              data=json.load(r)
           results=data.get('results') or []
           print('SEARCH_RESULTS', len(results))
           chosen=[]
@@ -52,10 +52,14 @@ jobs:
           for entry in chosen[:10]:
               uuid=entry.get('uuid')
               if not uuid: continue
-              rr=requests.get(f'https://urlscan.io/api/v1/result/{uuid}/', timeout=30)
-              print('RESULT_STATUS', uuid, rr.status_code)
-              if rr.status_code != 200: continue
-              obj=rr.json()
+              try:
+                  with urllib.request.urlopen(f'https://urlscan.io/api/v1/result/{uuid}/', timeout=30) as rr:
+                      print('RESULT_STATUS', uuid, rr.status)
+                      if rr.status != 200: continue
+                      obj=json.load(rr)
+              except Exception as exc:
+                  print('RESULT_ERROR', uuid, type(exc).__name__, exc)
+                  continue
               requests_list=((obj.get('data') or {}).get('requests') or [])
               urls=[]
               for req in requests_list:
