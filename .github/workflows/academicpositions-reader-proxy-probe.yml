@@ -123,6 +123,43 @@ jobs:
               except Exception as exc:
                   detail = {"source_url": detail_url, "error": f"{type(exc).__name__}: {exc}"}
 
+          page3_engines = []
+          page3_url = "https://r.jina.ai/http://academicpositions.com/jobs/country/germany?page=3"
+          for engine in (None, "direct", "cf-browser-rendering"):
+              headers = {
+                  "User-Agent": "Mozilla/5.0 (compatible; academic-job-monitor-probe/1.0)",
+                  "Accept": "text/plain,text/markdown,*/*",
+              }
+              if engine:
+                  headers["X-Engine"] = engine
+              req = urllib.request.Request(page3_url, headers=headers)
+              item = {"engine": engine or "default"}
+              try:
+                  with urllib.request.urlopen(req, timeout=90) as r:
+                      text = r.read().decode("utf-8", "replace")
+                      links = sorted(set(re.findall(
+                          r"https?://academicpositions\.com/(?:[a-z]{2}/)?ad/[^\s)\]>]+/\d+",
+                          text, re.I
+                      )))
+                      item.update({
+                          "status": r.status,
+                          "length": len(text),
+                          "challenge_marker": any(x in text.lower() for x in ("just a moment", "checking your browser", "cf-chl-")),
+                          "count": len(links),
+                          "links": links[:5],
+                      })
+              except urllib.error.HTTPError as e:
+                  body = e.read().decode("utf-8", "replace")
+                  item.update({"status": e.code, "length": len(body), "prefix": body[:300]})
+              except Exception as exc:
+                  item["error"] = f"{type(exc).__name__}: {exc}"
+              page3_engines.append(item)
+
           print("PAGINATION_AND_DETAIL")
-          print(json.dumps({"pages": pages, "unique_ids": len(seen), "detail": detail}, ensure_ascii=False, indent=2))
+          print(json.dumps({
+              "pages": pages,
+              "unique_ids": len(seen),
+              "detail": detail,
+              "page3_engines": page3_engines,
+          }, ensure_ascii=False, indent=2))
           PY
