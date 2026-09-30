@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from typing import Any
 from urllib.parse import urljoin, urlparse
@@ -20,6 +21,7 @@ COUNTRY_SLUGS = {
 AD_RE = re.compile(r"/ad/[^?#]+/(\d+)(?:[/?#]|$)", re.I)
 JOBS_TOTAL_RE = re.compile(r"\b([\d][\d\s,.]*)\s+jobs?\s+in\b", re.I)
 BLOCK_MARKERS=("just a moment...","checking your browser","verify you are human","cf-chl-","cloudflare ray id")
+UNBLOCKER_ENV = "ACADEMICPOSITIONS_UNBLOCKER_PROXY_URL"
 
 
 def is_blocked(html: str) -> bool:
@@ -128,12 +130,45 @@ def parse_detail(html: str, fallback_title: str = "") -> dict[str,Any]:
     }
 
 
+def _configure_transport(session):
+    """Use Decodo Site Unblocker only for AcademicPositions when configured."""
+    proxy=os.environ.get(UNBLOCKER_ENV)
+    if not proxy:
+        return session, False
+    session.proxies.update({"http":proxy,"https":proxy})
+    # Decodo Site Unblocker terminates TLS at its proxy endpoint; its documented
+    # proxy contract therefore requires client-side certificate verification off.
+    session.verify=False
+    return session, True
+
+
+def _get(session, url: str, *, params=None, timeout=(10,45), unblocker: bool=False, expect_listing: bool=False):
+    """Retry transient empty Site Unblocker responses without changing normal transport semantics."""
+    attempts=3 if unblocker else 1
+    last=None
+    for _ in range(attempts):
+        r=session.get(url, params=params, timeout=timeout, allow_redirects=True)
+        last=r
+        if not unblocker:
+            return r
+        if r.status_code != 200 or is_blocked(r.text):
+            continue
+        if expect_listing:
+            if parse_listing(r.text,r.url) or len(r.text)>=2000:
+                return r
+            continue
+        if len(r.text)>=2000:
+            return r
+    return last
+
+
 def collect(
     *, country_codes: tuple[str,...] = tuple(COUNTRY_SLUGS),
     max_pages_per_country: int | None = 2, max_jobs: int | None = 120,
     enrich_detail: bool = True, session=None,
 ) -> list[dict[str,Any]]:
     s=session or make_session()
+    s, unblocker=_configure_transport(s)
     candidates=[]
     seen=set()
     for code in country_codes:
@@ -142,7 +177,7 @@ def collect(
             continue
         base=f"https://academicpositions.com/jobs/country/{slug}"
         def fetch(page):
-            r=s.get(base, params={} if page==1 else {"page":page}, timeout=(10,45), allow_redirects=True)
+            r=_get(s,base,params={} if page==1 else {"page":page},timeout=(10,45),unblocker=unblocker,expect_listing=True)
             # Academic Positions returns 404 for a known country route when that country
             # currently has no result page. Treat only the first-page 404 as a clean zero;
             # a later-page 404 is inconsistent with the paginator and remains a failure.
@@ -152,6 +187,8 @@ def collect(
             if is_blocked(r.text):
                 raise RuntimeError("Academic Positions access challenge")
             items=parse_listing(r.text, r.url)
+            if unblocker and not items and len(r.text)<2000:
+                raise RuntimeError("Academic Positions Site Unblocker returned an incomplete response")
             total=parse_advertised_total(r.text)
             has_next=next_listing_url(r.text, r.url) is not None
             return items, total, has_next
@@ -176,13 +213,16 @@ def collect(
             urls=sorted(item["urls"],key=lambda u:(0 if urlparse(u).netloc.endswith("academicpositions.com") else 1,u))
             for url in urls:
                 try:
-                    r=s.get(url,timeout=(10,45),allow_redirects=True)
+                    r=_get(s,url,timeout=(10,45),unblocker=unblocker)
                     r.raise_for_status()
                     parsed=parse_detail(r.text,item["title"])
                     if parsed.get("blocked"):
                         detail_status="BLOCKED"; failure="Academic Positions access challenge"
                         continue
                     detail=parsed.get("description") or ""
+                    if unblocker and len(detail)<200 and len(r.text)<2000:
+                        detail_status="FETCH_FAILED"; failure="Academic Positions Site Unblocker returned an incomplete response"
+                        continue
                     detail_status="FULL" if len(detail)>=200 else ("PARTIAL" if detail else "UNAVAILABLE")
                     detail_url=r.url
                     break
