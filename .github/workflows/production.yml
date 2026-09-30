@@ -121,6 +121,7 @@ jobs:
       PRODUCTION_RUN_ID: prod-${{ github.run_id }}-${{ github.run_attempt }}
       PRODUCTION_MAX_JOBS_PER_SOURCE: ${{ github.event_name == 'workflow_dispatch' && inputs.max_jobs_per_source || 'all' }}
       ARTIFACT_ENCRYPTION_KEY: ${{ secrets.ARTIFACT_ENCRYPTION_KEY }}
+      ACADEMICPOSITIONS_UNBLOCKER_PROXY_URL: ${{ secrets.ACADEMICPOSITIONS_UNBLOCKER_PROXY_URL }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
