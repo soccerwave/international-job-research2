@@ -1,0 +1,74 @@
+name: DVS Isolated Diagnostic
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/dvs-isolated-diagnostic.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run DVS live diagnostic
+        run: |
+          python - <<'PY'
+          import json, time
+          from urllib.parse import urlparse
+          from src.sources.shared import dvs
+          from src.sources.shared.common import make_session, fetch_detail_text
+
+          start=time.time()
+          rows=dvs.collect(max_jobs=None,enrich_detail=True)
+          counts={}
+          details=[]
+          for r in rows:
+              st=r['description']['detail_status']
+              counts[st]=counts.get(st,0)+1
+              details.append({
+                  'id':r['source']['source_job_id'],
+                  'title':r['position']['title_raw'],
+                  'institution':r['position']['institution_raw'],
+                  'url':r['source']['detail_url'],
+                  'host':urlparse(r['source']['detail_url']).netloc,
+                  'status':st,
+                  'failure':r['description']['detail_failure_reason'],
+                  'jd_chars':len(r['description']['full_jd'] or ''),
+              })
+          print('DVS_COLLECT', json.dumps({'rows':len(rows),'counts':counts,'elapsed':round(time.time()-start,2)},ensure_ascii=False))
+          print('DVS_ROWS', json.dumps(details,ensure_ascii=False,indent=2))
+
+          # Probe every failing detail independently to distinguish status/content/redirect/parser issues.
+          s=make_session()
+          probes=[]
+          for d in details:
+              if d['status'] in {'FULL','PARTIAL'}:
+                  continue
+              u=d['url']
+              t=time.time()
+              try:
+                  resp=s.get(u,timeout=(10,45),allow_redirects=True)
+                  probes.append({
+                      'id':d['id'],'url':u,'http':resp.status_code,'final_url':resp.url,
+                      'content_type':resp.headers.get('content-type'),
+                      'bytes':len(resp.content),'elapsed':round(time.time()-t,2),
+                      'text_prefix':resp.text[:180].replace('\n',' ') if 'text' in (resp.headers.get('content-type') or '').lower() else '',
+                  })
+              except Exception as exc:
+                  probes.append({'id':d['id'],'url':u,'exception':f'{type(exc).__name__}: {exc}','elapsed':round(time.time()-t,2)})
+          print('DVS_FAIL_PROBES',json.dumps(probes,ensure_ascii=False,indent=2))
+          PY
+      - name: Run DVS tests
+        run: |
+          pytest -q tests/test_phase1_stage4_13_ecss_dvs_coverage.py tests/test_stage5_shared_sources.py -k dvs
