@@ -29,44 +29,42 @@ jobs:
           python-version: '3.12'
       - name: Install dependencies
         run: pip install -r requirements.txt -r requirements-cloud.txt pytest
-      - name: Inspect Mainz frontend API configuration
+      - name: Inspect Mainz published jobs chunk and backend config
         run: |
           python - <<'PY'
           import re, requests
           origin='https://berufungsportal.uni-mainz.de/'
           h=requests.get(origin+'ausschreibungen/69?lang=de',timeout=30).text
-          main=re.search(r'<script[^>]+src=["\'](main-[^"\']+\.js)',h,re.I).group(1)
-          js=requests.get(origin+main,timeout=30).text
-          print('MAIN_JS',main,'bytes',len(js))
-          needles=['websiteTenants','baseWithTenant','backend/dashboard','ausschreibungen','environment','apiUrl','baseUrl','backend:']
-          for needle in needles:
-              print('\nNEEDLE',needle)
+          main_name=re.search(r'<script[^>]+src=["\'](main-[^"\']+\.js)',h,re.I).group(1)
+          main=requests.get(origin+main_name,timeout=30).text
+          names=set(re.findall(r'chunk-[A-Z0-9]+\.js',main))
+          names.add('chunk-52NV42CX.js')
+          print('CHUNKS',sorted(names))
+          for name in sorted(names):
+              r=requests.get(origin+name,timeout=30)
+              if r.status_code!=200 or len(r.text)<300:
+                  continue
+              text=r.text
+              if not any(k in text.lower() for k in ('job_listing','ausschreib','published','backend')):
+                  continue
+              print('\n### CHUNK',name,'bytes',len(text))
+              for needle in ['job_listing','published','ausschreib','getPublished','backend','/jobs','job_listings']:
+                  start=0; shown=0
+                  while shown<10:
+                      i=text.lower().find(needle.lower(),start)
+                      if i<0: break
+                      print('---',needle,'---')
+                      print(text[max(0,i-450):min(len(text),i+900)])
+                      start=i+len(needle); shown+=1
+          # Search main for likely backend host/config values near configuration helpers.
+          for needle in ['websiteTenants:', 'baseWithTenant:', 'base:', 'exceptionalTenant']:
+              print('\nMAINCONFIG',needle)
               start=0; shown=0
               while shown<12:
-                  i=js.find(needle,start)
+                  i=main.find(needle,start)
                   if i<0: break
-                  print(js[max(0,i-350):min(len(js),i+650)])
+                  print(main[max(0,i-700):min(len(main),i+1400)])
                   start=i+len(needle); shown+=1
-          strings=[]
-          for m in re.findall(r'["\']([^"\']{2,220})["\']',js):
-              low=m.lower()
-              if any(k in low for k in ('backend','ausschreib','api','tenant','dashboard')) and m not in strings:
-                  strings.append(m)
-          print('\nINTERESTING_STRINGS')
-          for x in strings[:250]: print(repr(x))
           PY
-      - name: Audit authoritative DVS collision summary
-        run: |
-          python - <<'PY'
-          import json
-          from src.state.r2_store import R2StateStore
-          state=R2StateStore.from_env(prefix='').load_current(allow_missing=False).state
-          matches=[]
-          for sid,e in state['jobs'].items():
-              aliases=e.get('aliases') or []
-              if 'source_id:dvs:2026' in aliases:
-                  matches.append({'state_id':sid,'aliases':aliases,'times_seen':e.get('times_seen'),'first_seen_at':e.get('first_seen_at'),'last_seen_at':e.get('last_seen_at'),'last_snapshot':e.get('last_snapshot')})
-          print('DVS_2026_STATE',json.dumps({'generation':state['generation'],'matches':matches},ensure_ascii=False,indent=2))
-          PY
-      - name: Run DVS tests
+      - name: Run DVS identity tests
         run: pytest -q tests/test_phase1_stage4_13_ecss_dvs_coverage.py tests/test_stage5_shared_sources.py -k dvs
