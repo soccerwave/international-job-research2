@@ -16,63 +16,79 @@ jobs:
   diagnose:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_BUCKET: ${{ vars.R2_BUCKET }}
+      R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Install dependencies
-        run: pip install -r requirements.txt pytest
-      - name: Inspect Mainz frontend API hints
+        run: pip install -r requirements.txt -r requirements-cloud.txt pytest
+      - name: Inspect Mainz frontend API hints correctly from base root
         run: |
           python - <<'PY'
           import re, requests
           from urllib.parse import urljoin
           u='https://berufungsportal.uni-mainz.de/ausschreibungen/69?lang=de'
           h=requests.get(u,timeout=30).text
+          base_match=re.search(r'<base[^>]+href=["\']([^"\']+)',h,re.I)
+          base=urljoin(u,base_match.group(1) if base_match else '/')
           scripts=re.findall(r'<script[^>]+src=["\']([^"\']+)',h,re.I)
-          print('MAINZ_SCRIPTS',scripts)
+          print('MAINZ_BASE',base,'SCRIPTS',scripts)
           for src in scripts:
-              jsurl=urljoin(u,src)
+              jsurl=urljoin(base,src)
               try:
-                  text=requests.get(jsurl,timeout=30).text
+                  r=requests.get(jsurl,timeout=30); text=r.text
               except Exception as e:
                   print('SCRIPT_FAIL',jsurl,type(e).__name__,e); continue
               hits=[]
-              for pat in [r'https?://[^"\'\s]+', r'/api/[^"\'\s]+', r'api[^"\'\s]{0,120}', r'ausschreib[^"\'\s]{0,120}', r'datenabfrage[^"\'\s]{0,120}']:
+              for pat in [r'https?://[^"\'\s)]+', r'/api/[^"\'\s)]+', r'api[^"\'\s]{0,160}', r'ausschreib[^"\'\s]{0,160}', r'backend[^"\'\s]{0,160}']:
                   for m in re.findall(pat,text,re.I):
                       if m not in hits: hits.append(m)
-              print('SCRIPT',jsurl,'bytes',len(text),'HITS',hits[:80])
+              print('SCRIPT',jsurl,'http',r.status_code,'bytes',len(text),'HITS',hits[:120])
+          PY
+      - name: Audit authoritative state for DVS identity collisions
+        run: |
+          python - <<'PY'
+          import json
+          from src.state.r2_store import R2StateStore
+          store=R2StateStore.from_env(prefix='')
+          loaded=store.load_current(allow_missing=False)
+          state=loaded.state
+          matches=[]
+          for sid,e in state['jobs'].items():
+              aliases=e.get('aliases') or []
+              dvs=[a for a in aliases if a.startswith('source_id:dvs:') or a.startswith('source_record:dvs:')]
+              if dvs:
+                  matches.append({'state_id':sid,'aliases':aliases,'times_seen':e.get('times_seen'),'first_seen_at':e.get('first_seen_at'),'last_seen_at':e.get('last_seen_at'),'last_snapshot':e.get('last_snapshot')})
+          print('DVS_STATE',json.dumps({'generation':state['generation'],'entries':len(matches),'matches':matches},ensure_ascii=False,indent=2))
+          PY
+      - name: Demonstrate current-run identity behavior
+        run: |
+          python - <<'PY'
+          import json
+          from src.sources.shared import dvs
+          from src.state.engine import apply_state, empty_state, WRITER_ROLE
+          rows=dvs.collect(max_jobs=None,enrich_detail=False)
+          dvs2026=[r for r in rows if r['source']['source_job_id']=='2026']
+          state,summary=apply_state(dvs2026,empty_state(),observed_at='2026-10-04T20:00:00+00:00',run_id='dvs-collision-proof',writer_role=WRITER_ROLE)
+          print('DVS_COLLISION_PROOF',json.dumps({'input_2026':len(dvs2026),'state_jobs':len(state['jobs']),'summary':summary,'record_states':[(r['position']['title_raw'],r['raw_extra']['state']['state_id'],r['raw_extra']['state']['seen_status']) for r in dvs2026]},ensure_ascii=False,indent=2))
           PY
       - name: Run DVS live diagnostic
         run: |
           python - <<'PY'
           import json, time
-          from urllib.parse import urlparse
           from src.sources.shared import dvs
-          from src.sources.shared.common import make_session
           start=time.time(); rows=dvs.collect(max_jobs=None,enrich_detail=True)
-          counts={}; details=[]
+          counts={}
           for r in rows:
               st=r['description']['detail_status']; counts[st]=counts.get(st,0)+1
-              details.append({'id':r['source']['source_job_id'],'title':r['position']['title_raw'],
-                  'institution':r['position']['institution_raw'],'url':r['source']['detail_url'],
-                  'host':urlparse(r['source']['detail_url']).netloc,'status':st,
-                  'failure':r['description']['detail_failure_reason'],'jd_chars':len(r['description']['full_jd'] or '')})
           print('DVS_COLLECT',json.dumps({'rows':len(rows),'counts':counts,'elapsed':round(time.time()-start,2)},ensure_ascii=False))
-          print('DVS_ROWS',json.dumps(details,ensure_ascii=False,indent=2))
-          s=make_session(); probes=[]
-          for d in details:
-              if d['status'] in {'FULL','PARTIAL'}: continue
-              u=d['url']; t=time.time()
-              try:
-                  resp=s.get(u,timeout=(10,45),allow_redirects=True)
-                  probes.append({'id':d['id'],'url':u,'http':resp.status_code,'final_url':resp.url,
-                      'content_type':resp.headers.get('content-type'),'bytes':len(resp.content),'elapsed':round(time.time()-t,2),
-                      'text_prefix':resp.text[:180].replace('\n',' ') if 'text' in (resp.headers.get('content-type') or '').lower() else ''})
-              except Exception as exc:
-                  probes.append({'id':d['id'],'url':u,'exception':f'{type(exc).__name__}: {exc}','elapsed':round(time.time()-t,2)})
-          print('DVS_FAIL_PROBES',json.dumps(probes,ensure_ascii=False,indent=2))
           PY
       - name: Run DVS tests
         run: pytest -q tests/test_phase1_stage4_13_ecss_dvs_coverage.py tests/test_stage5_shared_sources.py -k dvs
