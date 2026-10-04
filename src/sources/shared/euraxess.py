@@ -16,6 +16,7 @@ from .common import CODE_TO_COUNTRY_NAME, clean, infer_country_code, make_record
 SOURCE_KEY = "euraxess"
 PROVIDER = "EURAXESS"
 SEARCH_URL = "https://euraxess.ec.europa.eu/jobs/search"
+EURAXESS_HOST = urlparse(SEARCH_URL).hostname
 TARGET_CODES = ("NL","DE","IE","GB","BE","FR","AT","IT","PT","CZ","PL","LU")
 JOB_RE = re.compile(r"/jobs/(\d+)(?:[/?#]|$)", re.I)
 GENERIC_DETAIL_TITLES = {"job offer", "job", "jobs", "offer"}
@@ -281,6 +282,8 @@ def parse_listing(html: str, base_url: str = SEARCH_URL) -> list[dict[str,Any]]:
     by_id: dict[str,dict[str,Any]] = {}
     for link in soup.find_all("a", href=True):
         href = urljoin(base_url, str(link.get("href") or ""))
+        if urlparse(href).hostname != EURAXESS_HOST:
+            continue
         m = JOB_RE.search(href)
         title = clean(link.get_text(" ", strip=True))
         if not m or not title or len(title) < 4:
