@@ -58,6 +58,31 @@ _SPECIALIST_PHYSIOLOGY = re.compile(
     re.I,
 )
 
+# Recall-first hard exclusions added only for high-confidence, independently
+# understandable mismatch evidence. Generic sports-medicine language alone is
+# deliberately insufficient because it can describe human exercise roles.
+_EQUINE_VETERINARY_IDENTITY = re.compile(
+    r"\b(?:equine\s+clinician|equine\s+veterinar(?:y|ian)|veterinary\s+(?:school|hospital|medicine|clinician|surgeon)|"
+    r"school\s+of\s+veterinary\s+(?:medicine|science))\b",
+    re.I,
+)
+_EQUINE_CLINICAL_SERVICE = re.compile(
+    r"\b(?:lameness(?:\s+diagnostics?)?|referral[- ]level\s+clinical\s+cases?|referral\s+cases?|"
+    r"on[- ]call\s+clinical\s+work|clinical\s+caseload|equine\s+hospital)\b",
+    re.I,
+)
+_AU_NO_SPONSORSHIP = re.compile(
+    r"\b(?:no\s+(?:visa\s+)?sponsorship|(?:visa\s+)?sponsorship\s+(?:is\s+)?(?:not available|unavailable|not offered|not provided)|"
+    r"cannot\s+(?:provide\s+)?(?:visa\s+)?sponsorship|unable\s+to\s+(?:provide\s+)?(?:visa\s+)?sponsorship)\b",
+    re.I,
+)
+_AU_WORK_RIGHTS_REQUIRED = re.compile(
+    r"\b(?:must|required\s+to|need\s+to|are\s+required\s+to)\s+(?:already\s+)?(?:have|hold|possess)\b.{0,100}"
+    r"\b(?:full|unrestricted|existing|current)\b.{0,70}\b(?:australian\s+)?(?:work\s+rights?|rights?\s+to\s+work(?:\s+in\s+australia)?)\b|"
+    r"\b(?:full|unrestricted|existing|current)\b.{0,70}\b(?:australian\s+)?(?:work\s+rights?|rights?\s+to\s+work(?:\s+in\s+australia)?)\b.{0,80}\b(?:required|essential|must)\b",
+    re.I | re.S,
+)
+
 
 def _norm(value: Any) -> str:
     text = "" if value is None else str(value)
@@ -160,6 +185,7 @@ def evaluate_calibrated(job: dict[str, Any]) -> dict[str, Any]:
     has_full_detail = detail_status in GOOD_DETAIL and len(full_jd) >= 300
     direct_subject_core = bool(_DIRECT_CORE.search(subject_title))
     direct_body_core = bool(_DIRECT_CORE.search(full_jd))
+    country = str((job.get("location") or {}).get("country_code") or "").upper()
 
     # A job located inside a sports/public-health school is not automatically a sport-
     # science vacancy. The actual vacancy subject controls routing.
@@ -169,6 +195,25 @@ def evaluate_calibrated(job: dict[str, Any]) -> dict[str, Any]:
             "ADJACENT_WELLBEING_CURRICULUM_E021",
             "The role is an adjacent wellbeing/curriculum project; the organisational school name is not treated as direct exercise-science fit.",
             scientific="ADJACENT",
+        )
+
+    # Equine/veterinary sports-medicine roles can otherwise look directly relevant because
+    # "sports medicine" is a declared profile anchor. Require two independent signals:
+    # a veterinary/equine clinical identity and a concrete clinical-service signal.
+    if _EQUINE_VETERINARY_IDENTITY.search(f"{subject_title} {full_jd}") and _EQUINE_CLINICAL_SERVICE.search(full_jd):
+        return _skip(
+            result,
+            "EQUINE_VETERINARY_CLINICAL_IDENTITY_E023",
+            "The posting establishes an equine/veterinary clinical-service identity through multiple independent signals; generic sports-medicine overlap is not sufficient fit.",
+        )
+
+    # Australia is a hard eligibility exclusion only when both facts are explicit:
+    # sponsorship is unavailable and existing/full/unrestricted rights to work are required.
+    if country == "AU" and _AU_NO_SPONSORSHIP.search(full_jd) and _AU_WORK_RIGHTS_REQUIRED.search(full_jd):
+        return _skip(
+            result,
+            "AU_NO_SPONSORSHIP_WORK_RIGHTS_REQUIRED_E023",
+            "The Australian posting explicitly states that visa sponsorship is unavailable and existing full/unrestricted rights to work are required.",
         )
 
     # Specialist physiology subdomains are adjacent unless the posting also contains
