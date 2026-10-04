@@ -68,10 +68,24 @@ class SharedSourceParserTests(unittest.TestCase):
         self.assertEqual(dvs.infer_dvs_country("Universität Wien","https://jobs.univie.ac.at/1"),"AT")
         self.assertIsNone(dvs.infer_dvs_country("Unknown University","https://example.org/job"))
 
-    def test_dvs_mainz_encoded_query_url_is_repaired(self):
-        html='<div class="vacancy"><strong>Johannes Gutenberg Universität Mainz</strong><br/>Juniorprofessur Gesundheit und Bewegung<br/><a href="https://berufungsportal.uni-mainz.de/ausschreibungen/69%3Flang%3Dde">mehr...</a><br/>Bewerbungsschluss: 11.10.2026</div>'
+    def test_dvs_hosted_pdfs_get_distinct_filename_ids(self):
+        html='''
+        <div><strong>Uni A</strong><br/>Researcher A<br/><a href="https://www.sportwissenschaft.de/fileadmin/pdf/Stellen_PDF/2026/2026_UniA_Researcher.pdf">mehr...</a></div>
+        <div><strong>Uni B</strong><br/>Researcher B<br/><a href="https://www.sportwissenschaft.de/fileadmin/pdf/Stellen_PDF/2026/2026_UniB_Researcher.pdf">mehr...</a></div>
+        '''
         rows=dvs.parse_listing(html)
-        self.assertEqual(rows[0]["url"],"https://berufungsportal.uni-mainz.de/ausschreibungen/69?lang=de")
+        self.assertEqual(len(rows),2)
+        self.assertNotEqual(rows[0]["id"],rows[1]["id"])
+        self.assertEqual(rows[0]["id"],"pdf-2026-unia-researcher")
+        self.assertEqual(rows[1]["id"],"pdf-2026-unib-researcher")
+        self.assertNotEqual(rows[0]["id"],"2026")
+
+    def test_dvs_mainz_source_url_stays_byte_stable(self):
+        url="https://berufungsportal.uni-mainz.de/ausschreibungen/69%3Flang%3Dde"
+        html=f'<div><strong>Johannes Gutenberg Universität Mainz</strong><br/>Juniorprofessur Gesundheit und Bewegung<br/><a href="{url}">mehr...</a></div>'
+        rows=dvs.parse_listing(html)
+        self.assertEqual(rows[0]["url"],url)
+        self.assertEqual(rows[0]["id"],"ausschreibungen-69-3Flang-3Dde")
 
     def test_fens_listing_and_detail(self):
         listing='<table><tr><td><a href="/careers/job-market/job/123456">Postdoctoral Position in Stress Neuroscience</a></td><td>Post-doctoral Position</td></tr></table>'
