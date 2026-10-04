@@ -66,11 +66,11 @@ jobs:
               for r in records:
                   aliases=[a for _,a in _aliases(r)]
                   assert 'url:https://sportwissenschaft.de/stellenborse/stellenangebote' not in aliases
-              state,summary=apply_state(records,empty_state(),observed_at='2026-10-04T20:45:00+00:00',run_id='dvs-state-test',writer_role=WRITER_ROLE)
+              state,_summary=apply_state(records,empty_state(),observed_at='2026-10-04T20:45:00+00:00',run_id='dvs-state-test',writer_role=WRITER_ROLE)
               assert len(state['jobs'])==2
               ids=[r['raw_extra']['state']['state_id'] for r in records]
               assert len(set(ids))==2
-              assert summary['new']==2
+              assert all(r['raw_extra']['state']['seen_status']=='NEW' for r in records)
           PY
       - name: Run focused tests
         run: |
