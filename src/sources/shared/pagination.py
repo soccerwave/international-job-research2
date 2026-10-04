@@ -32,11 +32,27 @@ def reached(rows, limit):
     return limit is not None and len(rows) >= limit
 
 
+def _known_linkedin_result_window_limit(source, pages, exc):
+    """LinkedIn guest search returns HTTP 400 when the result window reaches start=1000.
+
+    The pinned donor CLI exposes 10 results per page, so after 100 successful pages
+    the next request is page 101 / start=1000. Production evidence from 2026-10-03
+    showed this exact boundary consistently across countries and queries. Treat only
+    that precise condition as an expected endpoint ceiling; all earlier/different
+    failures remain incomplete coverage.
+    """
+    if not str(source).startswith('linkedin_mads:') or pages != 100:
+        return False
+    text = f'{type(exc).__name__}: {exc}'.upper()
+    return '400' in text and 'SEARCH_FAILED' in text
+
+
 def paginate(fetch, *, source, max_jobs=None, max_pages=None, start=0):
     """fetch(page) returns (parsed rows, advertised total or None, has_next or None).
 
     Totals of zero on subsequent Workday pages do not replace the initial total.
-    A failed later page preserves all earlier rows and records incomplete coverage.
+    A failed later page preserves all earlier rows and records incomplete coverage,
+    except the independently observed LinkedIn guest-search 1000-result window ceiling.
     """
     rows, seen = [], set()
     total = None
@@ -48,6 +64,11 @@ def paginate(fetch, *, source, max_jobs=None, max_pages=None, start=0):
         try:
             batch, advertised, has_next = fetch(start + pages)
         except Exception as exc:
+            if _known_linkedin_result_window_limit(source, pages, exc):
+                reason = 'known_result_window_limit'
+                complete = True
+                error = None
+                break
             reason, error = 'request_failed', f'{type(exc).__name__}: {exc}'
             if not pages:
                 record_coverage(source, reason, pages=0, records=0, error=error)
