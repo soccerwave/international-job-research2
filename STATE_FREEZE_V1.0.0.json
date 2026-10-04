@@ -13,7 +13,7 @@
   },
   "protected_git_blobs": {
     "src/state/__init__.py": "79b6d83242957810c450a7bdd4bee62f35b308c5",
-    "src/state/engine.py": "e6a27423de7613d793dd337c0dfde6083be131b7",
+    "src/state/engine.py": "35c2323fea8d6dbadf4251187fa32ba0483e7e61",
     "src/state/r2_store.py": "e3c6fc2e9babee3fb0826d08b2ba4d04e84a56ba",
     "src/runtime/state_writer.py": "4221044d8af11afe2c5d143ca5a0934b43ab21e0",
     "schemas/state.schema.json": "f8818e0aab5c0bc02b72fd9dd989739bde2be768",
@@ -80,6 +80,7 @@
     "REOPENED requires prior explicit CLOSED evidence followed by explicit OPEN evidence.",
     "Full-JD degradation/recovery is a quality event and does not overwrite the last trustworthy enriched snapshot.",
     "Generic careers/listing URLs are excluded from durable identity aliases after a regression test exposed a false-merge risk.",
+    "DVS shared board URL /stellenborse/stellenangebote is explicitly non-identifying after live evidence showed distinct vacancies could otherwise collapse in durable state; this is a scoped identity correction with STATE_SCHEMA_V1.0.0 unchanged.",
     "The Stage 4 raw fan-in finalizer is intentionally not wired to durable state before canonicalization/evaluation integration.",
     "The supported mutation boundary is src/runtime/state_writer.py and uses CENTRAL_FINALIZER writer role only.",
     "The live acceptance workflow enforces pipefail so a failing Python smoke test cannot be masked by tee.",
