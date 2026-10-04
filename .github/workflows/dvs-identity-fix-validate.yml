@@ -1,0 +1,109 @@
+name: DVS Identity Fix Validate
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/dvs-identity-fix-validate.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: international-academic-production
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_BUCKET: ${{ vars.R2_BUCKET }}
+      R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt -r requirements-cloud.txt pytest
+      - name: Patch exact DVS board URL as generic state alias
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/state/engine.py')
+          s=p.read_text(encoding='utf-8')
+          old='''    generic_endings = (\n        "/jobs", "/job", "/careers", "/career", "/vacancies", "/vacancy",\n        "/job-openings", "/job-opportunities", "/employment", "/opportunities",\n    )\n    return path in {"", "/"} or path.endswith(generic_endings)'''
+          new='''    generic_endings = (\n        "/jobs", "/job", "/careers", "/career", "/vacancies", "/vacancy",\n        "/job-openings", "/job-opportunities", "/employment", "/opportunities",\n    )\n    # The DVS thematic board exposes every vacancy from one shared listing URL.\n    # Treat that exact board path as non-identifying, while preserving detail/apply\n    # URLs and all other source-specific listing URLs unchanged.\n    exact_generic_paths = {"/stellenborse/stellenangebote"}\n    return path in {"", "/"} or path in exact_generic_paths or path.endswith(generic_endings)'''
+          assert s.count(old)==1
+          p.write_text(s.replace(old,new),encoding='utf-8')
+          PY
+      - name: Add DVS state alias regression
+        run: |
+          cat > tests/test_dvs_state_identity.py <<'PY'
+          from src.sources.shared import dvs
+          from src.state.engine import _aliases, apply_state, empty_state, WRITER_ROLE
+
+          def test_dvs_shared_board_url_is_not_identity_alias():
+              html='''
+              <div><strong>Uni A</strong><br/>Researcher A<br/><a href="https://www.sportwissenschaft.de/fileadmin/pdf/Stellen_PDF/2026/2026_UniA_A.pdf">mehr...</a></div>
+              <div><strong>Uni B</strong><br/>Researcher B<br/><a href="https://www.sportwissenschaft.de/fileadmin/pdf/Stellen_PDF/2026/2026_UniB_B.pdf">mehr...</a></div>
+              '''
+              rows=dvs.parse_listing(html)
+              records=[]
+              from src.sources.shared.common import make_record
+              for row in rows:
+                  records.append(make_record(
+                      source_key='dvs',source_kind='THEMATIC_PORTAL',provider='DVS',
+                      source_job_id=row['id'],listing_url=dvs.LISTING_URL,detail_url=row['url'],
+                      title=row['title'],institution=row['institution'],detail_status='NOT_ATTEMPTED'
+                  ))
+              for r in records:
+                  aliases=[a for _,a in _aliases(r)]
+                  assert 'url:https://sportwissenschaft.de/stellenborse/stellenangebote' not in aliases
+              state,summary=apply_state(records,empty_state(),observed_at='2026-10-04T20:45:00+00:00',run_id='dvs-state-test',writer_role=WRITER_ROLE)
+              assert len(state['jobs'])==2
+              ids=[r['raw_extra']['state']['state_id'] for r in records]
+              assert len(set(ids))==2
+              assert summary['new']==2
+          PY
+      - name: Run focused tests
+        run: |
+          pytest -q tests/test_dvs_state_identity.py tests/test_phase1_stage4_13_ecss_dvs_coverage.py tests/test_stage5_shared_sources.py -k 'dvs or shared_board'
+      - name: Replay current DVS against repaired copy of production state
+        run: |
+          python - <<'PY'
+          import copy,json
+          from src.sources.shared import dvs
+          from src.state.engine import apply_state, WRITER_ROLE, state_sha256
+          from src.state.r2_store import R2StateStore
+          loaded=R2StateStore.from_env(prefix='').load_current(allow_missing=False)
+          state=loaded.state
+          polluted=[sid for sid,e in state['jobs'].items() if 'source_id:dvs:2026' in (e.get('aliases') or [])]
+          assert polluted==['job_77f5a4e7642c73e46f7b'], polluted
+          repaired=copy.deepcopy(state); del repaired['jobs'][polluted[0]]
+          rows=dvs.collect(max_jobs=None,enrich_detail=False)
+          ids=[r['source']['source_job_id'] for r in rows]
+          assert len(rows)==17 and len(ids)==len(set(ids)) and '2026' not in ids
+          replay,summary=apply_state(rows,repaired,observed_at='2026-10-04T20:45:00+00:00',run_id='dvs-repair-replay',writer_role=WRITER_ROLE)
+          state_ids=[r['raw_extra']['state']['state_id'] for r in rows]
+          assert len(state_ids)==len(set(state_ids)), state_ids
+          print('DVS_REPLAY_OK',json.dumps({
+              'before_generation':state['generation'],'before_sha':state_sha256(state),'etag':loaded.etag,
+              'rows':len(rows),'unique_source_ids':len(set(ids)),'unique_state_ids':len(set(state_ids)),
+              'summary':summary,'state_jobs_before':len(state['jobs']),'state_jobs_replay':len(replay['jobs'])
+          },sort_keys=True))
+          PY
+      - name: Commit validated identity fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/state/engine.py tests/test_dvs_state_identity.py
+          git diff --cached --check
+          git commit -m "Fix DVS durable state identity aliases"
+          git push origin HEAD:main
