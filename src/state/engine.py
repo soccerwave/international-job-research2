@@ -64,7 +64,11 @@ def _is_generic_listing_url(url: str) -> bool:
         "/jobs", "/job", "/careers", "/career", "/vacancies", "/vacancy",
         "/job-openings", "/job-opportunities", "/employment", "/opportunities",
     )
-    return path in {"", "/"} or path.endswith(generic_endings)
+    # The DVS thematic board exposes every vacancy from one shared listing URL.
+    # Treat that exact board path as non-identifying, while preserving detail/apply
+    # URLs and all other source-specific listing URLs unchanged.
+    exact_generic_paths = {"/stellenborse/stellenangebote"}
+    return path in {"", "/"} or path in exact_generic_paths or path.endswith(generic_endings)
 
 
 def _state_id(alias: str) -> str:
