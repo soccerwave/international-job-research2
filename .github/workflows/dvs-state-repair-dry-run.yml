@@ -1,0 +1,91 @@
+name: DVS State Repair Dry Run
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/dvs-state-repair-dry-run.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: international-academic-production
+  cancel-in-progress: false
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_BUCKET: ${{ vars.R2_BUCKET }}
+      R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt -r requirements-cloud.txt pytest
+      - name: Validate DVS parser identity regression
+        run: pytest -q tests/test_phase1_stage4_13_ecss_dvs_coverage.py tests/test_stage5_shared_sources.py -k dvs
+      - name: Dry-run authoritative state repair and replay
+        run: |
+          python - <<'PY'
+          import copy, json
+          from src.sources.shared import dvs
+          from src.state.engine import apply_state, WRITER_ROLE, state_sha256
+          from src.state.r2_store import R2StateStore
+
+          loaded=R2StateStore.from_env(prefix='').load_current(allow_missing=False)
+          state=loaded.state
+          before_sha=state_sha256(state)
+          polluted=[]
+          for sid,e in state['jobs'].items():
+              if 'source_id:dvs:2026' in (e.get('aliases') or []):
+                  polluted.append((sid,e))
+          assert len(polluted)==1, [(sid,e.get('aliases')) for sid,e in polluted]
+          polluted_id,polluted_entry=polluted[0]
+          assert polluted_id=='job_77f5a4e7642c73e46f7b', polluted_id
+          polluted_urls=[a for a in polluted_entry['aliases'] if a.startswith('url:')]
+          assert len(polluted_urls)>=2, polluted_urls
+
+          repaired=copy.deepcopy(state)
+          del repaired['jobs'][polluted_id]
+          # This is a dry-run state image only; publish is intentionally not called.
+          rows=dvs.collect(max_jobs=None,enrich_detail=False)
+          current_ids=[r['source']['source_job_id'] for r in rows]
+          assert '2026' not in current_ids, current_ids
+          assert len(current_ids)==len(set(current_ids)), current_ids
+          pdf_rows=[r for r in rows if 'sportwissenschaft.de/fileadmin/pdf/Stellen_PDF/' in (r['source']['detail_url'] or '')]
+          assert pdf_rows and all(r['source']['source_job_id'].startswith('pdf-') for r in pdf_rows)
+
+          replay,summary=apply_state(
+              rows,repaired,
+              observed_at='2026-10-04T20:40:00+00:00',
+              run_id='dvs-state-repair-dry-run',
+              writer_role=WRITER_ROLE,
+          )
+          current_state_ids=[r['raw_extra']['state']['state_id'] for r in rows]
+          assert len(current_state_ids)==len(set(current_state_ids)), current_state_ids
+          assert len(replay['jobs']) >= len(repaired['jobs'])
+          print('DVS_STATE_REPAIR_DRY_RUN',json.dumps({
+              'generation':state['generation'],
+              'before_sha':before_sha,
+              'etag':loaded.etag,
+              'polluted_state_id':polluted_id,
+              'polluted_times_seen':polluted_entry.get('times_seen'),
+              'polluted_url_aliases':len(polluted_urls),
+              'state_jobs_before':len(state['jobs']),
+              'state_jobs_after_delete':len(repaired['jobs']),
+              'current_dvs_rows':len(rows),
+              'current_unique_source_ids':len(set(current_ids)),
+              'current_dvs_pdf_rows':len(pdf_rows),
+              'replay_state_jobs':len(replay['jobs']),
+              'replay_summary':summary,
+              'replay_unique_state_ids':len(set(current_state_ids)),
+          },ensure_ascii=False,indent=2))
+          PY
