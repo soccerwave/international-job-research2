@@ -23,6 +23,27 @@ jobs:
           python-version: '3.12'
       - name: Install dependencies
         run: pip install -r requirements.txt pytest
+      - name: Inspect Mainz frontend API hints
+        run: |
+          python - <<'PY'
+          import re, requests
+          from urllib.parse import urljoin
+          u='https://berufungsportal.uni-mainz.de/ausschreibungen/69?lang=de'
+          h=requests.get(u,timeout=30).text
+          scripts=re.findall(r'<script[^>]+src=["\']([^"\']+)',h,re.I)
+          print('MAINZ_SCRIPTS',scripts)
+          for src in scripts:
+              jsurl=urljoin(u,src)
+              try:
+                  text=requests.get(jsurl,timeout=30).text
+              except Exception as e:
+                  print('SCRIPT_FAIL',jsurl,type(e).__name__,e); continue
+              hits=[]
+              for pat in [r'https?://[^"\'\s]+', r'/api/[^"\'\s]+', r'api[^"\'\s]{0,120}', r'ausschreib[^"\'\s]{0,120}', r'datenabfrage[^"\'\s]{0,120}']:
+                  for m in re.findall(pat,text,re.I):
+                      if m not in hits: hits.append(m)
+              print('SCRIPT',jsurl,'bytes',len(text),'HITS',hits[:80])
+          PY
       - name: Run DVS live diagnostic
         run: |
           python - <<'PY'
@@ -30,37 +51,24 @@ jobs:
           from urllib.parse import urlparse
           from src.sources.shared import dvs
           from src.sources.shared.common import make_session
-
-          start=time.time()
-          rows=dvs.collect(max_jobs=None,enrich_detail=True)
-          counts={}
-          details=[]
+          start=time.time(); rows=dvs.collect(max_jobs=None,enrich_detail=True)
+          counts={}; details=[]
           for r in rows:
-              st=r['description']['detail_status']
-              counts[st]=counts.get(st,0)+1
-              details.append({
-                  'id':r['source']['source_job_id'],
-                  'title':r['position']['title_raw'],
-                  'institution':r['position']['institution_raw'],
-                  'url':r['source']['detail_url'],
-                  'host':urlparse(r['source']['detail_url']).netloc,
-                  'status':st,
-                  'failure':r['description']['detail_failure_reason'],
-                  'jd_chars':len(r['description']['full_jd'] or ''),
-              })
-          print('DVS_COLLECT', json.dumps({'rows':len(rows),'counts':counts,'elapsed':round(time.time()-start,2)},ensure_ascii=False))
-          print('DVS_ROWS', json.dumps(details,ensure_ascii=False,indent=2))
-
+              st=r['description']['detail_status']; counts[st]=counts.get(st,0)+1
+              details.append({'id':r['source']['source_job_id'],'title':r['position']['title_raw'],
+                  'institution':r['position']['institution_raw'],'url':r['source']['detail_url'],
+                  'host':urlparse(r['source']['detail_url']).netloc,'status':st,
+                  'failure':r['description']['detail_failure_reason'],'jd_chars':len(r['description']['full_jd'] or '')})
+          print('DVS_COLLECT',json.dumps({'rows':len(rows),'counts':counts,'elapsed':round(time.time()-start,2)},ensure_ascii=False))
+          print('DVS_ROWS',json.dumps(details,ensure_ascii=False,indent=2))
           s=make_session(); probes=[]
           for d in details:
-              if d['status'] in {'FULL','PARTIAL'}:
-                  continue
+              if d['status'] in {'FULL','PARTIAL'}: continue
               u=d['url']; t=time.time()
               try:
                   resp=s.get(u,timeout=(10,45),allow_redirects=True)
                   probes.append({'id':d['id'],'url':u,'http':resp.status_code,'final_url':resp.url,
-                      'content_type':resp.headers.get('content-type'),'bytes':len(resp.content),
-                      'elapsed':round(time.time()-t,2),
+                      'content_type':resp.headers.get('content-type'),'bytes':len(resp.content),'elapsed':round(time.time()-t,2),
                       'text_prefix':resp.text[:180].replace('\n',' ') if 'text' in (resp.headers.get('content-type') or '').lower() else ''})
               except Exception as exc:
                   probes.append({'id':d['id'],'url':u,'exception':f'{type(exc).__name__}: {exc}','elapsed':round(time.time()-t,2)})
