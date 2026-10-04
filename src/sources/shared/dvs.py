@@ -26,12 +26,33 @@ def infer_dvs_country(institution:str,url:str,detail:str|None="")->str|None:
     return None
 
 
+def _normalize_detail_url(url:str)->str:
+    """Repair source-published URLs whose query delimiter is percent-encoded.
+
+    DVS currently publishes Mainz appointment-portal links like
+    ``.../ausschreibungen/69%3Flang%3Dde``. Requests treats that as a literal path,
+    which returns only the Angular application shell and therefore no vacancy text.
+    Decode the query punctuation only for that known host; leave all other URLs
+    byte-for-byte unchanged.
+    """
+    parsed=urlparse(url)
+    if parsed.netloc.lower() != "berufungsportal.uni-mainz.de" or not re.search(r"%3f",url,re.I):
+        return url
+    repaired=re.sub(r"%3[fF]","?",url,count=1)
+    head,sep,query=repaired.partition("?")
+    if not sep:
+        return repaired
+    query=re.sub(r"%3[dD]","=",query)
+    query=re.sub(r"%26","&",query,flags=re.I)
+    return head+"?"+query
+
+
 def parse_listing(html:str,base_url:str=LISTING_URL)->list[dict[str,Any]]:
     soup=BeautifulSoup(html or "","html.parser"); out=[]; seen=set()
     for a in soup.find_all("a",href=True):
         label=clean(a.get_text(" ",strip=True)).lower()
         if "mehr" not in label: continue
-        href=urljoin(base_url,str(a.get("href") or ""))
+        href=_normalize_detail_url(urljoin(base_url,str(a.get("href") or "")))
         if href in seen: continue
         seen.add(href)
         block=a.find_parent(["p","div","li","article"]) or a.parent
