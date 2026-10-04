@@ -68,6 +68,11 @@ class SharedSourceParserTests(unittest.TestCase):
         self.assertEqual(dvs.infer_dvs_country("Universität Wien","https://jobs.univie.ac.at/1"),"AT")
         self.assertIsNone(dvs.infer_dvs_country("Unknown University","https://example.org/job"))
 
+    def test_dvs_mainz_encoded_query_url_is_repaired(self):
+        html='<div class="vacancy"><strong>Johannes Gutenberg Universität Mainz</strong><br/>Juniorprofessur Gesundheit und Bewegung<br/><a href="https://berufungsportal.uni-mainz.de/ausschreibungen/69%3Flang%3Dde">mehr...</a><br/>Bewerbungsschluss: 11.10.2026</div>'
+        rows=dvs.parse_listing(html)
+        self.assertEqual(rows[0]["url"],"https://berufungsportal.uni-mainz.de/ausschreibungen/69?lang=de")
+
     def test_fens_listing_and_detail(self):
         listing='<table><tr><td><a href="/careers/job-market/job/123456">Postdoctoral Position in Stress Neuroscience</a></td><td>Post-doctoral Position</td></tr></table>'
         rows=fens.parse_listing(listing)
