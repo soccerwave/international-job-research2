@@ -26,25 +26,28 @@ def infer_dvs_country(institution:str,url:str,detail:str|None="")->str|None:
     return None
 
 
-def _normalize_detail_url(url:str)->str:
-    """Repair source-published URLs whose query delimiter is percent-encoded.
+def _source_id_for_url(url:str,fallback_index:int)->str:
+    """Return a stable vacancy-local ID without mistaking the DVS year for a job ID.
 
-    DVS currently publishes Mainz appointment-portal links like
-    ``.../ausschreibungen/69%3Flang%3Dde``. Requests treats that as a literal path,
-    which returns only the Angular application shell and therefore no vacancy text.
-    Decode the query punctuation only for that known host; leave all other URLs
-    byte-for-byte unchanged.
+    DVS-hosted vacancy PDFs live below ``.../Stellen_PDF/<year>/<filename>.pdf``.
+    The old generic first-number rule therefore assigned many distinct vacancies the
+    identical source_job_id ``2026`` and caused durable-state collisions. For those
+    PDFs the filename is the stable source-local identity. External links retain the
+    historical extraction rule so already-correct state continuity is unchanged.
     """
     parsed=urlparse(url)
-    if parsed.netloc.lower() != "berufungsportal.uni-mainz.de" or not re.search(r"%3f",url,re.I):
-        return url
-    repaired=re.sub(r"%3[fF]","?",url,count=1)
-    head,sep,query=repaired.partition("?")
-    if not sep:
-        return repaired
-    query=re.sub(r"%3[dD]","=",query)
-    query=re.sub(r"%26","&",query,flags=re.I)
-    return head+"?"+query
+    host=(parsed.hostname or "").lower()
+    path=parsed.path or ""
+    if host in {"sportwissenschaft.de","www.sportwissenschaft.de"} and path.lower().endswith(".pdf"):
+        filename=path.rsplit("/",1)[-1].rsplit(".",1)[0]
+        slug=re.sub(r"[^A-Za-z0-9]+","-",filename).strip("-").lower()
+        if slug:
+            return f"pdf-{slug}"
+    jid=re.search(r"(\d{3,})",url)
+    if jid:
+        return jid.group(1)
+    slug=re.sub(r"\W+","-",path.strip("/"))[-100:].strip("-")
+    return slug or str(fallback_index)
 
 
 def parse_listing(html:str,base_url:str=LISTING_URL)->list[dict[str,Any]]:
@@ -52,7 +55,10 @@ def parse_listing(html:str,base_url:str=LISTING_URL)->list[dict[str,Any]]:
     for a in soup.find_all("a",href=True):
         label=clean(a.get_text(" ",strip=True)).lower()
         if "mehr" not in label: continue
-        href=_normalize_detail_url(urljoin(base_url,str(a.get("href") or "")))
+        # Preserve source-published URLs byte-for-byte. In particular the Mainz APTE
+        # portal currently publishes %3F/%3D in the path; decoding it does not expose
+        # server-rendered vacancy text and would unnecessarily break state continuity.
+        href=urljoin(base_url,str(a.get("href") or ""))
         if href in seen: continue
         seen.add(href)
         block=a.find_parent(["p","div","li","article"]) or a.parent
@@ -63,8 +69,7 @@ def parse_listing(html:str,base_url:str=LISTING_URL)->list[dict[str,Any]]:
         full_block=clean(block.get_text(" ",strip=True))
         m=re.search(r"Bewerbungsschluss:\s*([0-9.]+|nicht angegeben)",full_block,re.I)
         deadline="" if not m or "nicht" in m.group(1).lower() else m.group(1)
-        jid=re.search(r"(\d{3,})",href)
-        source_id=jid.group(1) if jid else re.sub(r"\W+","-",urlparse(href).path.strip("/"))[-100:] or str(len(out)+1)
+        source_id=_source_id_for_url(href,len(out)+1)
         out.append({"id":source_id,"title":title,"institution":employer,"deadline":deadline,"url":href,"context":full_block})
     return out
 
@@ -87,8 +92,16 @@ def collect(*,max_jobs:int|None=60,enrich_detail:bool=True,session=None)->list[d
     for item in items:
         detail=None; status="NOT_ATTEMPTED"; failure=None
         if enrich_detail:
-            try: detail,status=fetch_detail_text(item["url"],s)
-            except Exception as exc: status="FETCH_FAILED"; failure=f"{type(exc).__name__}: {exc}"
+            try:
+                detail,status=fetch_detail_text(item["url"],s)
+            except Exception as exc:
+                http_status=getattr(getattr(exc,"response",None),"status_code",None)
+                if http_status in {404,410}:
+                    status="UNAVAILABLE"
+                    failure=f"HTTP_{http_status}_GONE"
+                else:
+                    status="FETCH_FAILED"
+                    failure=f"{type(exc).__name__}: {exc}"
         code=infer_dvs_country(item["institution"],item["url"],detail)
         country_name={"DE":"Germany","AT":"Austria","CH":"Switzerland"}.get(code)
         out.append(make_record(source_key=SOURCE_KEY,source_kind="THEMATIC_PORTAL",provider=PROVIDER,
