@@ -113,8 +113,18 @@ def paginate(fetch, *, source, max_jobs=None, max_pages=None, start=0):
 
 
 def next_listing_url(html, base_url):
-    """Follow actual same-origin pagination links, never invent ATS parameters."""
+    """Follow same-origin pagination links, preferring the current listing path.
+
+    Some boards expose unrelated anchors whose text/title contains "Next". A
+    pagination link normally stays on the listing path and changes only query
+    parameters, so same-path candidates are preferred. If a board legitimately
+    paginates to a different path, the previous same-origin fallback is preserved.
+    """
     soup = BeautifulSoup(html or '', 'html.parser')
+    base = urlparse(base_url)
+    base_path = base.path.rstrip('/') or '/'
+    same_path = []
+    fallback = []
     for a in soup.find_all('a', href=True):
         label = ' '.join([a.get_text(' ', strip=True), str(a.get('aria-label') or ''), str(a.get('title') or '')]).strip().lower()
         rel = a.get('rel') or []
@@ -126,9 +136,15 @@ def next_listing_url(html, base_url):
         if href.startswith(('#', 'javascript:')):
             continue
         url = urljoin(base_url, href)
-        if urlparse(url).netloc == urlparse(base_url).netloc:
-            return url
-    return None
+        parsed = urlparse(url)
+        if parsed.netloc != base.netloc:
+            continue
+        fallback.append(url)
+        if (parsed.path.rstrip('/') or '/') == base_path:
+            same_path.append(url)
+    if same_path:
+        return same_path[0]
+    return fallback[0] if fallback else None
 
 
 def html_pages(session, url, parser, *, max_jobs=None, initial_response=None):
