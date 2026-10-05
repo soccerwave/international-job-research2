@@ -7,7 +7,7 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from .engine import empty_state, state_bytes, state_sha256, validate_state
+from .engine import empty_state, state_sha256, validate_state
 
 CURRENT_STATE_KEY = "state/current/state.json"
 
@@ -22,6 +22,21 @@ class LoadedState:
     etag: str | None
     exists: bool
     key: str
+
+
+def compact_state_bytes(state: dict[str, Any]) -> bytes:
+    """Serialize validated durable state without pretty-print whitespace.
+
+    This changes only the byte representation written to R2. The JSON data model,
+    schema, fields, ordering determinism, and parsed values remain unchanged.
+    """
+    validate_state(state)
+    return (json.dumps(
+        state,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ) + "\n").encode("utf-8")
 
 
 def _required_env(name: str) -> str:
@@ -154,7 +169,7 @@ class R2StateStore:
 
     def bootstrap(self, state: dict[str, Any], *, run_id: str) -> dict[str, Any]:
         validate_state(state)
-        payload = state_bytes(state)
+        payload = compact_state_bytes(state)
         digest = hashlib.sha256(payload).hexdigest()
         safe_run = re.sub(r"[^A-Za-z0-9_.-]+", "_", run_id).strip("_") or "bootstrap"
         backup = self.key(f"state/bootstrap/g{int(state['generation']):08d}-{safe_run}.json")
@@ -169,7 +184,7 @@ class R2StateStore:
     def publish(self, state: dict[str, Any], *, expected_etag: str | None, run_id: str) -> dict[str, Any]:
         """Publish one new generation using compare-and-swap on state/current."""
         validate_state(state)
-        payload = state_bytes(state)
+        payload = compact_state_bytes(state)
         digest = hashlib.sha256(payload).hexdigest()
         generation = int(state["generation"])
         safe_run = re.sub(r"[^A-Za-z0-9_.-]+", "_", run_id).strip("_") or f"g{generation}"
