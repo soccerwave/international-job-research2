@@ -35,7 +35,9 @@ def _as_utc(value: datetime) -> datetime:
 
 
 def _list_backup_objects(store: R2StateStore) -> tuple[list[BackupObject], int]:
-    prefix = store.key("state/backups/")
+    # R2StateStore.key() intentionally strips trailing slashes. Listing a logical
+    # directory therefore needs to add the separator back before slicing relative keys.
+    prefix = store.key("state/backups") + "/"
     token: str | None = None
     production: list[BackupObject] = []
     untouched_nonproduction = 0
@@ -93,7 +95,8 @@ def plan_backup_retention(
     newest = sorted(production, key=lambda item: (item.generation, item.last_modified), reverse=True)
     protected = {item.key for item in newest[:keep_latest]}
     delete = [item for item in production if item.key not in protected and item.last_modified < cutoff]
-    kept = [item for item in production if item.key not in {candidate.key for candidate in delete}]
+    delete_key_set = {candidate.key for candidate in delete}
+    kept = [item for item in production if item.key not in delete_key_set]
 
     return RetentionPlan(
         production_backups=len(production),
