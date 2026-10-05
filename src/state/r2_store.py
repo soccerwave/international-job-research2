@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import os
@@ -7,7 +8,7 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from .engine import empty_state, state_sha256, validate_state
+from .engine import empty_state, validate_state
 
 CURRENT_STATE_KEY = "state/current/state.json"
 
@@ -24,15 +25,26 @@ class LoadedState:
     key: str
 
 
-def compact_state_bytes(state: dict[str, Any]) -> bytes:
-    """Serialize validated durable state without pretty-print whitespace.
+def state_for_storage(state: dict[str, Any]) -> dict[str, Any]:
+    """Return durable-state payload with nonessential evaluator detail removed.
 
-    This changes only the byte representation written to R2. The JSON data model,
-    schema, fields, ordering determinism, and parsed values remain unchanged.
+    evaluation_dimensions are reporting/evaluator diagnostics, not identity, lifecycle,
+    change-detection, recovery, or recall state. Recommendation is retained because
+    recommendation changes are part of material-change detection.
     """
     validate_state(state)
+    durable = copy.deepcopy(state)
+    for entry in (durable.get("jobs") or {}).values():
+        snapshot = entry.get("last_snapshot") or {}
+        snapshot.pop("evaluation_dimensions", None)
+    return durable
+
+
+def compact_state_bytes(state: dict[str, Any]) -> bytes:
+    """Serialize validated durable state compactly and deterministically."""
+    durable = state_for_storage(state)
     return (json.dumps(
-        state,
+        durable,
         ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),
@@ -177,7 +189,7 @@ class R2StateStore:
         self._put(key=backup, payload=payload, headers={"If-None-Match": "*"}, metadata=metadata)
         current = self._put(key=self.current_key, payload=payload, headers={"If-None-Match": "*"}, metadata=metadata)
         verified = self.load_current(allow_missing=False)
-        if state_sha256(verified.state) != state_sha256(state):
+        if hashlib.sha256(compact_state_bytes(verified.state)).hexdigest() != digest:
             raise RuntimeError("R2 bootstrap verification failed")
         return {"current_key": self.current_key, "backup_key": backup, "etag": _clean_etag(current.get("ETag")), "sha256": digest}
 
@@ -198,7 +210,7 @@ class R2StateStore:
         current = self._put(key=self.current_key, payload=payload, headers=headers, metadata=metadata)
 
         verified = self.load_current(allow_missing=False)
-        if state_sha256(verified.state) != state_sha256(state):
+        if hashlib.sha256(compact_state_bytes(verified.state)).hexdigest() != digest:
             raise RuntimeError("R2 post-write verification failed")
         return {
             "current_key": self.current_key,
