@@ -18,6 +18,13 @@ on:
         required: true
         default: '3'
         type: string
+  push:
+    branches: [main]
+    paths:
+      - 'src/state/r2_retention.py'
+      - 'scripts/prune_r2_state_backups.py'
+      - 'tests/test_r2_retention.py'
+      - '.github/workflows/r2-retention.yml'
 
 permissions:
   contents: read
@@ -47,9 +54,9 @@ jobs:
       - name: Preview or apply R2 state backup retention
         shell: bash
         env:
-          APPLY: ${{ inputs.apply }}
-          MAX_AGE_DAYS: ${{ inputs.max_age_days }}
-          KEEP_LATEST: ${{ inputs.keep_latest }}
+          APPLY: ${{ github.event_name == 'workflow_dispatch' && inputs.apply || false }}
+          MAX_AGE_DAYS: ${{ github.event_name == 'workflow_dispatch' && inputs.max_age_days || '7' }}
+          KEEP_LATEST: ${{ github.event_name == 'workflow_dispatch' && inputs.keep_latest || '3' }}
         run: |
           set -euo pipefail
           args=(--max-age-days "$MAX_AGE_DAYS" --keep-latest "$KEEP_LATEST")
