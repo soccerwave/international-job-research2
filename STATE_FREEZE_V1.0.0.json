@@ -14,12 +14,12 @@
   "protected_git_blobs": {
     "src/state/__init__.py": "79b6d83242957810c450a7bdd4bee62f35b308c5",
     "src/state/engine.py": "35c2323fea8d6dbadf4251187fa32ba0483e7e61",
-    "src/state/r2_store.py": "e3c6fc2e9babee3fb0826d08b2ba4d04e84a56ba",
+    "src/state/r2_store.py": "836fd03ff4d5d07f0d418e1d38f1c884a5812f38",
     "src/runtime/state_writer.py": "4221044d8af11afe2c5d143ca5a0934b43ab21e0",
     "schemas/state.schema.json": "f8818e0aab5c0bc02b72fd9dd989739bde2be768",
     "requirements-cloud.txt": "c5cb19e4ec8277e7e58e97cb1cac45159062af8f",
     "tests/test_stage8_state.py": "75bfa8ea1926713de998468e7286198c3ecd283a",
-    "tests/test_stage8_r2.py": "4344cafe568747eb2247f1faca9b6bf939c3ab90",
+    "tests/test_stage8_r2.py": "4099bd2e24b0b823ed541e01b16862ed539a759d",
     "tests/test_stage8_state_writer.py": "59759d3c257672383630b9d102c27ef76a7b031c",
     "scripts/run_stage8_r2_smoke.py": "32d75f695c9aaf59829f864821ad0f67186c9817",
     "scripts/verify_stage8_freeze.py": "ee970562c088ab663f19a708161d798b2d4a1c26",
@@ -84,6 +84,7 @@
     "The Stage 4 raw fan-in finalizer is intentionally not wired to durable state before canonicalization/evaluation integration.",
     "The supported mutation boundary is src/runtime/state_writer.py and uses CENTRAL_FINALIZER writer role only.",
     "The live acceptance workflow enforces pipefail so a failing Python smoke test cannot be masked by tee.",
-    "Live Cloudflare R2 acceptance verified bootstrap, generation 1 and 2 conditional writes, immutable backups, read-back integrity, and stale-writer rejection."
+    "Live Cloudflare R2 acceptance verified bootstrap, generation 1 and 2 conditional writes, immutable backups, read-back integrity, and stale-writer rejection.",
+    "R2 state serialization is compact JSON only; state semantics and schema remain unchanged."
   ]
 }
