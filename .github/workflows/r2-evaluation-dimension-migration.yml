@@ -1,0 +1,54 @@
+name: R2 Evaluation Dimension Migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: Apply migration to authoritative R2 state
+        required: true
+        default: false
+        type: boolean
+  push:
+    branches: [main]
+    paths:
+      - 'src/state/r2_store.py'
+      - 'scripts/migrate_r2_remove_evaluation_dimensions.py'
+      - 'tests/test_r2_state_compaction.py'
+      - '.github/workflows/r2-evaluation-dimension-migration.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: r2-evaluation-dimension-migration
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_BUCKET: ${{ vars.R2_BUCKET }}
+      R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt -r requirements-cloud.txt
+      - name: Run compaction regression tests
+        run: python -m unittest tests.test_r2_state_compaction -v
+      - name: Dry-run or apply migration
+        shell: bash
+        env:
+          APPLY: ${{ github.event_name == 'workflow_dispatch' && inputs.apply || false }}
+        run: |
+          set -euo pipefail
+          args=()
+          if [ "$APPLY" = "true" ]; then
+            args+=(--apply)
+          fi
+          python scripts/migrate_r2_remove_evaluation_dimensions.py "${args[@]}"
