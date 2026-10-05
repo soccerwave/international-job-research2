@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import os
 import sys
@@ -51,6 +52,15 @@ def main() -> int:
 
         top_entries.append((entry_bytes, state_id, len(aliases)))
 
+    hypothetical = copy.deepcopy(state)
+    dimensions_removed_jobs = 0
+    for entry in (hypothetical.get("jobs") or {}).values():
+        snapshot = entry.get("last_snapshot") or {}
+        if "evaluation_dimensions" in snapshot:
+            snapshot.pop("evaluation_dimensions", None)
+            dimensions_removed_jobs += 1
+    without_dimensions_compact = compact_bytes(hypothetical)
+
     top_entries.sort(reverse=True)
     alias_counts.sort()
 
@@ -78,6 +88,12 @@ def main() -> int:
             "aliases": mb(totals["aliases"]),
             "last_snapshot": mb(totals["last_snapshot"]),
             "entry_metadata": mb(totals["entry_metadata"]),
+        },
+        "hypothetical_without_evaluation_dimensions": {
+            "jobs_affected": dimensions_removed_jobs,
+            "compact_mb": mb(without_dimensions_compact),
+            "savings_mb": mb(total_compact - without_dimensions_compact),
+            "savings_percent": round((total_compact - without_dimensions_compact) * 100 / total_compact, 2) if total_compact else 0,
         },
         "alias_count": {
             "min": alias_counts[0] if alias_counts else 0,
