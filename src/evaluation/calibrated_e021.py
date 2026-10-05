@@ -83,6 +83,38 @@ _AU_WORK_RIGHTS_REQUIRED = re.compile(
     re.I | re.S,
 )
 
+# Positive calibration signals are intentionally conjunctive. They only improve ranking;
+# they never create a new exclusion and never override an existing blocker/review signal.
+_HUMAN_NEUROIMAGING_METHOD = re.compile(
+    r"\b(?:human neuroimaging|functional magnetic resonance imaging|functional mri|fmri|structural mri|"
+    r"diffusion(?:-weighted)? mri|diffusion tensor imaging|dti|7t mri|7 tesla|magnetic resonance imaging)\b",
+    re.I,
+)
+_NEUROIMAGING_OUTCOME = re.compile(
+    r"\b(?:memory|cognit(?:ion|ive)|hippocamp(?:us|al)|mental health|stress|brain function|"
+    r"functional connectivity|brain connectivity|neural recovery|neurocognitive)\b",
+    re.I,
+)
+_ANIMAL_RESEARCH_IDENTITY = re.compile(
+    r"\b(?:mouse|mice|rat|rats|rodent|animal model|animal models|non-human primate|macaque)\b",
+    re.I,
+)
+_TECHNICAL_MRI_TITLE = re.compile(
+    r"\b(?:mri|mr|magnetic resonance)\s+(?:physicist|engineer|technologist)|"
+    r"\b(?:physicist|engineer|technologist)\b.{0,40}\b(?:mri|magnetic resonance)\b",
+    re.I,
+)
+_YOUTH_SIGNAL = re.compile(r"\b(?:adolescen\w*|youth|young people|young adults?)\b", re.I)
+_PSYCH_HEALTH_SIGNAL = re.compile(
+    r"\b(?:mental health|psychological|well-?being|wellbeing|depress\w*|anxiety|stress)\b",
+    re.I,
+)
+_YOUTH_RESEARCH_DESIGN = re.compile(
+    r"\b(?:longitudinal|cohort|leisure|physical activity|lifestyle|behavio(?:u)?ral health|"
+    r"behavio(?:u)?ral research|population-based|prospective study|survey data)\b",
+    re.I,
+)
+
 
 def _norm(value: Any) -> str:
     text = "" if value is None else str(value)
@@ -162,6 +194,29 @@ def _strong(result: dict[str, Any], reason: str) -> dict[str, Any]:
     if str(result.get("role_family") or "").upper() == "POSTDOC" and str(dimensions.get("level") or "").upper() == "STRONG":
         if not result.get("blocker_codes") and not result.get("review_codes"):
             result["recommendation"] = "STRONG_APPLY"
+            result["pre_evaluation_disposition"] = "ELIGIBLE_FOR_EVALUATION"
+    evidence = copy.deepcopy(result.get("evidence") or {})
+    calibration = list(evidence.get("calibration") or [])
+    if reason not in calibration:
+        calibration.append(reason)
+    evidence["calibration"] = calibration
+    result["evidence"] = evidence
+    result["reason"] = reason + " " + str(result.get("reason") or "")
+    return result
+
+
+def _good_apply(result: dict[str, Any], reason: str) -> dict[str, Any]:
+    result = copy.deepcopy(result)
+    dimensions = copy.deepcopy(result.get("dimensions") or {})
+    dimensions["scientific"] = "GOOD"
+    result["dimensions"] = dimensions
+    review_codes = [code for code in list(result.get("review_codes") or []) if code != "UNCLEAR_DOMAIN"]
+    result["review_codes"] = review_codes
+    role_family = str(result.get("role_family") or "").upper()
+    level = str(dimensions.get("level") or "").upper()
+    if role_family in {"POSTDOC", "RESEARCH_FELLOW_POSTDOC"} and level in {"STRONG", "ACCEPTABLE"}:
+        if not result.get("blocker_codes") and not review_codes:
+            result["recommendation"] = "APPLY"
             result["pre_evaluation_disposition"] = "ELIGIBLE_FOR_EVALUATION"
     evidence = copy.deepcopy(result.get("evidence") or {})
     calibration = list(evidence.get("calibration") or [])
@@ -283,6 +338,41 @@ def evaluate_calibrated(job: dict[str, Any]) -> dict[str, Any]:
             result,
             "FACULTY_DISCIPLINE_PHILOSOPHY_E021",
             "The academic appointment is in Philosophy; cognitive-science adjacency does not establish discipline-level faculty fit.",
+        )
+
+    # Precision/cognitive neuroimaging is a documented profile-adjacent method domain.
+    # Require a target postdoctoral role, substantial detail, a clear MRI/fMRI method signal,
+    # and an independent cognitive/psychological outcome. Animal and technical-MRI identities
+    # are explicitly excluded from this promotion rule.
+    role_family = str(result.get("role_family") or "").upper()
+    if (
+        role_family in {"POSTDOC", "RESEARCH_FELLOW_POSTDOC"}
+        and has_full_detail
+        and not result.get("blocker_codes")
+        and _HUMAN_NEUROIMAGING_METHOD.search(f"{subject_title} {full_jd}")
+        and _NEUROIMAGING_OUTCOME.search(full_jd)
+        and not _ANIMAL_RESEARCH_IDENTITY.search(f"{subject_title} {full_jd}")
+        and not _TECHNICAL_MRI_TITLE.search(subject_title)
+    ):
+        result = _good_apply(
+            result,
+            "Human neuroimaging is central to this target-stage role and is paired with a directly relevant cognitive/psychological outcome; calibrate scientific fit to GOOD without inferring STRONG fit from specialist MRI features alone.",
+        )
+
+    # Youth/adolescent psychological-health research is promoted only when the posting also
+    # contains an independent study-design or behaviour/lifestyle signal. Generic psychology
+    # or mental-health language alone remains insufficient for APPLY routing.
+    if (
+        role_family in {"POSTDOC", "RESEARCH_FELLOW_POSTDOC"}
+        and has_full_detail
+        and not result.get("blocker_codes")
+        and _YOUTH_SIGNAL.search(f"{subject_title} {full_jd}")
+        and _PSYCH_HEALTH_SIGNAL.search(f"{subject_title} {full_jd}")
+        and _YOUTH_RESEARCH_DESIGN.search(full_jd)
+    ):
+        result = _good_apply(
+            result,
+            "The post combines youth/adolescent psychological-health research with an independent longitudinal/cohort, behavioural, leisure, lifestyle or physical-activity design signal; calibrate scientific fit to GOOD.",
         )
 
     # Recover a small set of genuine adjacent themes that E0.2 intentionally did not
