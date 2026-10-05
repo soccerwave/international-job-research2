@@ -1,9 +1,10 @@
 import hashlib
 import io
+import json
 import unittest
 
 from src.state.engine import WRITER_ROLE, apply_state, empty_state, state_bytes
-from src.state.r2_store import R2StateStore, StateConflict
+from src.state.r2_store import R2StateStore, StateConflict, compact_state_bytes
 
 
 class FakeClientError(Exception):
@@ -69,13 +70,20 @@ class Stage8R2Tests(unittest.TestCase):
         self.assertIsNone(loaded.etag)
         self.assertEqual(loaded.state["generation"], 0)
 
+    def test_compact_serialization_preserves_state_and_reduces_bytes(self):
+        state = next_state(empty_state())
+        compact = compact_state_bytes(state)
+        pretty = state_bytes(state)
+        self.assertEqual(json.loads(compact.decode("utf-8")), json.loads(pretty.decode("utf-8")))
+        self.assertLess(len(compact), len(pretty))
+
     def test_bootstrap_uses_create_only_and_verifies(self):
         result = self.store.bootstrap(empty_state(), run_id="bootstrap-1")
         self.assertIn("state/current/state.json", self.client.objects)
         self.assertEqual(self.client.put_log[-1][1], {"If-None-Match": "*"})
         loaded = self.store.load_current(allow_missing=False)
         self.assertTrue(loaded.exists)
-        self.assertEqual(result["sha256"], hashlib.sha256(state_bytes(loaded.state)).hexdigest())
+        self.assertEqual(result["sha256"], hashlib.sha256(compact_state_bytes(loaded.state)).hexdigest())
 
     def test_duplicate_bootstrap_conflicts(self):
         self.store.bootstrap(empty_state(), run_id="bootstrap-1")
