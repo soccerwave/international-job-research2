@@ -39,7 +39,15 @@ These caps prevent a model from claiming high confidence when the source evidenc
 
 The evaluator depends on an `LLMTransport` protocol rather than a specific vendor or model. A transport returns model name, token usage and latency when available. This allows later model tiering, batching, caching and escalation of important disagreements without changing L2 semantics.
 
+An OpenAI Structured Outputs adapter is available in `src/llm/openai_transport.py`. Its default model is `gpt-6-luna`, but model selection remains runtime configuration rather than evaluator policy. A stronger model can therefore be used later for selected disagreements without changing the semantic evaluator.
+
 No model is selected or authorized as production authority in L2.
+
+## Manual shadow runner
+
+`scripts/run_llm_shadow.py` runs the L2 evaluator over a supplied canonical-job JSON array or JSONL file. It requires `OPENAI_API_KEY`, accepts a configurable model and base URL, and writes shadow results and telemetry to separate append-only JSONL files.
+
+The runner does not impose a production job-count cap and is not wired into the production workflow. Sampling belongs to L4.
 
 ## Storage
 
@@ -64,7 +72,8 @@ L2 is acceptable when tests prove that:
 4. degraded vacancy evidence lowers allowed confidence;
 5. malformed JSON and transport failures create telemetry;
 6. valid results are stored only in a separate shadow stream;
-7. no production evaluator or production recommendation path is modified.
+7. the concrete Structured Outputs transport preserves schema, model and token-usage metadata;
+8. no production evaluator or production recommendation path is modified.
 
 ## Deferred to later roadmap stages
 
