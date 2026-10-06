@@ -84,6 +84,9 @@ jobs:
       - name: LLM L6 human review queue tests
         run: python -m unittest -v tests.test_llm_human_review_queue_l6
 
+      - name: LLM L6.1 durable evaluation cache tests
+        run: python -m unittest -v tests.test_llm_r2_cache_l6_1
+
       - name: Stage 5 observability certification
         run: python scripts/verify_stage5_observability.py
 

@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
 from typing import Any, Iterable
 
 from src.llm.openai_transport import OpenAIChatCompletionsTransport, OpenAITransportConfig
+from src.llm.r2_evaluation_cache import R2EvaluationCacheStore
 from src.llm.shadow_evaluator import ShadowEvaluationError, ShadowEvaluator
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -35,6 +37,21 @@ def _iter_jobs(path: Path) -> Iterable[dict[str, Any]]:
         yield row
 
 
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = str(os.getenv(name) or "").strip().lower()
+    if not raw:
+        return default
+    if raw in {"1", "true", "yes", "on"}:
+        return True
+    if raw in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError(f"{name} must be a boolean value")
+
+
+def _sha256_file(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes() if path.exists() else b"").hexdigest()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run the independent L2 LLM evaluator in shadow mode.")
     parser.add_argument("--input", required=True, type=Path, help="Canonical jobs JSON array or JSONL file")
@@ -44,7 +61,13 @@ def main() -> int:
         "--cache-path",
         type=Path,
         default=Path(os.environ["LLM_SHADOW_CACHE_PATH"]) if os.getenv("LLM_SHADOW_CACHE_PATH") else None,
-        help="Persistent successful-evaluation cache JSONL. Defaults to llm_evaluation_cache.jsonl beside shadow output.",
+        help="Local successful-evaluation cache JSONL. Defaults beside shadow output.",
+    )
+    parser.add_argument(
+        "--r2-cache",
+        action="store_true",
+        default=_env_bool("LLM_R2_CACHE_ENABLED", False),
+        help="Hydrate/sync the successful-evaluation cache through the existing R2 bucket.",
     )
     parser.add_argument("--profile", type=Path, default=DEFAULT_PROFILE)
     parser.add_argument("--model", default=os.getenv("LLM_SHADOW_MODEL", "gpt-6-luna"))
@@ -56,6 +79,12 @@ def main() -> int:
         raise SystemExit("OPENAI_API_KEY is required for the OpenAI shadow transport")
 
     cache_path = args.cache_path or args.shadow_output.with_name("llm_evaluation_cache.jsonl")
+    durable_store = None
+    durable_loaded = None
+    if args.r2_cache:
+        durable_store = R2EvaluationCacheStore.from_env()
+        durable_loaded = durable_store.hydrate(cache_path)
+
     profile = json.loads(args.profile.read_text(encoding="utf-8"))
     transport = OpenAIChatCompletionsTransport(
         OpenAITransportConfig(api_key=api_key, model=args.model, base_url=args.base_url)
@@ -83,6 +112,19 @@ def main() -> int:
             failed += 1
             print(json.dumps({"status": "FAILED", "job": job.get("canonical_id") or job.get("source_record_id"), "error": str(exc)}, ensure_ascii=False))
 
+    durable_sync = None
+    if durable_store is not None and durable_loaded is not None:
+        current_sha = _sha256_file(cache_path)
+        if current_sha != durable_loaded.sha256:
+            durable_sync = durable_store.sync(cache_path, expected_etag=durable_loaded.etag)
+        else:
+            durable_sync = {
+                "key": durable_loaded.key,
+                "sha256": current_sha,
+                "bytes": durable_loaded.bytes_loaded,
+                "unchanged": True,
+            }
+
     print(json.dumps({
         "status": "COMPLETE" if failed == 0 else "COMPLETE_WITH_ERRORS",
         "model": args.model,
@@ -94,6 +136,8 @@ def main() -> int:
         "shadow_output": str(args.shadow_output),
         "telemetry_output": str(args.telemetry_output),
         "cache_path": str(cache_path),
+        "durable_r2_cache": bool(args.r2_cache),
+        "durable_cache_sync": durable_sync,
     }, ensure_ascii=False, indent=2))
     return 0 if failed == 0 else 2
 
