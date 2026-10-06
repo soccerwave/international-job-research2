@@ -160,9 +160,9 @@ def select_shadow_sample(
 ) -> list[SampledJob]:
     """Select jobs for shadow LLM evaluation without changing their LLM context.
 
-    The deterministic evaluator may influence *which* jobs are sampled, but its outputs
-    are not copied into the LLM input. All STRONG_APPLY/APPLY jobs are retained even if
-    that makes the daily total exceed nominal sampling targets.
+    Rule-based outputs may influence selection only. They are never copied into the
+    independent LLM input. All STRONG_APPLY/APPLY jobs are retained even if that makes
+    the daily total exceed the nominal sampling targets.
     """
 
     rows = _dedupe_jobs(jobs)
@@ -181,18 +181,32 @@ def select_shadow_sample(
     positives.sort(key=lambda row: row.selection_rank)
     positive_ids = {_job_id(row.job) for row in positives}
 
-    review_pool = [
-        job
-        for job in rows
-        if _job_id(job) not in positive_ids
-        and (_recommendation(job) in REVIEW_RECOMMENDATIONS or _job_id(job) in review_more_job_ids)
+    review_more_pool = [
+        job for job in rows
+        if _job_id(job) not in positive_ids and _job_id(job) in review_more_job_ids
     ]
-    reviews = _round_robin_stratified(
-        review_pool,
+    review_more = _round_robin_stratified(
+        review_more_pool,
         target=config.review_target,
         seed=seed,
-        bucket="REVIEW_STRATIFIED",
+        bucket="REVIEW_MORE_STRATIFIED",
     )
+    review_more_ids = {_job_id(row.job) for row in review_more}
+
+    review_remaining = max(0, config.review_target - len(review_more))
+    e01_review_pool = [
+        job for job in rows
+        if _job_id(job) not in positive_ids
+        and _job_id(job) not in review_more_ids
+        and _recommendation(job) in REVIEW_RECOMMENDATIONS
+    ]
+    e01_reviews = _round_robin_stratified(
+        e01_review_pool,
+        target=review_remaining,
+        seed=seed,
+        bucket="E01_REVIEW_FILL",
+    )
+    reviews = review_more + e01_reviews
     selected_ids = positive_ids | {_job_id(row.job) for row in reviews}
 
     negative_pool = [
@@ -224,8 +238,20 @@ def select_shadow_sample(
         seed=seed,
         bucket="NEGATIVE_BLIND_EXPLORATION",
     )
+    negative_ids = targeted_ids | {_job_id(row.job) for row in blind}
 
-    return positives + reviews + targeted + blind
+    # If either negative sub-pool is too small, fill the unused quota from any remaining
+    # FULL/PARTIAL negative job rather than silently reducing coverage.
+    remaining_negative_target = max(0, config.negative_target - len(targeted) - len(blind))
+    backfill_pool = [job for job in negative_pool if _job_id(job) not in negative_ids]
+    backfill = _round_robin_stratified(
+        backfill_pool,
+        target=remaining_negative_target,
+        seed=seed,
+        bucket="NEGATIVE_BACKFILL",
+    )
+
+    return positives + reviews + targeted + blind + backfill
 
 
 def sampling_summary(sample: Iterable[SampledJob]) -> dict[str, Any]:
