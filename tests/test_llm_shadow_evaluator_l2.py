@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import tempfile
 import unittest
@@ -44,12 +45,15 @@ def canonical_job(*, detail_status: str = "FULL", full_jd: str | None = None) ->
 
 
 class FakeTransport:
-    def __init__(self, response: dict | str | Exception):
+    def __init__(self, response: dict | str | Exception, *, cache_identity: str = "fake:cheap-model"):
         self.response = response
         self.system_prompt = None
         self.user_prompt = None
+        self.cache_identity = cache_identity
+        self.calls = 0
 
     def generate(self, *, system_prompt, user_prompt, response_schema):
+        self.calls += 1
         self.system_prompt = system_prompt
         self.user_prompt = user_prompt
         if isinstance(self.response, Exception):
@@ -176,6 +180,103 @@ class LLMShadowEvaluatorL2Tests(unittest.TestCase):
         evaluator = ShadowEvaluator(transport=FakeTransport(bad), candidate_profile=PROFILE)
         with self.assertRaises(ShadowEvaluationError):
             evaluator.evaluate(canonical_job())
+
+    def test_identical_successful_evaluation_is_reused_without_second_api_call(self):
+        job = canonical_job()
+        llm_input = build_llm_input(job, PROFILE)
+        result = valid_result()
+        result["evaluation_id"] = llm_input["evaluation_id"]
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = Path(tmp) / "cache.jsonl"
+            shadow = Path(tmp) / "shadow.jsonl"
+            telemetry = Path(tmp) / "telemetry.jsonl"
+            transport = FakeTransport(result)
+            evaluator = ShadowEvaluator(
+                transport=transport,
+                candidate_profile=PROFILE,
+                cache_path=cache,
+                shadow_path=shadow,
+                telemetry_path=telemetry,
+            )
+            first = evaluator.evaluate(job)
+            second = evaluator.evaluate(job)
+            self.assertEqual(transport.calls, 1)
+            self.assertFalse(first["cache_hit"])
+            self.assertTrue(second["cache_hit"])
+            self.assertEqual(first["cache_fingerprint"], second["cache_fingerprint"])
+            events = [json.loads(line)["event"] for line in telemetry.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual(events[-1], "llm_evaluation_cache_hit")
+
+    def test_changed_vacancy_text_invalidates_cache(self):
+        original = canonical_job()
+        changed = canonical_job(full_jd="Materially changed vacancy with mandatory clinical registration.")
+        original_input = build_llm_input(original, PROFILE)
+        changed_input = build_llm_input(changed, PROFILE)
+        first_result = valid_result()
+        first_result["evaluation_id"] = original_input["evaluation_id"]
+        second_result = valid_result()
+        second_result["evaluation_id"] = changed_input["evaluation_id"]
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = Path(tmp) / "cache.jsonl"
+            first_transport = FakeTransport(first_result)
+            ShadowEvaluator(transport=first_transport, candidate_profile=PROFILE, cache_path=cache).evaluate(original)
+            second_transport = FakeTransport(second_result)
+            reused = ShadowEvaluator(transport=second_transport, candidate_profile=PROFILE, cache_path=cache).evaluate(changed)
+            self.assertEqual(first_transport.calls, 1)
+            self.assertEqual(second_transport.calls, 1)
+            self.assertFalse(reused["cache_hit"])
+
+    def test_changed_profile_content_invalidates_cache_even_if_version_is_unchanged(self):
+        job = canonical_job()
+        llm_input = build_llm_input(job, PROFILE)
+        result = valid_result()
+        result["evaluation_id"] = llm_input["evaluation_id"]
+        changed_profile = copy.deepcopy(PROFILE)
+        changed_profile["guardrails"] = {"synthetic_test_change": "do not infer a new capability"}
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = Path(tmp) / "cache.jsonl"
+            first_transport = FakeTransport(result)
+            ShadowEvaluator(transport=first_transport, candidate_profile=PROFILE, cache_path=cache).evaluate(job)
+            second_transport = FakeTransport(result)
+            second = ShadowEvaluator(transport=second_transport, candidate_profile=changed_profile, cache_path=cache).evaluate(job)
+            self.assertEqual(second_transport.calls, 1)
+            self.assertFalse(second["cache_hit"])
+
+    def test_changed_model_identity_invalidates_cache(self):
+        job = canonical_job()
+        llm_input = build_llm_input(job, PROFILE)
+        result = valid_result()
+        result["evaluation_id"] = llm_input["evaluation_id"]
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = Path(tmp) / "cache.jsonl"
+            ShadowEvaluator(
+                transport=FakeTransport(result, cache_identity="provider:model-a"),
+                candidate_profile=PROFILE,
+                cache_path=cache,
+            ).evaluate(job)
+            changed_model = FakeTransport(result, cache_identity="provider:model-b")
+            second = ShadowEvaluator(
+                transport=changed_model,
+                candidate_profile=PROFILE,
+                cache_path=cache,
+            ).evaluate(job)
+            self.assertEqual(changed_model.calls, 1)
+            self.assertFalse(second["cache_hit"])
+
+    def test_failed_evaluation_is_not_cached(self):
+        job = canonical_job()
+        llm_input = build_llm_input(job, PROFILE)
+        valid = valid_result()
+        valid["evaluation_id"] = llm_input["evaluation_id"]
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = Path(tmp) / "cache.jsonl"
+            failing = FakeTransport(RuntimeError("temporary outage"))
+            with self.assertRaises(ShadowEvaluationError):
+                ShadowEvaluator(transport=failing, candidate_profile=PROFILE, cache_path=cache).evaluate(job)
+            succeeding = FakeTransport(valid)
+            second = ShadowEvaluator(transport=succeeding, candidate_profile=PROFILE, cache_path=cache).evaluate(job)
+            self.assertEqual(succeeding.calls, 1)
+            self.assertFalse(second["cache_hit"])
 
 
 if __name__ == "__main__":
