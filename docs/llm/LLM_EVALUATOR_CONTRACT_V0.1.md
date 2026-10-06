@@ -1,6 +1,6 @@
 # LLM Evaluator Contract V0.1
 
-Status: DESIGN FREEZE CANDIDATE
+Status: FROZEN
 
 ## Purpose
 
