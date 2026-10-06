@@ -5,7 +5,7 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-FREEZE = ROOT / "LLM_EVALUATOR_FREEZE_L1.0.json"
+FREEZE = ROOT / "LLM_EVALUATOR_FREEZE_L1.1.json"
 
 
 def git_blob_sha(path: Path) -> str:
@@ -21,13 +21,15 @@ def git_blob_sha(path: Path) -> str:
 
 def main() -> int:
     if not FREEZE.exists():
-        raise SystemExit("LLM_EVALUATOR_FREEZE_L1.0.json is missing")
+        raise SystemExit("LLM_EVALUATOR_FREEZE_L1.1.json is missing")
 
     freeze = json.loads(FREEZE.read_text(encoding="utf-8"))
     if freeze.get("stage") != "L1_CANDIDATE_PROFILE_REPRESENTATION":
         raise SystemExit(f"Unexpected L1 stage: {freeze.get('stage')}")
     if freeze.get("status") != "ACCEPTED":
         raise SystemExit(f"L1 freeze is not accepted: {freeze.get('status')}")
+    if freeze.get("profile_version") != "LLM_CANDIDATE_PROFILE_V1.1.0":
+        raise SystemExit(f"Unexpected L1 profile version: {freeze.get('profile_version')}")
 
     protected = freeze.get("protected_git_blobs") or {}
     failures: list[str] = []
