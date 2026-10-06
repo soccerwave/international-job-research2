@@ -10,7 +10,7 @@
     ".github/workflows/test-stage5-4-live-artifact-durability.yml"
   ],
   "protected_git_blob_overrides": {
-    ".github/workflows/ci.yml": "7d12bd5e4a2fab21ce3f89c2267fdd67b780af00",
+    ".github/workflows/ci.yml": "bbe2254d7185e4074d0caf371f0eb280af6736e5",
     ".github/workflows/production.yml": "538c13b7d982848a734af481f6f78209f9500112",
     "scripts/verify_v1_freeze.py": "85efedfdfaf6958b38f617de1e00f64bd9d87fd6"
   }
