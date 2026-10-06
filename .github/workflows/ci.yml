@@ -67,7 +67,10 @@ jobs:
         run: python scripts/verify_llm_l1_freeze.py
 
       - name: LLM L2 shadow evaluator tests
-        run: python -m unittest -v tests.test_llm_shadow_evaluator_l2
+        run: >-
+          python -m unittest -v
+          tests.test_llm_shadow_evaluator_l2
+          tests.test_llm_openai_transport_l2
 
       - name: Stage 5 observability certification
         run: python scripts/verify_stage5_observability.py
