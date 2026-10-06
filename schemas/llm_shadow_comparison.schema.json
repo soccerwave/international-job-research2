@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schemas/llm_shadow_comparison.schema.json",
+  "title": "LLM Shadow Comparison V0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "job_id",
+    "evaluation_id",
+    "rule_evaluator_version",
+    "rule_recommendation",
+    "llm_decision",
+    "llm_fit_score",
+    "llm_confidence",
+    "evidence_quality",
+    "decision_distance",
+    "direction",
+    "is_disagreement",
+    "disagreement_tags",
+    "rule_score",
+    "score_comparison_status"
+  ],
+  "properties": {
+    "schema_version": {"const": "LLM_SHADOW_COMPARISON_V0.1"},
+    "job_id": {"type": "string", "minLength": 1},
+    "evaluation_id": {"type": "string", "minLength": 1},
+    "rule_evaluator_version": {"type": ["string", "null"]},
+    "rule_recommendation": {
+      "type": "string",
+      "enum": ["STRONG_APPLY", "APPLY", "REVIEW", "LOW_PRIORITY", "SKIP"]
+    },
+    "llm_decision": {
+      "type": "string",
+      "enum": ["STRONG_APPLY", "APPLY", "REVIEW", "SKIP"]
+    },
+    "llm_fit_score": {"type": "integer", "minimum": 0, "maximum": 100},
+    "llm_confidence": {"type": "integer", "minimum": 0, "maximum": 100},
+    "evidence_quality": {
+      "type": "string",
+      "enum": ["FULL_JD", "PARTIAL_JD", "LIMITED", "INSUFFICIENT"]
+    },
+    "decision_distance": {"type": "integer", "minimum": -4, "maximum": 4},
+    "direction": {
+      "type": "string",
+      "enum": ["AGREEMENT", "LLM_UPRANK", "LLM_DOWNRANK"]
+    },
+    "is_disagreement": {"type": "boolean"},
+    "disagreement_tags": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    },
+    "rule_score": {"type": "null"},
+    "score_comparison_status": {"const": "UNAVAILABLE_NO_RULE_COMPOSITE_SCORE"}
+  }
+}
