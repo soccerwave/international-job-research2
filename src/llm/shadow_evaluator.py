@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 from dataclasses import dataclass
@@ -10,6 +11,7 @@ from typing import Any, Protocol
 from jsonschema import Draft202012Validator
 
 from src.llm.context_quality import ContextQualityResult, clean_vacancy_text, prepare_vacancy_context
+from src.llm.evaluation_cache import append_cache_record, build_cache_fingerprint, load_successful_cache
 
 ROOT = Path(__file__).resolve().parents[2]
 INPUT_SCHEMA_PATH = ROOT / "schemas" / "llm_evaluator_input.schema.json"
@@ -219,6 +221,16 @@ def _user_prompt(llm_input: dict[str, Any], candidate_profile: dict[str, Any]) -
     )
 
 
+def _transport_identity(transport: LLMTransport) -> str:
+    explicit = getattr(transport, "cache_identity", None)
+    if callable(explicit):
+        explicit = explicit()
+    if isinstance(explicit, str) and explicit.strip():
+        return explicit.strip()
+    cls = type(transport)
+    return f"{cls.__module__}.{cls.__qualname__}"
+
+
 def _extract_json(text: str) -> dict[str, Any]:
     raw = (text or "").strip()
     if raw.startswith("```"):
@@ -266,13 +278,16 @@ class ShadowEvaluator:
         candidate_profile: dict[str, Any],
         shadow_path: Path | None = None,
         telemetry_path: Path | None = None,
+        cache_path: Path | None = None,
         max_context_chars: int | None = DEFAULT_MAX_CONTEXT_CHARS,
     ) -> None:
         self.transport = transport
         self.candidate_profile = candidate_profile
         self.shadow_path = shadow_path
         self.telemetry_path = telemetry_path
+        self.cache_path = cache_path
         self.max_context_chars = max_context_chars
+        self._cache = load_successful_cache(cache_path)
 
     def _telemetry(self, event: str, **fields: Any) -> None:
         _append_jsonl(
@@ -292,10 +307,38 @@ class ShadowEvaluator:
         )
         evaluation_id = llm_input["evaluation_id"]
         evidence_quality, confidence_cap = _evidence_policy(llm_input["job"])
+        system_prompt = _system_prompt()
+        user_prompt = _user_prompt(llm_input, self.candidate_profile)
+        output_schema = _load_schema(OUTPUT_SCHEMA_PATH)
+        transport_identity = _transport_identity(self.transport)
+        cache_fingerprint = build_cache_fingerprint(
+            llm_input=llm_input,
+            candidate_profile=self.candidate_profile,
+            system_prompt=system_prompt,
+            output_schema=output_schema,
+            transport_identity=transport_identity,
+        )
+
+        cached = self._cache.get(cache_fingerprint)
+        if cached is not None:
+            reused = copy.deepcopy(cached)
+            reused["cache_hit"] = True
+            reused["cache_reused_at"] = datetime.now(timezone.utc).isoformat()
+            _append_jsonl(self.shadow_path, reused)
+            self._telemetry(
+                "llm_evaluation_cache_hit",
+                evaluation_id=evaluation_id,
+                job_id=llm_input["job"]["job_id"],
+                cache_fingerprint=cache_fingerprint,
+                model=cached.get("model"),
+            )
+            return reused
+
         self._telemetry(
             "llm_evaluation_start",
             evaluation_id=evaluation_id,
             job_id=llm_input["job"]["job_id"],
+            cache_fingerprint=cache_fingerprint,
             detail_status=llm_input["job"]["detail_status"],
             context_original_chars=context.original_chars,
             context_cleaned_chars=context.cleaned_chars,
@@ -308,14 +351,15 @@ class ShadowEvaluator:
 
         try:
             response = self.transport.generate(
-                system_prompt=_system_prompt(),
-                user_prompt=_user_prompt(llm_input, self.candidate_profile),
-                response_schema=_load_schema(OUTPUT_SCHEMA_PATH),
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                response_schema=output_schema,
             )
         except Exception as exc:
             self._telemetry(
                 "llm_api_failure",
                 evaluation_id=evaluation_id,
+                cache_fingerprint=cache_fingerprint,
                 error_type=type(exc).__name__,
                 error=str(exc)[:500],
             )
@@ -327,6 +371,7 @@ class ShadowEvaluator:
             self._telemetry(
                 "llm_response_invalid",
                 evaluation_id=evaluation_id,
+                cache_fingerprint=cache_fingerprint,
                 error=str(exc)[:500],
                 model=response.model,
             )
@@ -346,6 +391,8 @@ class ShadowEvaluator:
             "output_tokens": response.output_tokens,
             "latency_ms": response.latency_ms,
             "evaluated_at": datetime.now(timezone.utc).isoformat(),
+            "cache_fingerprint": cache_fingerprint,
+            "cache_hit": False,
             "context_quality": {
                 "original_chars": context.original_chars,
                 "cleaned_chars": context.cleaned_chars,
@@ -358,9 +405,12 @@ class ShadowEvaluator:
             "llm_result": result,
         }
         _append_jsonl(self.shadow_path, shadow_record)
+        append_cache_record(self.cache_path, shadow_record)
+        self._cache[cache_fingerprint] = shadow_record
         self._telemetry(
             "llm_evaluation_stored",
             evaluation_id=evaluation_id,
+            cache_fingerprint=cache_fingerprint,
             decision=result["decision"],
             confidence=result["confidence"],
             evidence_quality=result["evidence_quality"],
