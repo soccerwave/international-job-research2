@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schemas/llm_evaluation.schema.json",
+  "title": "LLM Evaluation V0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "evaluation_id",
+    "decision",
+    "fit_score",
+    "confidence",
+    "domain_fit",
+    "methods_fit",
+    "seniority_fit",
+    "eligibility_risk",
+    "transferable_fit",
+    "hard_blocker",
+    "hard_blocker_reason",
+    "reason_short",
+    "evidence_quality"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "LLM_EVALUATION_V0.1"
+    },
+    "evaluation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "decision": {
+      "type": "string",
+      "enum": ["STRONG_APPLY", "APPLY", "REVIEW", "SKIP"]
+    },
+    "fit_score": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "confidence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "domain_fit": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "methods_fit": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "seniority_fit": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "eligibility_risk": {
+      "type": "string",
+      "enum": ["NONE", "LOW", "MEDIUM", "HIGH", "UNKNOWN"]
+    },
+    "transferable_fit": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "hard_blocker": {
+      "type": "boolean"
+    },
+    "hard_blocker_reason": {
+      "type": ["string", "null"]
+    },
+    "reason_short": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1200
+    },
+    "evidence_quality": {
+      "type": "string",
+      "enum": ["FULL_JD", "PARTIAL_JD", "LIMITED", "INSUFFICIENT"]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "hard_blocker": {"const": true}
+        },
+        "required": ["hard_blocker"]
+      },
+      "then": {
+        "properties": {
+          "hard_blocker_reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  ]
+}
