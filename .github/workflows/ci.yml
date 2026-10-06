@@ -57,6 +57,9 @@ jobs:
       - name: LLM L0 contract tests
         run: python -m unittest -v tests.test_llm_contract_l0
 
+      - name: LLM L0 freeze verification
+        run: python scripts/verify_llm_l0_freeze.py
+
       - name: Stage 5 observability certification
         run: python scripts/verify_stage5_observability.py
 
