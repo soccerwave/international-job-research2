@@ -72,6 +72,9 @@ jobs:
           tests.test_llm_shadow_evaluator_l2
           tests.test_llm_openai_transport_l2
 
+      - name: LLM L3 context quality tests
+        run: python -m unittest -v tests.test_llm_context_quality_l3
+
       - name: Stage 5 observability certification
         run: python scripts/verify_stage5_observability.py
 

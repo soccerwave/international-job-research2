@@ -9,9 +9,12 @@ from typing import Any, Protocol
 
 from jsonschema import Draft202012Validator
 
+from src.llm.context_quality import ContextQualityResult, clean_vacancy_text, prepare_vacancy_context
+
 ROOT = Path(__file__).resolve().parents[2]
 INPUT_SCHEMA_PATH = ROOT / "schemas" / "llm_evaluator_input.schema.json"
 OUTPUT_SCHEMA_PATH = ROOT / "schemas" / "llm_evaluation.schema.json"
+DEFAULT_MAX_CONTEXT_CHARS = 120_000
 
 PROHIBITED_INPUT_KEYS = {
     "rule_based_decision",
@@ -69,17 +72,21 @@ def _location_text(job: dict[str, Any]) -> str:
 
 
 def _supporting_text(job: dict[str, Any], key: str) -> str | None:
-    # L2 only consumes explicitly named source-derived fields if they already exist.
-    # L3 owns richer section extraction and boilerplate cleanup.
     for container_name in ("description", "requirements", "raw_extra"):
         container = job.get(container_name) or {}
         value = container.get(key)
         if isinstance(value, str) and value.strip():
-            return value.strip()
+            cleaned, _, _ = clean_vacancy_text(value)
+            return cleaned or None
     return None
 
 
-def build_llm_input(canonical_job: dict[str, Any], candidate_profile: dict[str, Any]) -> dict[str, Any]:
+def _build_llm_input_and_context(
+    canonical_job: dict[str, Any],
+    candidate_profile: dict[str, Any],
+    *,
+    max_context_chars: int | None = DEFAULT_MAX_CONTEXT_CHARS,
+) -> tuple[dict[str, Any], ContextQualityResult]:
     job_id = _job_id(canonical_job)
     if not job_id:
         raise ShadowEvaluationError("canonical job has no stable identifier")
@@ -93,16 +100,25 @@ def build_llm_input(canonical_job: dict[str, Any], candidate_profile: dict[str, 
     location = canonical_job.get("location") or {}
     contract = canonical_job.get("contract") or {}
 
-    full_text = description.get("full_jd") or ""
+    raw_full_text = str(description.get("full_jd") or "")
+    context = prepare_vacancy_context(raw_full_text, max_chars=max_context_chars)
+
     detail_status = str(description.get("detail_status") or "UNKNOWN").upper()
     if detail_status not in {"FULL", "PARTIAL", "UNAVAILABLE", "UNKNOWN"}:
         detail_status = "UNKNOWN"
+
+    responsibilities = _supporting_text(canonical_job, "responsibilities_text") or context.responsibilities_text
+    essential = _supporting_text(canonical_job, "essential_criteria_text") or context.essential_criteria_text
+    desirable = _supporting_text(canonical_job, "desirable_criteria_text") or context.desirable_criteria_text
 
     fingerprint_material = json.dumps(
         {
             "job_id": job_id,
             "profile_version": profile_version,
-            "full_text": full_text,
+            "full_text": context.full_text,
+            "responsibilities_text": responsibilities,
+            "essential_criteria_text": essential,
+            "desirable_criteria_text": desirable,
         },
         sort_keys=True,
         ensure_ascii=False,
@@ -122,10 +138,10 @@ def build_llm_input(canonical_job: dict[str, Any], candidate_profile: dict[str, 
             "contract_type": contract.get("term_type") or position.get("employment_type"),
             "seniority": position.get("role_level"),
             "detail_status": detail_status,
-            "full_text": str(full_text or ""),
-            "responsibilities_text": _supporting_text(canonical_job, "responsibilities_text"),
-            "essential_criteria_text": _supporting_text(canonical_job, "essential_criteria_text"),
-            "desirable_criteria_text": _supporting_text(canonical_job, "desirable_criteria_text"),
+            "full_text": context.full_text,
+            "responsibilities_text": responsibilities,
+            "essential_criteria_text": essential,
+            "desirable_criteria_text": desirable,
             "source_url": _source_url(canonical_job),
         },
     }
@@ -139,6 +155,20 @@ def build_llm_input(canonical_job: dict[str, Any], candidate_profile: dict[str, 
     for key in PROHIBITED_INPUT_KEYS:
         if f'"{key}"' in serialized:
             raise ShadowEvaluationError(f"prohibited rule-based field leaked into LLM input: {key}")
+    return payload, context
+
+
+def build_llm_input(
+    canonical_job: dict[str, Any],
+    candidate_profile: dict[str, Any],
+    *,
+    max_context_chars: int | None = DEFAULT_MAX_CONTEXT_CHARS,
+) -> dict[str, Any]:
+    payload, _ = _build_llm_input_and_context(
+        canonical_job,
+        candidate_profile,
+        max_context_chars=max_context_chars,
+    )
     return payload
 
 
@@ -236,11 +266,13 @@ class ShadowEvaluator:
         candidate_profile: dict[str, Any],
         shadow_path: Path | None = None,
         telemetry_path: Path | None = None,
+        max_context_chars: int | None = DEFAULT_MAX_CONTEXT_CHARS,
     ) -> None:
         self.transport = transport
         self.candidate_profile = candidate_profile
         self.shadow_path = shadow_path
         self.telemetry_path = telemetry_path
+        self.max_context_chars = max_context_chars
 
     def _telemetry(self, event: str, **fields: Any) -> None:
         _append_jsonl(
@@ -253,7 +285,11 @@ class ShadowEvaluator:
         )
 
     def evaluate(self, canonical_job: dict[str, Any]) -> dict[str, Any]:
-        llm_input = build_llm_input(canonical_job, self.candidate_profile)
+        llm_input, context = _build_llm_input_and_context(
+            canonical_job,
+            self.candidate_profile,
+            max_context_chars=self.max_context_chars,
+        )
         evaluation_id = llm_input["evaluation_id"]
         evidence_quality, confidence_cap = _evidence_policy(llm_input["job"])
         self._telemetry(
@@ -261,6 +297,13 @@ class ShadowEvaluator:
             evaluation_id=evaluation_id,
             job_id=llm_input["job"]["job_id"],
             detail_status=llm_input["job"]["detail_status"],
+            context_original_chars=context.original_chars,
+            context_cleaned_chars=context.cleaned_chars,
+            context_final_chars=context.final_chars,
+            context_truncated=context.truncated,
+            context_truncation_strategy=context.truncation_strategy,
+            context_boilerplate_lines_removed=context.boilerplate_lines_removed,
+            context_duplicate_blocks_removed=context.duplicate_blocks_removed,
         )
 
         try:
@@ -291,7 +334,6 @@ class ShadowEvaluator:
 
         result["evidence_quality"] = evidence_quality
         result["confidence"] = min(int(result["confidence"]), confidence_cap)
-        # Revalidate after evidence-quality normalization and degraded-evidence confidence cap.
         result = _validate_output(result, evaluation_id)
 
         shadow_record = {
@@ -304,6 +346,15 @@ class ShadowEvaluator:
             "output_tokens": response.output_tokens,
             "latency_ms": response.latency_ms,
             "evaluated_at": datetime.now(timezone.utc).isoformat(),
+            "context_quality": {
+                "original_chars": context.original_chars,
+                "cleaned_chars": context.cleaned_chars,
+                "final_chars": context.final_chars,
+                "boilerplate_lines_removed": context.boilerplate_lines_removed,
+                "duplicate_blocks_removed": context.duplicate_blocks_removed,
+                "truncated": context.truncated,
+                "truncation_strategy": context.truncation_strategy,
+            },
             "llm_result": result,
         }
         _append_jsonl(self.shadow_path, shadow_record)
