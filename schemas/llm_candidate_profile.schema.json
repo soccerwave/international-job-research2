@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schemas/llm_candidate_profile.schema.json",
+  "title": "LLM Candidate Profile V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "profile_version",
+    "career_stage",
+    "target_role_families",
+    "core_domains",
+    "adjacent_domains",
+    "methods",
+    "research_experience",
+    "transferable_strengths",
+    "hard_constraints",
+    "soft_preferences",
+    "do_not_infer",
+    "evaluation_guidance"
+  ],
+  "properties": {
+    "schema_version": {"const": "LLM_CANDIDATE_PROFILE_SCHEMA_V1"},
+    "profile_version": {"type": "string", "minLength": 1},
+    "career_stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["current_level", "summary"],
+      "properties": {
+        "current_level": {"type": "string", "minLength": 1},
+        "summary": {"type": "string", "minLength": 1}
+      }
+    },
+    "target_role_families": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "POSTDOC",
+          "RESEARCH_FELLOW_POSTDOC",
+          "ASSISTANT_PROFESSOR",
+          "LECTURER",
+          "RESEARCH_ASSISTANT_PROFESSOR",
+          "TENURE_TRACK",
+          "JUNIOR_PROFESSOR",
+          "RESEARCH_SCIENTIST",
+          "SCIENTIFIC_PROJECT_MANAGER",
+          "RESEARCH_PROJECT_MANAGER",
+          "RESEARCH_PROGRAMME_MANAGER",
+          "OTHER_RESEARCH"
+        ]
+      }
+    },
+    "core_domains": {"$ref": "#/$defs/nonemptyStringArray"},
+    "adjacent_domains": {"$ref": "#/$defs/nonemptyStringArray"},
+    "methods": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "level", "evidence"],
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "level": {
+            "type": "string",
+            "enum": ["CORE", "STRONG", "WORKING", "EXPOSURE", "DO_NOT_CLAIM"]
+          },
+          "evidence": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "research_experience": {"$ref": "#/$defs/nonemptyStringArray"},
+    "transferable_strengths": {"$ref": "#/$defs/nonemptyStringArray"},
+    "hard_constraints": {"$ref": "#/$defs/stringArray"},
+    "soft_preferences": {"$ref": "#/$defs/stringArray"},
+    "do_not_infer": {"$ref": "#/$defs/nonemptyStringArray"},
+    "evaluation_guidance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["recall_priority", "transferable_fit", "title_handling", "eligibility_handling"],
+      "properties": {
+        "recall_priority": {"type": "string", "minLength": 1},
+        "transferable_fit": {"type": "string", "minLength": 1},
+        "title_handling": {"type": "string", "minLength": 1},
+        "eligibility_handling": {"type": "string", "minLength": 1}
+      }
+    }
+  },
+  "$defs": {
+    "stringArray": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "nonemptyStringArray": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    }
+  }
+}
