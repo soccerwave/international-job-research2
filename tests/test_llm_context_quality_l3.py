@@ -65,6 +65,18 @@ class LLMContextQualityL3Tests(unittest.TestCase):
         self.assertIn("PhD in a relevant discipline.", sections["essential"])
         self.assertIn("Experience with neuroimaging.", sections["desirable"])
 
+    def test_non_target_heading_stops_section_capture(self):
+        text = (
+            "Essential Criteria\n"
+            "PhD in a relevant discipline.\n\n"
+            "Benefits\n"
+            "Private health insurance and pension contribution.\n"
+        )
+        cleaned, _, _ = clean_vacancy_text(text)
+        sections = extract_sections(cleaned)
+        self.assertIn("PhD in a relevant discipline.", sections["essential"])
+        self.assertNotIn("Private health insurance", sections["essential"])
+
     def test_no_truncation_when_under_soft_budget(self):
         text = "Role overview\n\nEssential Criteria\nPhD required."
         context = prepare_vacancy_context(text, max_chars=10_000)
@@ -94,6 +106,7 @@ class LLMContextQualityL3Tests(unittest.TestCase):
         context = prepare_vacancy_context(text, max_chars=4_000)
         self.assertIn("Mandatory evidence sentence.", context.full_text)
         self.assertGreater(len(context.full_text), 4_000)
+        self.assertEqual(context.truncation_strategy, "PROTECTED_SECTIONS_ONLY_OVER_SOFT_BUDGET")
 
     def test_build_llm_input_populates_sections_without_rule_output_leakage(self):
         text = (
