@@ -15,7 +15,7 @@ on:
         default: false
         type: boolean
       send_telegram:
-        description: Send the production summary and Excel report
+        description: Required only for strict release acceptance; normal clean report delivery is handled by the control-plane publisher
         required: false
         default: true
         type: boolean
@@ -245,13 +245,6 @@ jobs:
             | tee "artifacts/$PRODUCTION_RUN_ID/production_console.json"
       - name: Send strict release report to Telegram
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.release_acceptance }}
-        run: |
-          python scripts/send_stage9_telegram.py \
-            --summary "artifacts/$PRODUCTION_RUN_ID/production/report_summary.json" \
-            --report "artifacts/$PRODUCTION_RUN_ID/production/academic_job_report.xlsx"
-      - name: Send operational report to Telegram
-        if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && !inputs.release_acceptance && inputs.send_telegram) }}
-        continue-on-error: true
         run: |
           python scripts/send_stage9_telegram.py \
             --summary "artifacts/$PRODUCTION_RUN_ID/production/report_summary.json" \
