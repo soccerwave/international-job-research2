@@ -1,0 +1,17 @@
+{
+  "freeze_patch_version": "V1.1.1",
+  "base_manifest": "RELEASE_FREEZE_V1.1.0.json",
+  "status": "ACCEPTED_WORKFLOW_CLEANUP_REFRESH",
+  "reason": "Refresh only the V1 protected workflow surface after the accepted GitHub Actions cleanup and subsequent accepted production/CI wiring changes. All non-workflow protected blobs continue to inherit unchanged from RELEASE_FREEZE_V1.1.0.json.",
+  "retired_protected_paths": [
+    ".github/workflows/recover-production-state.yml",
+    ".github/workflows/test-public-readiness.yml",
+    ".github/workflows/test-publisher-build-performance.yml",
+    ".github/workflows/test-stage5-4-live-artifact-durability.yml"
+  ],
+  "protected_git_blob_overrides": {
+    ".github/workflows/ci.yml": "5898db49083890f36c73d154e9a2758bcd271793",
+    ".github/workflows/production.yml": "538c13b7d982848a734af481f6f78209f9500112",
+    "scripts/verify_v1_freeze.py": "85efedfdfaf6958b38f617de1e00f64bd9d87fd6"
+  }
+}
