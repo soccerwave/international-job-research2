@@ -81,6 +81,9 @@ jobs:
       - name: LLM L5 shadow comparison tests
         run: python -m unittest -v tests.test_llm_shadow_comparison_l5
 
+      - name: LLM L6 human review queue tests
+        run: python -m unittest -v tests.test_llm_human_review_queue_l6
+
       - name: Stage 5 observability certification
         run: python scripts/verify_stage5_observability.py
 
