@@ -71,6 +71,7 @@ jobs:
           python -m unittest -v
           tests.test_llm_shadow_evaluator_l2
           tests.test_llm_openai_transport_l2
+          tests.test_llm_r2_cache_l6_1
 
       - name: LLM L3 context quality tests
         run: python -m unittest -v tests.test_llm_context_quality_l3
