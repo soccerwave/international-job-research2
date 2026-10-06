@@ -14,7 +14,7 @@
   "protected_git_blobs": {
     "src/state/__init__.py": "79b6d83242957810c450a7bdd4bee62f35b308c5",
     "src/state/engine.py": "35c2323fea8d6dbadf4251187fa32ba0483e7e61",
-    "src/state/r2_store.py": "836fd03ff4d5d07f0d418e1d38f1c884a5812f38",
+    "src/state/r2_store.py": "34a5e653b2b9c962ef977a6fa56aa921ad4fc668",
     "src/runtime/state_writer.py": "4221044d8af11afe2c5d143ca5a0934b43ab21e0",
     "schemas/state.schema.json": "f8818e0aab5c0bc02b72fd9dd989739bde2be768",
     "requirements-cloud.txt": "c5cb19e4ec8277e7e58e97cb1cac45159062af8f",
@@ -85,6 +85,7 @@
     "The supported mutation boundary is src/runtime/state_writer.py and uses CENTRAL_FINALIZER writer role only.",
     "The live acceptance workflow enforces pipefail so a failing Python smoke test cannot be masked by tee.",
     "Live Cloudflare R2 acceptance verified bootstrap, generation 1 and 2 conditional writes, immutable backups, read-back integrity, and stale-writer rejection.",
-    "R2 state serialization is compact JSON only; state semantics and schema remain unchanged."
+    "R2 state serialization is compact JSON only; state semantics and schema remain unchanged.",
+    "Durable R2 state omits evaluation_dimensions after accepted storage compaction; recommendation and state semantics remain unchanged."
   ]
 }
