@@ -134,8 +134,8 @@ def _is_targeted_negative(job: dict[str, Any]) -> bool:
         review_codes
         or role_status in {"AMBIGUOUS", "CONDITIONAL", "PRIMARY", "SECONDARY"}
         or scientific in {"ADJACENT", "GOOD", "UNCLEAR"}
-        or level in {"REVIEW", "UNKNOWN", "ACCEPTABLE"}
-        or methods in {"REVIEW", "UNKNOWN", "TRANSFERABLE", "ACCEPTABLE"}
+        or level in {"REVIEW", "ACCEPTABLE"}
+        or methods in {"REVIEW", "TRANSFERABLE", "ACCEPTABLE"}
     )
 
 
