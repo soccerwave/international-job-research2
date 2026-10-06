@@ -93,6 +93,9 @@ jobs:
       - name: LLM L7 cheap Rescue triage tests
         run: python -m unittest -v tests.test_llm_rescue_triage_l7
 
+      - name: LLM L7.1 full evaluation routing tests
+        run: python -m unittest -v tests.test_llm_full_evaluation_routing_l7_1
+
       - name: Stage 5 observability certification
         run: python scripts/verify_stage5_observability.py
 
