@@ -1,0 +1,21 @@
+{
+  "stage": "L1_CANDIDATE_PROFILE_REPRESENTATION",
+  "status": "ACCEPTED",
+  "profile_version": "LLM_CANDIDATE_PROFILE_V1.1.0",
+  "protected_git_blobs": {
+    "schemas/llm_candidate_profile.schema.json": "b8452ecb690668089a30a0b12b48f963fbedbb34",
+    "config/llm_candidate_profile_v1.json": "5371de5388a6dd7de8a83ef77bd28ef57ef3cab2",
+    "tests/test_llm_candidate_profile_l1.py": "2ce895c8a0970790d3850684b897f47746f1dc1b",
+    "docs/llm/L1_ACCEPTANCE.md": "7d82ea9855100b8b0c0590e7e962297fde25d7a7"
+  },
+  "principles": [
+    "Recall > Precision",
+    "Candidate evidence and search preferences are structurally separate",
+    "Candidate evidence is grounded in the current supplied CV",
+    "Full vacancy text remains primary semantic evidence under L0",
+    "Transferable fit must not require exact keyword overlap",
+    "Exposure must not be silently promoted to specialist expertise",
+    "English Fluent and Spanish B1 are explicit evidence",
+    "Unsupported credentials, work authorization and higher language ability must not be inferred"
+  ]
+}
