@@ -11,6 +11,7 @@
   ],
   "protected_git_blob_overrides": {
     ".github/workflows/ci.yml": "6d21c59cb23c5091318afba3076b42f7a2942525",
-    ".github/workflows/production.yml": "538c13b7d982848a734af481f6f78209f9500112"
+    ".github/workflows/production.yml": "538c13b7d982848a734af481f6f78209f9500112",
+    "scripts/verify_v1_freeze.py": "85efedfdfaf6958b38f617de1e00f64bd9d87fd6"
   }
 }
