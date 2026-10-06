@@ -53,6 +53,27 @@ SECTION_ALIASES = {
     },
 }
 
+SECTION_STOP_HEADINGS = {
+    "benefits",
+    "what we offer",
+    "salary",
+    "compensation",
+    "location",
+    "contract",
+    "how to apply",
+    "application process",
+    "application procedure",
+    "closing date",
+    "about the university",
+    "about us",
+    "equal opportunities",
+    "equal opportunity",
+    "diversity and inclusion",
+    "further information",
+    "contact",
+    "contacts",
+}
+
 _HEADING_NORMALIZER = re.compile(r"[^a-z0-9']+")
 
 
@@ -87,6 +108,13 @@ def _is_heading(line: str) -> tuple[str, str] | None:
     return None
 
 
+def _is_stop_heading(line: str) -> bool:
+    stripped = line.strip().strip(":").strip()
+    if not stripped or len(stripped) > 90:
+        return False
+    return _normalize_heading(stripped) in SECTION_STOP_HEADINGS
+
+
 def _clean_lines(text: str) -> tuple[list[str], int]:
     removed = 0
     cleaned: list[str] = []
@@ -114,7 +142,7 @@ def _paragraphs(lines: Iterable[str]) -> list[str]:
                 paragraphs.append("\n".join(current).strip())
                 current = []
             continue
-        if _is_heading(line) and current:
+        if (_is_heading(line) or _is_stop_heading(line)) and current:
             paragraphs.append("\n".join(current).strip())
             current = [line]
             continue
@@ -154,6 +182,9 @@ def extract_sections(cleaned_text: str) -> dict[str, str | None]:
         if heading:
             current = heading[0]
             continue
+        if _is_stop_heading(line):
+            current = None
+            continue
         if current is not None:
             buckets[current].append(line)
 
@@ -183,9 +214,7 @@ def _truncate_preserving_sections(
     responsibilities: str | None,
     essential: str | None,
     desirable: str | None,
-) -> str:
-    if len(cleaned_text) <= max_chars:
-        return cleaned_text
+) -> tuple[str, str]:
     if max_chars < 4000:
         raise ValueError("max_chars must be at least 4000 when truncation is enabled")
 
@@ -196,10 +225,7 @@ def _truncate_preserving_sections(
 
     protected_text = "\n\n".join(protected).strip()
     if protected_text and len(protected_text) >= max_chars:
-        # Do not keyword-summarize or selectively drop requirements. If the protected
-        # source sections alone exceed the budget, retain them verbatim and allow the
-        # context to exceed the requested soft budget rather than silently losing them.
-        return protected_text
+        return protected_text, "PROTECTED_SECTIONS_ONLY_OVER_SOFT_BUDGET"
 
     marker = "\n\n[... middle source text omitted because context budget was exceeded ...]\n\n"
     remaining = max_chars - len(protected_text) - len(marker)
@@ -219,7 +245,7 @@ def _truncate_preserving_sections(
         parts.append(protected_text)
     if tail:
         parts.append(tail)
-    return marker.join(parts).strip()
+    return marker.join(parts).strip(), "SECTION_PRESERVING_HEAD_TAIL"
 
 
 def prepare_vacancy_context(text: str, *, max_chars: int | None = None) -> ContextQualityResult:
@@ -231,7 +257,7 @@ def prepare_vacancy_context(text: str, *, max_chars: int | None = None) -> Conte
     truncated = False
     strategy: str | None = None
     if max_chars is not None and len(cleaned) > max_chars:
-        final_text = _truncate_preserving_sections(
+        final_text, strategy = _truncate_preserving_sections(
             cleaned,
             max_chars=max_chars,
             responsibilities=sections["responsibilities"],
@@ -239,7 +265,8 @@ def prepare_vacancy_context(text: str, *, max_chars: int | None = None) -> Conte
             desirable=sections["desirable"],
         )
         truncated = final_text != cleaned
-        strategy = "SECTION_PRESERVING_HEAD_TAIL" if truncated else None
+        if not truncated:
+            strategy = None
 
     return ContextQualityResult(
         full_text=final_text,
