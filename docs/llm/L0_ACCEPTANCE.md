@@ -1,6 +1,6 @@
 # L0 Acceptance: LLM Evaluator Contract and Design Freeze
 
-Status: ACCEPTANCE CANDIDATE
+Status: ACCEPTED
 
 L0 is complete only when all criteria below are true.
 
@@ -40,4 +40,4 @@ L0 does not:
 
 ## Exit condition
 
-When the required artifacts are committed and frozen, proceed to L1: Candidate Profile Representation.
+The required artifacts are committed and frozen. Proceed to L1: Candidate Profile Representation.
