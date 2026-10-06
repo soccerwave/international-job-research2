@@ -32,6 +32,10 @@ class OpenAIChatCompletionsTransport:
             raise ValueError("OpenAI model must not be empty")
         self.config = config
 
+    @property
+    def cache_identity(self) -> str:
+        return f"openai-chat-completions:{self.config.model}"
+
     def generate(
         self,
         *,
