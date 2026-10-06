@@ -1,159 +1,241 @@
 {
-  "schema_version": "LLM_CANDIDATE_PROFILE_SCHEMA_V1",
-  "profile_version": "LLM_CANDIDATE_PROFILE_V1.0.0",
-  "career_stage": {
-    "current_level": "POSTDOCTORAL_RESEARCHER",
-    "summary": "Exercise neuroscience researcher with a PhD in Exercise Physiology, Marie Sklodowska-Curie postdoctoral fellowship experience, independent project leadership, human intervention research, stress biology, cognition and brain-health research exposure."
+  "schema_version": "LLM_CANDIDATE_PROFILE_SCHEMA_V1.1",
+  "profile_version": "LLM_CANDIDATE_PROFILE_V1.1.0",
+  "evidence_profile": {
+    "career_stage": {
+      "current_level": "POSTDOCTORAL_RESEARCHER",
+      "summary": "Marie Sklodowska-Curie Postdoctoral Fellow with a PhD in Exercise Physiology and a research trajectory spanning exercise-based interventions, health-related fitness, physical activity, exercise neuroscience, stress-related biology, cognition and brain health."
+    },
+    "education": [
+      {
+        "degree": "PhD",
+        "field": "Exercise Physiology - Neuromuscular",
+        "institution": "Shahid Beheshti University"
+      },
+      {
+        "degree": "MSc",
+        "field": "Exercise Physiology",
+        "institution": "Shahid Beheshti University"
+      },
+      {
+        "degree": "BSc",
+        "field": "Biology",
+        "institution": "Kharazmi University"
+      }
+    ],
+    "research_domains": [
+      "exercise physiology",
+      "exercise neuroscience",
+      "physical activity and brain health",
+      "exercise-based interventions",
+      "health-related fitness",
+      "psychological stress and cortisol",
+      "cognition and neurocognitive health",
+      "hippocampal plasticity and neurotrophic factors",
+      "glucocorticoid regulation",
+      "lifestyle and health",
+      "healthy ageing",
+      "children and youth exercise",
+      "autism and exercise interventions",
+      "virtual reality-based interventions",
+      "epigenetic and microbiota-related lifestyle research exposure"
+    ],
+    "methods": [
+      {
+        "name": "human exercise and physical activity intervention design",
+        "level": "CORE",
+        "evidence": "CV documents design and coordination of exercise-based randomized controlled trials and multiple human exercise or mind-body intervention projects."
+      },
+      {
+        "name": "randomized controlled trials",
+        "level": "CORE",
+        "evidence": "YoungFitT and Muévete conCiencia provide direct evidence of randomized intervention work."
+      },
+      {
+        "name": "exercise and fitness assessment",
+        "level": "CORE",
+        "evidence": "CV lists physiological measurements, physical fitness testing, anthropometric assessments and exercise physiology training."
+      },
+      {
+        "name": "psychological and cognitive assessment",
+        "level": "STRONG",
+        "evidence": "CV lists psychological and lifestyle questionnaires, cognitive assessments and multiple projects involving cognition, distress, stress and well-being."
+      },
+      {
+        "name": "cortisol and stress-biology measurement",
+        "level": "STRONG",
+        "evidence": "Published and ongoing work includes salivary cortisol, psychological distress, NR3C1 methylation and stress-related outcomes."
+      },
+      {
+        "name": "statistical analysis with SPSS and R",
+        "level": "STRONG",
+        "evidence": "Explicitly listed in the CV research skills section."
+      },
+      {
+        "name": "MRI and neuroimaging research",
+        "level": "WORKING",
+        "evidence": "CV documents MRI-related brain-health research and publications, but does not establish advanced independent fMRI preprocessing or specialist neuroimaging analysis expertise."
+      },
+      {
+        "name": "animal models of exercise and enriched environment",
+        "level": "STRONG",
+        "evidence": "PhD and publications include animal exercise interventions, hippocampal outcomes, BDNF, VEGF, glucocorticoid receptor work and enriched-environment protocols."
+      },
+      {
+        "name": "animal handling and behavioral testing",
+        "level": "WORKING",
+        "evidence": "CV lists animal handling, blood sampling, anesthesia, Morris Water Maze and Open Field testing."
+      },
+      {
+        "name": "epigenetic research",
+        "level": "EXPOSURE",
+        "evidence": "CV documents NR3C1 methylation research exposure and a publication involving glucocorticoid receptor gene DNA methylation."
+      },
+      {
+        "name": "gut microbiota research",
+        "level": "EXPOSURE",
+        "evidence": "CV documents participation in Y-Fit, which includes gut microbiota, but does not establish specialist microbiome bioinformatics expertise."
+      },
+      {
+        "name": "virtual reality and digital intervention research",
+        "level": "WORKING",
+        "evidence": "CV documents virtual reality-based exercise intervention experience and certified VR training."
+      },
+      {
+        "name": "grant writing and scientific proposal development",
+        "level": "STRONG",
+        "evidence": "CV documents competitive European funding through an MSCA Postdoctoral Fellowship and explicit grant-writing experience."
+      },
+      {
+        "name": "advanced independent fMRI preprocessing and analysis",
+        "level": "DO_NOT_CLAIM",
+        "evidence": "The CV supports MRI-related research involvement but does not support this specialist claim."
+      },
+      {
+        "name": "specialist wet-lab molecular biology",
+        "level": "DO_NOT_CLAIM",
+        "evidence": "The CV does not establish specialist wet-lab molecular biology expertise."
+      },
+      {
+        "name": "advanced machine learning or AI research",
+        "level": "DO_NOT_CLAIM",
+        "evidence": "The CV lists AI training, not advanced AI or machine-learning research expertise."
+      }
+    ],
+    "research_experience": [
+      "Marie Sklodowska-Curie Postdoctoral Fellow at the University of Barcelona leading the YoungFitT project.",
+      "Postdoctoral and research-associate experience in exercise physiology, exercise neuroscience, stress-related outcomes, cognition and brain-health research.",
+      "PhD research on pre-pubertal exercise, hippocampal plasticity, neurotrophic factors and glucocorticoid regulation using animal models.",
+      "Human intervention research across university students, older adults, children, children with autism spectrum disorder and adults with intellectual and developmental disabilities.",
+      "Collaborative research involving MRI, cortisol, NR3C1 methylation, lifestyle factors, gut microbiota and mixed-methods intervention components.",
+      "International collaboration, scientific writing, protocol development, project coordination, mentoring, dissemination and conference activity."
+    ],
+    "teaching_and_supervision": [
+      "University-level teaching in exercise physiology-related subjects, including Clinical Exercise Physiology, Pediatric Exercise Physiology and Laboratory Techniques in Exercise Physiology.",
+      "Supervision and co-supervision of MSc and undergraduate research projects.",
+      "Mentoring of postdoctoral and early-career researchers and supervision of an Erasmus+ trainee."
+    ],
+    "professional_experience": [
+      "Exercise Physiologist at FIT Club Sports Medicine Clinic.",
+      "Coach for children's games and sports.",
+      "Football coach and fitness instructor.",
+      "Head of Research Committee at the Iran Children's Play and Sports Association."
+    ],
+    "transferable_strengths": [
+      "Exercise-intervention expertise transfers naturally into adjacent health, behavioral, brain, stress, rehabilitation and prevention research when responsibilities are aligned.",
+      "Stress-biology and psychophysiology experience can transfer into broader human stress, resilience, mental-health and behavioral-medicine research.",
+      "RCT design, project coordination and multidisciplinary collaboration can transfer into lifestyle, prevention and health-promotion research.",
+      "Teaching, supervision, mentoring and grant-writing experience supports early-faculty and research-leadership roles in addition to postdoctoral roles.",
+      "Animal neuroscience experience can support translational exercise-neuroscience roles when the vacancy values cross-model understanding rather than a single specialist technique."
+    ],
+    "languages": [
+      {
+        "language": "English",
+        "level": "Fluent",
+        "evidence_source": "CV languages section"
+      },
+      {
+        "language": "Spanish",
+        "level": "Intermediate (B1)",
+        "evidence_source": "CV languages section"
+      }
+    ]
   },
-  "target_role_families": [
-    "POSTDOC",
-    "RESEARCH_FELLOW_POSTDOC",
-    "ASSISTANT_PROFESSOR",
-    "LECTURER",
-    "RESEARCH_ASSISTANT_PROFESSOR",
-    "TENURE_TRACK",
-    "JUNIOR_PROFESSOR",
-    "RESEARCH_SCIENTIST",
-    "OTHER_RESEARCH"
-  ],
-  "core_domains": [
-    "exercise neuroscience",
-    "exercise physiology",
-    "physical activity and brain health",
-    "exercise and psychological stress",
-    "stress biology and stress recovery",
-    "psychophysiology",
-    "cognition and neurocognitive health",
-    "human exercise interventions",
-    "physical activity and health",
-    "fitness and training research"
-  ],
-  "adjacent_domains": [
-    "behavioral medicine",
-    "mental health intervention research",
-    "healthy ageing",
-    "lifestyle intervention",
-    "rehabilitation research",
-    "digital health",
-    "virtual reality interventions",
-    "behavior change",
-    "health promotion",
-    "human performance",
-    "preventive health",
-    "epigenetics related to stress and exercise",
-    "gut microbiota in lifestyle and health research"
-  ],
-  "methods": [
-    {
-      "name": "human exercise and physical activity intervention design",
-      "level": "CORE",
-      "evidence": "Designed and conducted exercise and physical activity intervention studies across multiple populations, including randomized intervention work."
-    },
-    {
-      "name": "randomized controlled trials",
-      "level": "CORE",
-      "evidence": "Current and prior research includes randomized intervention design, implementation and outcome assessment."
-    },
-    {
-      "name": "exercise and fitness assessment",
-      "level": "CORE",
-      "evidence": "Background in exercise physiology, physical fitness assessment and training interventions."
-    },
-    {
-      "name": "psychological and cognitive assessment",
-      "level": "STRONG",
-      "evidence": "Research includes well-being, stress, cognition and psychological outcomes in human studies."
-    },
-    {
-      "name": "cortisol and HPA-axis related measurement",
-      "level": "STRONG",
-      "evidence": "Research experience includes cortisol and stress-biology outcomes and glucocorticoid-related work."
-    },
-    {
-      "name": "MRI and neuroimaging research",
-      "level": "WORKING",
-      "evidence": "Research collaborations and projects include MRI and brain-health outcomes; experience should not be interpreted as advanced independent fMRI preprocessing expertise."
-    },
-    {
-      "name": "statistical analysis",
-      "level": "STRONG",
-      "evidence": "Research background includes quantitative analysis using common statistical tools including SPSS and R."
-    },
-    {
-      "name": "epigenetic research",
-      "level": "EXPOSURE",
-      "evidence": "Project exposure includes NR3C1 methylation and stress-related epigenetic questions."
-    },
-    {
-      "name": "gut microbiota research",
-      "level": "EXPOSURE",
-      "evidence": "Current project includes microbiota sample collection and planned analyses; do not infer specialist microbiome bioinformatics expertise."
-    },
-    {
-      "name": "virtual reality and digital intervention research",
-      "level": "WORKING",
-      "evidence": "Current project includes development and use of VR-based intervention packages."
-    },
-    {
-      "name": "advanced independent fMRI preprocessing and analysis",
-      "level": "DO_NOT_CLAIM",
-      "evidence": "Neuroimaging exposure does not establish advanced independent preprocessing or specialist fMRI analysis expertise."
-    },
-    {
-      "name": "specialist wet-lab molecular biology",
-      "level": "DO_NOT_CLAIM",
-      "evidence": "Current evidence does not support specialist wet-lab molecular biology expertise."
-    },
-    {
-      "name": "advanced machine learning or AI research",
-      "level": "DO_NOT_CLAIM",
-      "evidence": "Do not infer advanced ML or AI research expertise from general quantitative or interdisciplinary work."
-    }
-  ],
-  "research_experience": [
-    "PhD research on exercise, hippocampal plasticity, glucocorticoid regulation and later brain health using animal models.",
-    "Postdoctoral and collaborative human research on exercise, physical activity, cognition, stress, brain health and lifestyle factors.",
-    "Marie Sklodowska-Curie postdoctoral fellowship leading the YoungFitT project at the University of Barcelona.",
-    "Independent and collaborative intervention research across young adults, older adults, children and other populations.",
-    "Research involving psychological stress, cortisol, cognition, MRI outcomes, epigenetic exposure, microbiota sampling and mixed-methods components.",
-    "Experience with scientific writing, protocol development, grant writing, project coordination, mentoring, dissemination and international collaboration."
-  ],
-  "transferable_strengths": [
-    "Can transfer exercise-intervention expertise into adjacent health, behavioral, brain, stress and rehabilitation research when responsibilities are substantively aligned.",
-    "Can transfer stress-biology and psychophysiology experience into broader human stress, resilience, mental-health or behavioral medicine projects.",
-    "Can transfer intervention-design and trial-management experience into lifestyle, prevention and health-promotion research.",
-    "Can contribute to interdisciplinary teams where exercise or physical activity is one component rather than the job title itself.",
-    "Strong grant, project-management, supervision and international collaboration experience can support research-intensive roles beyond narrow laboratory labels."
-  ],
-  "hard_constraints": [
-    "Do not treat roles requiring a medical degree, nursing degree or mandatory professional healthcare registration as eligible unless the vacancy explicitly allows an alternative qualification that this profile satisfies.",
-    "Do not treat advanced specialist methods explicitly required as mandatory if the profile only has exposure or DO_NOT_CLAIM status for that method.",
-    "Do not infer legal work authorization, citizenship, professional licensure or language proficiency that is not explicitly represented in the evidence available to the evaluator."
-  ],
-  "soft_preferences": [
-    "Prefer research-intensive roles with substantive overlap in exercise, physical activity, brain health, stress, cognition, psychophysiology, human intervention research or closely adjacent health domains.",
-    "Interdisciplinary roles should remain in consideration when the actual responsibilities fit transferable expertise even if the title or department name does not exactly match the core domains.",
-    "Postdoctoral, research fellow, early faculty and research scientist roles are generally stronger targets than roles dominated by administration or unrelated teaching."
-  ],
-  "do_not_infer": [
-    "advanced independent fMRI preprocessing or specialist neuroimaging analysis",
-    "electrophysiology",
-    "patch clamp",
-    "optogenetics",
-    "specialist wet-lab molecular biology expertise",
-    "advanced machine learning or AI research expertise",
-    "licensed clinical exercise professional status",
-    "medical degree",
-    "nursing degree",
-    "professional healthcare registration",
-    "specialist microbiome bioinformatics expertise",
-    "citizenship or unrestricted work authorization in any country",
-    "local-language proficiency beyond explicit evidence"
-  ],
+  "search_preferences": {
+    "target_role_families": [
+      "POSTDOC",
+      "RESEARCH_FELLOW_POSTDOC",
+      "ASSISTANT_PROFESSOR",
+      "LECTURER",
+      "RESEARCH_ASSISTANT_PROFESSOR",
+      "TENURE_TRACK",
+      "JUNIOR_PROFESSOR",
+      "RESEARCH_SCIENTIST",
+      "OTHER_RESEARCH"
+    ],
+    "core_domains": [
+      "exercise neuroscience",
+      "exercise physiology",
+      "physical activity and brain health",
+      "exercise and psychological stress",
+      "stress biology and stress recovery",
+      "psychophysiology",
+      "cognition and neurocognitive health",
+      "human exercise interventions",
+      "physical activity and health",
+      "fitness and training research"
+    ],
+    "adjacent_domains": [
+      "behavioral medicine",
+      "mental health intervention research",
+      "healthy ageing",
+      "lifestyle intervention",
+      "rehabilitation research",
+      "digital health",
+      "virtual reality interventions",
+      "behavior change",
+      "health promotion",
+      "human performance",
+      "preventive health",
+      "translational neuroscience where exercise expertise is relevant",
+      "epigenetics related to stress and exercise",
+      "gut microbiota in lifestyle and health research"
+    ],
+    "soft_preferences": [
+      "Prefer research-intensive roles with substantive overlap in exercise, physical activity, brain health, stress, cognition, psychophysiology, human intervention research or closely adjacent health domains.",
+      "Interdisciplinary roles should remain in consideration when responsibilities fit transferable expertise even if the title or department name does not exactly match core domains.",
+      "Postdoctoral, research fellow, early faculty and research scientist roles are generally stronger targets than roles dominated by unrelated administration or teaching."
+    ]
+  },
+  "guardrails": {
+    "hard_constraints": [
+      "Do not treat roles requiring a medical degree, nursing degree or mandatory professional healthcare registration as eligible unless the vacancy explicitly allows an alternative qualification supported by this profile.",
+      "Do not treat a specialist method as satisfied when the profile only has EXPOSURE or DO_NOT_CLAIM status for that method.",
+      "Do not infer citizenship, unrestricted work authorization or professional licensure from academic employment history.",
+      "Spanish may be treated as B1 evidence and English as fluent evidence; do not infer higher local-language proficiency without explicit evidence."
+    ],
+    "do_not_infer": [
+      "advanced independent fMRI preprocessing or specialist neuroimaging analysis",
+      "electrophysiology",
+      "patch clamp",
+      "optogenetics",
+      "specialist wet-lab molecular biology expertise",
+      "advanced machine learning or AI research expertise",
+      "licensed clinical exercise professional status",
+      "medical degree",
+      "nursing degree",
+      "professional healthcare registration",
+      "specialist microbiome bioinformatics expertise",
+      "citizenship or unrestricted work authorization in any country",
+      "Spanish proficiency above B1 without new explicit evidence",
+      "other local-language proficiency without explicit evidence"
+    ]
+  },
   "evaluation_guidance": {
     "recall_priority": "Recall is more important than precision. When a role is plausibly relevant but evidence is incomplete or interdisciplinary, prefer REVIEW over an unjustified SKIP.",
-    "transferable_fit": "Evaluate whether responsibilities and essential criteria can realistically be satisfied through transferable research, intervention, stress-biology, exercise-science or quantitative experience. Do not require exact keyword overlap.",
+    "transferable_fit": "Evaluate whether responsibilities and essential criteria can realistically be satisfied through transferable research, intervention, stress-biology, exercise-science, teaching, supervision, project or quantitative experience. Do not require exact keyword overlap.",
     "title_handling": "Job title alone is not decisive. Infer the actual scientific role from the full vacancy text, responsibilities and criteria before judging fit.",
-    "eligibility_handling": "Distinguish mandatory requirements from preferred ones. A preferred criterion should not become a hard blocker. If a mandatory criterion is ambiguous, represent uncertainty rather than inventing eligibility."
+    "eligibility_handling": "Distinguish mandatory requirements from preferred ones. A preferred criterion should not become a hard blocker. If a mandatory criterion is ambiguous, represent uncertainty rather than inventing eligibility.",
+    "evidence_preference_separation": "Treat evidence_profile as claims supported by the CV and search_preferences as targeting choices. Never convert a preference into evidence of qualification, and never suppress valid evidence merely because it is outside a preferred domain."
   }
 }
