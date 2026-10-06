@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LLM Rescue Triage V0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "triage_id",
+    "decision",
+    "reason_short"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "LLM_RESCUE_TRIAGE_V0.1"
+    },
+    "triage_id": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 64
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "PASS_TO_FULL_REVIEW",
+        "CLEARLY_OUT_OF_SCOPE"
+      ]
+    },
+    "reason_short": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300
+    }
+  }
+}
