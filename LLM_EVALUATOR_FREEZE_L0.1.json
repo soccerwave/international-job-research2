@@ -1,0 +1,22 @@
+{
+  "llm_contract_version": "LLM_EVALUATOR_CONTRACT_V0.1",
+  "pipeline_stage": "L0_LLM_CONTRACT_DESIGN_FREEZE",
+  "status": "ACCEPTED",
+  "principle": "RECALL_OVER_PRECISION_SOURCE_TEXT_FIRST_INDEPENDENT_SHADOW_EVALUATION",
+  "protected_git_blobs": {
+    "docs/llm/LLM_EVALUATOR_CONTRACT_V0.1.md": "eeb9623e5444f1c18e20bb924ff2ca0769dc8d61",
+    "docs/llm/L0_ACCEPTANCE.md": "83b099b12ffc6fcba06fe7f2e41b75190ee988c9",
+    "schemas/llm_evaluator_input.schema.json": "fbdb56016000b5fc2c725d78ed8a29068d5d381f",
+    "schemas/llm_evaluation.schema.json": "d689e2fae8a87d2bf6a30ac612cf5df5ba21b9ec",
+    "tests/test_llm_contract_l0.py": "de821d4be8e9842f77476cfddc9cd170eaa41ba4"
+  },
+  "frozen_invariants": [
+    "Full vacancy text is primary semantic evidence when available.",
+    "Rule-based decisions, scores, tiers, reasons and derived keyword hits are prohibited from the pre-evaluation LLM input.",
+    "The LLM remains shadow-only and cannot mutate production recommendations.",
+    "Rule-based and LLM results are compared only after independent LLM evaluation.",
+    "Candidate profile content is versioned separately and is defined in L1.",
+    "The contract is model and vendor agnostic."
+  ],
+  "next_stage": "L1_CANDIDATE_PROFILE_REPRESENTATION"
+}
