@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schemas/llm_evaluator_input.schema.json",
+  "title": "LLM Evaluator Input V0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "evaluation_id",
+    "job",
+    "candidate_profile_version"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "LLM_EVALUATOR_INPUT_V0.1"
+    },
+    "evaluation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "candidate_profile_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "job": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "job_id",
+        "title",
+        "institution",
+        "location",
+        "detail_status",
+        "full_text"
+      ],
+      "properties": {
+        "job_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string"
+        },
+        "institution": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "country": {
+          "type": ["string", "null"]
+        },
+        "contract_type": {
+          "type": ["string", "null"]
+        },
+        "seniority": {
+          "type": ["string", "null"]
+        },
+        "detail_status": {
+          "type": "string",
+          "enum": ["FULL", "PARTIAL", "UNAVAILABLE", "UNKNOWN"]
+        },
+        "full_text": {
+          "type": "string"
+        },
+        "responsibilities_text": {
+          "type": ["string", "null"]
+        },
+        "essential_criteria_text": {
+          "type": ["string", "null"]
+        },
+        "desirable_criteria_text": {
+          "type": ["string", "null"]
+        },
+        "source_url": {
+          "type": ["string", "null"]
+        }
+      }
+    }
+  }
+}
