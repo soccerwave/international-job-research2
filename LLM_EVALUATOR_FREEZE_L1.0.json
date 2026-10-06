@@ -1,0 +1,19 @@
+{
+  "stage": "L1_CANDIDATE_PROFILE_REPRESENTATION",
+  "status": "ACCEPTED",
+  "profile_version": "LLM_CANDIDATE_PROFILE_V1.0.0",
+  "protected_git_blobs": {
+    "schemas/llm_candidate_profile.schema.json": "19788455443395bdfa32d79342b9af891457a972",
+    "config/llm_candidate_profile_v1.json": "397779db18213839b409e6fa8a5d864ddcd6b46f",
+    "tests/test_llm_candidate_profile_l1.py": "2f3543d18e8860c7e78cea31aeeb8447566ada88",
+    "docs/llm/L1_ACCEPTANCE.md": "71e1e5f160dbd5082dbcd20ff9f962773d05dac3"
+  },
+  "principles": [
+    "Recall > Precision",
+    "Candidate profile is versioned independently from vacancy evaluation",
+    "Full vacancy text remains primary semantic evidence under L0",
+    "Transferable fit must not require exact keyword overlap",
+    "Exposure must not be silently promoted to specialist expertise",
+    "Unsupported credentials, language ability and work authorization must not be inferred"
+  ]
+}
