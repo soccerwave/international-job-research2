@@ -5,6 +5,8 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator, ValidationError
 
+from src.llm.shadow_evaluator import ShadowEvaluationError, _validate_output
+
 
 ROOT = Path(__file__).resolve().parents[1]
 INPUT_SCHEMA = json.loads((ROOT / "schemas" / "llm_evaluator_input.schema.json").read_text(encoding="utf-8"))
@@ -85,8 +87,8 @@ class LLMContractL0Tests(unittest.TestCase):
         result = self.valid_output()
         result["hard_blocker"] = True
         result["hard_blocker_reason"] = None
-        with self.assertRaises(ValidationError):
-            self.output_validator.validate(result)
+        with self.assertRaises(ShadowEvaluationError):
+            _validate_output(result, result["evaluation_id"])
 
     def test_decision_vocabulary_is_closed(self):
         result = self.valid_output()
