@@ -15,7 +15,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from src.llm.dual_path_routing import route_dual_path_candidates, routing_summary
-from src.llm.experiment_evidence import R2ExperimentEvidenceStore, build_experiment_evidence_bundle, serialize_experiment_evidence
+from src.llm.experiment_evidence import ExperimentEvidenceError, R2ExperimentEvidenceStore, build_experiment_evidence_bundle, serialize_experiment_evidence
 from src.llm.full_evaluation_routing import full_evaluation_summary, run_full_evaluations, select_full_review_candidates
 from src.llm.openai_transport import OpenAIChatCompletionsTransport, OpenAITransportConfig
 from src.llm.production_shadow import select_production_shadow_inputs
@@ -213,7 +213,25 @@ def main() -> int:
     )
     evidence_path = out / "experiment_evidence.json"
     evidence_path.write_bytes(serialize_experiment_evidence(bundle))
-    persisted = R2ExperimentEvidenceStore.from_env().persist(bundle)
+    evidence_store = R2ExperimentEvidenceStore.from_env()
+    try:
+        persisted = evidence_store.persist(bundle)
+        durable_evidence = {
+            "status": "PERSISTED",
+            "key": persisted.key,
+            "sha256": persisted.sha256,
+            "bytes": persisted.bytes,
+            "etag": persisted.etag,
+        }
+    except ExperimentEvidenceError as exc:
+        if "already exists" not in str(exc):
+            raise
+        durable_evidence = {
+            "status": "ALREADY_EXISTS",
+            "key": evidence_store.key_for(run_date=run_date, run_id=args.run_id),
+            "sha256": hashlib.sha256(evidence_path.read_bytes()).hexdigest(),
+            "bytes": evidence_path.stat().st_size,
+        }
 
     summary = {
         "status": "PASS" if not failures else "PASS_WITH_LLM_FAILURES",
@@ -233,12 +251,7 @@ def main() -> int:
         },
         "failures": len(failures),
         "durable_cache": cache_sync,
-        "durable_evidence": {
-            "key": persisted.key,
-            "sha256": persisted.sha256,
-            "bytes": persisted.bytes,
-            "etag": persisted.etag,
-        },
+        "durable_evidence": durable_evidence,
     }
     _write_json(out / "shadow_summary.json", summary)
     print(json.dumps(summary, ensure_ascii=False, indent=2))
