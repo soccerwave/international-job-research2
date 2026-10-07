@@ -40,7 +40,7 @@ def full(job_id: str, origin: str, decision: str, *, cache_hit: bool, input_toke
     return FullEvaluationRecord(
         job_id=job_id,
         origin=origin,
-        triage_id=f"triage-{job_id}" if origin == "LLM_RESCUE" else None,
+        triage_id=f"triage-{job_id}" if origin in {"LLM_RESCUE", "RESCUE_REJECT_AUDIT"} else None,
         evaluation={
             "evaluation_id": f"eval-{job_id}",
             "cache_hit": cache_hit,
@@ -128,6 +128,9 @@ class LLMExperimentEvidenceL73Tests(unittest.TestCase):
                 triage("rescue-1", "PASS_TO_FULL_REVIEW", cache_hit=False),
                 triage("rescue-reject", "CLEARLY_OUT_OF_SCOPE", cache_hit=True),
             ],
+            rescue_reject_audit_records=[
+                full("rescue-reject", "RESCUE_REJECT_AUDIT", "APPLY", cache_hit=False, input_tokens=3000),
+            ],
             disagreement_rows=[
                 {
                     "job_id": "main-1",
@@ -147,12 +150,14 @@ class LLMExperimentEvidenceL73Tests(unittest.TestCase):
         self.assertEqual(len(bundle["main_evaluations"]), 1)
         self.assertEqual(len(bundle["rescue_full_evaluations"]), 1)
         self.assertEqual(len(bundle["rescue_triage"]), 2)
+        self.assertEqual(len(bundle["rescue_reject_audit"]), 1)
         self.assertEqual(bundle["main_evaluations"][0]["rule_recommendation"], "APPLY")
         self.assertEqual(bundle["rescue_full_evaluations"][0]["llm_decision"], "REVIEW")
         self.assertEqual(bundle["summary"]["cache_hits"], 2)
-        self.assertEqual(bundle["summary"]["api_calls"], 2)
-        self.assertEqual(bundle["summary"]["input_tokens"], 3240)
-        self.assertEqual(bundle["summary"]["output_tokens"], 140)
+        self.assertEqual(bundle["summary"]["api_calls"], 3)
+        self.assertEqual(bundle["summary"]["input_tokens"], 6240)
+        self.assertEqual(bundle["summary"]["output_tokens"], 190)
+        self.assertEqual(bundle["summary"]["rescue_reject_audit_evaluations"], 1)
         self.assertEqual(bundle["summary"]["failures"], 1)
 
     def test_full_jd_is_not_duplicated_but_hash_is_stored(self):

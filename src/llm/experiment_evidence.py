@@ -145,6 +145,7 @@ def build_experiment_evidence_bundle(
     rescue_triage_records: Iterable[dict[str, Any]],
     disagreement_rows: Iterable[dict[str, Any]],
     failures: Iterable[dict[str, Any]],
+    rescue_reject_audit_records: Iterable[Any] = (),
     extra_summary: dict[str, Any] | None = None,
     created_at: str | None = None,
 ) -> dict[str, Any]:
@@ -172,18 +173,30 @@ def build_experiment_evidence_bundle(
             raise ExperimentEvidenceError(f"unsupported full evaluation origin: {origin or '<missing>'}")
 
     triage_rows = [_triage_evidence(row) for row in rescue_triage_records]
+    audit_rows: list[dict[str, Any]] = []
+    for row in rescue_reject_audit_records:
+        job_id = str(getattr(row, "job_id", "") or "").strip()
+        job = jobs.get(job_id)
+        if job is None:
+            raise ExperimentEvidenceError(
+                f"Rescue reject audit evaluation has no canonical job: {job_id or '<missing>'}"
+            )
+        audit_rows.append(_full_eval_evidence(job, row, origin="RESCUE_REJECT_AUDIT"))
+
     disagreement_list = [dict(row) for row in disagreement_rows]
     failure_list = [dict(row) for row in failures]
 
-    input_tokens = sum(int(row.get("input_tokens") or 0) for row in main + rescue_full + triage_rows)
-    output_tokens = sum(int(row.get("output_tokens") or 0) for row in main + rescue_full + triage_rows)
-    api_calls = sum(1 for row in main + rescue_full + triage_rows if not row.get("cache_hit"))
-    cache_hits = sum(1 for row in main + rescue_full + triage_rows if row.get("cache_hit"))
+    metered_rows = main + rescue_full + triage_rows + audit_rows
+    input_tokens = sum(int(row.get("input_tokens") or 0) for row in metered_rows)
+    output_tokens = sum(int(row.get("output_tokens") or 0) for row in metered_rows)
+    api_calls = sum(1 for row in metered_rows if not row.get("cache_hit"))
+    cache_hits = sum(1 for row in metered_rows if row.get("cache_hit"))
 
     summary: dict[str, Any] = {
         "main_full_evaluations": len(main),
         "rescue_triage_evaluations": len(triage_rows),
         "rescue_full_evaluations": len(rescue_full),
+        "rescue_reject_audit_evaluations": len(audit_rows),
         "disagreements": len(disagreement_list),
         "failures": len(failure_list),
         "cache_hits": cache_hits,
@@ -205,6 +218,7 @@ def build_experiment_evidence_bundle(
         "main_evaluations": main,
         "rescue_triage": triage_rows,
         "rescue_full_evaluations": rescue_full,
+        "rescue_reject_audit": audit_rows,
         "disagreements": disagreement_list,
         "failures": failure_list,
     }

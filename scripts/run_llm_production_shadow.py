@@ -20,6 +20,7 @@ from src.llm.full_evaluation_routing import full_evaluation_summary, run_full_ev
 from src.llm.openai_transport import OpenAIChatCompletionsTransport, OpenAITransportConfig
 from src.llm.production_shadow import select_production_shadow_inputs
 from src.llm.r2_evaluation_cache import R2EvaluationCacheStore
+from src.llm.rescue_reject_audit import rescue_reject_audit_summary, run_rescue_reject_audit, select_rescue_reject_audit_candidates
 from src.llm.rescue_triage import CLEARLY_OUT_OF_SCOPE, PASS_TO_FULL_REVIEW, RescueTriageError, RescueTriageEvaluator
 from src.llm.shadow_evaluator import ShadowEvaluator
 from src.reporting.llm_shadow_excel import build_llm_shadow_report_rows, build_llm_shadow_xlsx
@@ -61,6 +62,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--profile", type=Path, default=DEFAULT_PROFILE)
     parser.add_argument("--model", default=os.getenv("LLM_SHADOW_MODEL", "gpt-6-luna"))
     parser.add_argument("--base-url", default=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"))
+    parser.add_argument(
+        "--rescue-reject-audit-size",
+        type=int,
+        default=int(os.getenv("LLM_RESCUE_REJECT_AUDIT_SIZE", "10")),
+    )
     return parser
 
 
@@ -148,6 +154,17 @@ def main() -> int:
         if job_id not in triage_failed_ids:
             failures.append({"job_id": job_id, "origin": "RESCUE_TRIAGE", "error": "No triage result available"})
 
+    audit_selection = select_rescue_reject_audit_candidates(
+        routing,
+        rescue_triage_records=triage_records,
+        run_id=args.run_id,
+        sample_size=args.rescue_reject_audit_size,
+    )
+    audit_run = run_rescue_reject_audit(audit_selection, evaluator=full_evaluator)
+    failures.extend(dict(row) for row in audit_run.failures)
+    audit_rows = [_full_record_row(row) for row in audit_run.records]
+    _write_jsonl(out / "rescue_reject_audit.jsonl", audit_rows)
+
     full_rows = [_full_record_row(row) for row in full_run.records]
     _write_jsonl(out / "full_evaluations.jsonl", full_rows)
     _write_jsonl(out / "failures.jsonl", failures)
@@ -183,6 +200,7 @@ def main() -> int:
     )
     route_stats = routing_summary(routing)
     full_stats = full_evaluation_summary(selection, full_run)
+    audit_stats = rescue_reject_audit_summary(audit_selection, audit_run)
     extra_summary = {
         "main_candidates": len(prepared.main_job_ids),
         "rescue_candidates": len(prepared.rescue_candidate_job_ids),
@@ -196,6 +214,10 @@ def main() -> int:
         "full_failed": int(full_stats["failed"]),
         "llm_rescued_visible": len(report_rows.llm_rescued),
         "main_disagreements": len(report_rows.disagreements),
+        "rescue_reject_audit_population": int(audit_stats["population_size"]),
+        "rescue_reject_audit_selected": int(audit_stats["selected_sample_size"]),
+        "rescue_reject_audit_completed": int(audit_stats["completed"]),
+        "rescue_reject_audit_favorable_full_reviews": int(audit_stats["favorable_full_reviews"]),
     }
 
     run_date = datetime.now(timezone.utc).date().isoformat()
@@ -207,6 +229,7 @@ def main() -> int:
         canonical_jobs=prepared.jobs,
         full_evaluation_records=full_run.records,
         rescue_triage_records=triage_records,
+        rescue_reject_audit_records=audit_run.records,
         disagreement_rows=disagreement_rows,
         failures=failures,
         extra_summary=extra_summary,
@@ -243,6 +266,7 @@ def main() -> int:
         "routing": route_stats,
         "triage_decisions": dict(triage_decisions),
         "full_evaluation": full_stats,
+        "rescue_reject_audit": audit_stats,
         "report": {
             "main_rows": len(report_rows.main),
             "llm_rescued_rows": len(report_rows.llm_rescued),
