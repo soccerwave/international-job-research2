@@ -111,6 +111,9 @@ jobs:
       - name: LLM shadow R2 latest-report tests
         run: python -m unittest -v tests.test_llm_shadow_r2_latest_report
 
+      - name: Rescue reject audit tests
+        run: python -m unittest -v tests.test_llm_rescue_reject_audit
+
       - name: Stage 5 observability certification
         run: python scripts/verify_stage5_observability.py
 
