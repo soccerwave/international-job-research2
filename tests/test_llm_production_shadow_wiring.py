@@ -69,9 +69,9 @@ class LLMProductionShadowWiringTests(unittest.TestCase):
         self.assertLess(workflow.index(publish_step), workflow.index(shadow_step))
         shadow_tail = workflow[workflow.index(shadow_step):]
         self.assertIn("continue-on-error: true", shadow_tail)
-        self.assertIn("OPENAI_API_KEY: \${{ secrets.OPENAI_API_KEY }}", workflow)
+        self.assertIn("OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}", workflow)
         self.assertIn("LLM_SHADOW_MODEL: gpt-6-luna", workflow)
-        self.assertIn("--run-id \"prod-\${{ steps.source.outputs.run_id }}-\${{ steps.source.outputs.run_attempt }}\"", shadow_tail)
+        self.assertIn("--run-id \"prod-${{ steps.source.outputs.run_id }}-${{ steps.source.outputs.run_attempt }}\"", shadow_tail)
         self.assertIn("retention-days: 21", shadow_tail)
         self.assertIn("Rule production state/report remains authoritative", shadow_tail)
 
