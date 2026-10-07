@@ -259,6 +259,10 @@ def _validate_output(result: dict[str, Any], evaluation_id: str) -> dict[str, An
     errors = sorted(validator.iter_errors(result), key=lambda e: list(e.path))
     if errors:
         raise ShadowEvaluationError("invalid LLM output: " + "; ".join(e.message for e in errors))
+    if result.get("hard_blocker") is True:
+        reason = str(result.get("hard_blocker_reason") or "").strip()
+        if not reason:
+            raise ShadowEvaluationError("hard_blocker=true requires hard_blocker_reason")
     return result
 
 
