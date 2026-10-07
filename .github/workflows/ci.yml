@@ -96,6 +96,9 @@ jobs:
       - name: LLM L7.1 full evaluation routing tests
         run: python -m unittest -v tests.test_llm_full_evaluation_routing_l7_1
 
+      - name: LLM L7.2 reporting Excel tests
+        run: python -m unittest -v tests.test_llm_shadow_excel_l7_2
+
       - name: Stage 5 observability certification
         run: python scripts/verify_stage5_observability.py
 
