@@ -158,7 +158,8 @@ def _system_prompt() -> str:
 def _user_prompt(triage_input: RescueTriageInput) -> str:
     return json.dumps(
         {
-            "task": "Route this Rescue candidate using metadata only. Do not infer unseen full-JD content.",
+            "task": "Route this Rescue candidate using metadata only. Do not infer unseen full-JD content. Echo triage_id exactly as provided.",
+            "triage_id": triage_input.triage_id,
             "vacancy_metadata": triage_input.metadata,
             "candidate_summary": triage_input.candidate_summary,
             "decision_definitions": {

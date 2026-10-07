@@ -206,7 +206,8 @@ def _system_prompt() -> str:
 def _user_prompt(llm_input: dict[str, Any], candidate_profile: dict[str, Any]) -> str:
     return json.dumps(
         {
-            "task": "Evaluate scientific, methodological, seniority, transferable and eligibility fit independently.",
+            "task": "Evaluate scientific, methodological, seniority, transferable and eligibility fit independently. Echo evaluation_id exactly as provided.",
+            "evaluation_id": llm_input["evaluation_id"],
             "vacancy": llm_input["job"],
             "candidate_profile": candidate_profile,
             "decision_guidance": {
