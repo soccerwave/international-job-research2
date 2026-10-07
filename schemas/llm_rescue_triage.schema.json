@@ -11,7 +11,8 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "LLM_RESCUE_TRIAGE_V0.1"
+      "const": "LLM_RESCUE_TRIAGE_V0.1",
+      "type": "string"
     },
     "triage_id": {
       "type": "string",

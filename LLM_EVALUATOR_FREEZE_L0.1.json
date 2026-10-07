@@ -7,8 +7,8 @@
     "docs/llm/LLM_EVALUATOR_CONTRACT_V0.1.md": "eeb9623e5444f1c18e20bb924ff2ca0769dc8d61",
     "docs/llm/L0_ACCEPTANCE.md": "83b099b12ffc6fcba06fe7f2e41b75190ee988c9",
     "schemas/llm_evaluator_input.schema.json": "fbdb56016000b5fc2c725d78ed8a29068d5d381f",
-    "schemas/llm_evaluation.schema.json": "d689e2fae8a87d2bf6a30ac612cf5df5ba21b9ec",
-    "tests/test_llm_contract_l0.py": "de821d4be8e9842f77476cfddc9cd170eaa41ba4"
+    "schemas/llm_evaluation.schema.json": "4ad0ef27e80b44df9fe9384a6e44415333fc703e",
+    "tests/test_llm_contract_l0.py": "6817fc777734f679caeb393b5e79b080d12c800e"
   },
   "frozen_invariants": [
     "Full vacancy text is primary semantic evidence when available.",

@@ -22,7 +22,8 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "LLM_EVALUATION_V0.1"
+      "const": "LLM_EVALUATION_V0.1",
+      "type": "string"
     },
     "evaluation_id": {
       "type": "string",
@@ -30,7 +31,12 @@
     },
     "decision": {
       "type": "string",
-      "enum": ["STRONG_APPLY", "APPLY", "REVIEW", "SKIP"]
+      "enum": [
+        "STRONG_APPLY",
+        "APPLY",
+        "REVIEW",
+        "SKIP"
+      ]
     },
     "fit_score": {
       "type": "integer",
@@ -59,7 +65,13 @@
     },
     "eligibility_risk": {
       "type": "string",
-      "enum": ["NONE", "LOW", "MEDIUM", "HIGH", "UNKNOWN"]
+      "enum": [
+        "NONE",
+        "LOW",
+        "MEDIUM",
+        "HIGH",
+        "UNKNOWN"
+      ]
     },
     "transferable_fit": {
       "type": "integer",
@@ -70,7 +82,10 @@
       "type": "boolean"
     },
     "hard_blocker_reason": {
-      "type": ["string", "null"]
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "reason_short": {
       "type": "string",
@@ -79,25 +94,12 @@
     },
     "evidence_quality": {
       "type": "string",
-      "enum": ["FULL_JD", "PARTIAL_JD", "LIMITED", "INSUFFICIENT"]
+      "enum": [
+        "FULL_JD",
+        "PARTIAL_JD",
+        "LIMITED",
+        "INSUFFICIENT"
+      ]
     }
-  },
-  "allOf": [
-    {
-      "if": {
-        "properties": {
-          "hard_blocker": {"const": true}
-        },
-        "required": ["hard_blocker"]
-      },
-      "then": {
-        "properties": {
-          "hard_blocker_reason": {
-            "type": "string",
-            "minLength": 1
-          }
-        }
-      }
-    }
-  ]
+  }
 }
