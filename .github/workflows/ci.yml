@@ -99,6 +99,9 @@ jobs:
       - name: LLM L7.2 reporting Excel tests
         run: python -m unittest -v tests.test_llm_shadow_excel_l7_2
 
+      - name: LLM L7.3 durable experiment evidence tests
+        run: python -m unittest -v tests.test_llm_experiment_evidence_l7_3
+
       - name: Stage 5 observability certification
         run: python scripts/verify_stage5_observability.py
 
