@@ -136,8 +136,10 @@ class RescueTriageL7Tests(unittest.TestCase):
         result = self._evaluate(transport, candidate, vacancy)
         self.assertEqual(result["llm_result"]["decision"], PASS_TO_FULL_REVIEW)
         system_prompt = transport.calls[0]["system_prompt"]
+        user_payload = json.loads(transport.calls[0]["user_prompt"])
         schema = transport.calls[0]["response_schema"]
         self.assertIn("When uncertain, always return PASS_TO_FULL_REVIEW", system_prompt)
+        self.assertEqual(user_payload["triage_id"], build_rescue_triage_input(vacancy, candidate).triage_id)
         self.assertEqual(
             schema["properties"]["decision"]["enum"],
             [PASS_TO_FULL_REVIEW, CLEARLY_OUT_OF_SCOPE],
