@@ -104,6 +104,7 @@ class LLMShadowEvaluatorL2Tests(unittest.TestCase):
         evaluator.evaluate(canonical_job())
         self.assertIn("psychophysiology", transport.user_prompt)
         self.assertIn("LLM_CANDIDATE_PROFILE_V1.1.0", transport.user_prompt)
+        self.assertIn(llm_input["evaluation_id"], transport.user_prompt)
         self.assertNotIn("pre_evaluation_disposition", transport.user_prompt)
 
     def test_missing_jd_caps_confidence_and_marks_insufficient(self):
