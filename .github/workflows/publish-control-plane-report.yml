@@ -188,6 +188,19 @@ jobs:
             --run-id "prod-${{ steps.source.outputs.run_id }}-${{ steps.source.outputs.run_attempt }}" \
             --output-dir llm-shadow-output \
             --model "${LLM_SHADOW_MODEL}"
+      - name: Publish latest LLM shadow report to R2
+        if: ${{ steps.llm_shadow.outcome == 'success' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/publish_llm_shadow_report.py \
+            --summary llm-shadow-output/shadow_summary.json \
+            --report llm-shadow-output/llm_shadow_report.xlsx \
+            --production-run-id "prod-${{ steps.source.outputs.run_id }}-${{ steps.source.outputs.run_attempt }}" \
+            --github-run-id "${{ steps.source.outputs.run_id }}" \
+            --github-run-attempt "${{ steps.source.outputs.run_attempt }}" \
+            --commit "${{ steps.source.outputs.head_sha }}" \
+            --manifest-out llm-shadow-output/r2_report_publish.json
       - name: Encrypt LLM shadow review artifact
         if: ${{ always() }}
         shell: bash
