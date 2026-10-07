@@ -108,6 +108,9 @@ jobs:
       - name: Live LLM production shadow wiring tests
         run: python -m unittest -v tests.test_llm_production_shadow_wiring
 
+      - name: LLM shadow R2 latest-report tests
+        run: python -m unittest -v tests.test_llm_shadow_r2_latest_report
+
       - name: Stage 5 observability certification
         run: python scripts/verify_stage5_observability.py
 
