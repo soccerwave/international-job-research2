@@ -23,7 +23,7 @@ jobs:
   publish:
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 240
     env:
       R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
       R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -32,6 +32,8 @@ jobs:
       R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       ARTIFACT_ENCRYPTION_KEY: ${{ secrets.ARTIFACT_ENCRYPTION_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      LLM_SHADOW_MODEL: gpt-6-luna
       EVENT_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || '' }}
       INPUT_SOURCE_RUN_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || '' }}
     steps:
@@ -174,3 +176,43 @@ jobs:
           send_report(summary, report)
           print(json.dumps({'ok': True, 'delivered': True, 'run_id': summary['run_id'], 'report_variant': 'E021_E11_REVIEW'}))
           PY
+      - name: Run GPT-6 Luna shadow experiment
+        id: llm_shadow
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${OPENAI_API_KEY:-}" || { echo 'Missing OPENAI_API_KEY; Rule report is already published, shadow run skipped with failure.' >&2; exit 2; }
+          python scripts/run_llm_production_shadow.py \
+            --records downloaded-production/production/canonical_records.json \
+            --run-id "prod-${{ steps.source.outputs.run_id }}-${{ steps.source.outputs.run_attempt }}" \
+            --output-dir llm-shadow-output \
+            --model "${LLM_SHADOW_MODEL}"
+      - name: Encrypt LLM shadow review artifact
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [ -d llm-shadow-output ] || exit 0
+          mkdir -p secure-artifacts
+          bash scripts/secure_artifact.sh pack \
+            "." \
+            "secure-artifacts/llm-shadow-${{ steps.source.outputs.run_id }}-${{ steps.source.outputs.run_attempt }}.tar.gz.enc" \
+            "llm-shadow-output"
+      - name: Upload encrypted LLM shadow review artifact
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: llm-shadow-${{ steps.source.outputs.run_id }}-${{ steps.source.outputs.run_attempt }}
+          path: secure-artifacts/llm-shadow-${{ steps.source.outputs.run_id }}-${{ steps.source.outputs.run_attempt }}.tar.gz.enc
+          retention-days: 21
+          if-no-files-found: ignore
+      - name: Report shadow status without changing Rule authority
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          echo "LLM shadow step outcome: ${{ steps.llm_shadow.outcome }}"
+          if [ -s llm-shadow-output/shadow_summary.json ]; then
+            cat llm-shadow-output/shadow_summary.json
+          fi
+          echo "Rule production state/report remains authoritative regardless of the shadow outcome."
