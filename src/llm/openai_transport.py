@@ -68,7 +68,11 @@ class OpenAIChatCompletionsTransport:
             timeout=self.config.timeout_seconds,
         )
         latency_ms = int((time.perf_counter() - started) * 1000)
-        response.raise_for_status()
+        if not response.ok:
+            body = response.text[:4000]
+            raise RuntimeError(
+                f"OpenAI API HTTP {response.status_code}: {body}"
+            )
         payload = response.json()
 
         choices = payload.get("choices") or []
