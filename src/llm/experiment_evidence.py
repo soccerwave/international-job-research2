@@ -143,9 +143,9 @@ def build_experiment_evidence_bundle(
     canonical_jobs: Iterable[dict[str, Any]],
     full_evaluation_records: Iterable[Any],
     rescue_triage_records: Iterable[dict[str, Any]],
-    rescue_reject_audit_records: Iterable[Any] = (),
     disagreement_rows: Iterable[dict[str, Any]],
     failures: Iterable[dict[str, Any]],
+    rescue_reject_audit_records: Iterable[Any] = (),
     extra_summary: dict[str, Any] | None = None,
     created_at: str | None = None,
 ) -> dict[str, Any]:
