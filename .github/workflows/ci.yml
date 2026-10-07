@@ -105,6 +105,9 @@ jobs:
       - name: OpenAI strict structured-output compatibility tests
         run: python -m unittest -v tests.test_llm_openai_structured_output_compat
 
+      - name: Live LLM production shadow wiring tests
+        run: python -m unittest -v tests.test_llm_production_shadow_wiring
+
       - name: Stage 5 observability certification
         run: python scripts/verify_stage5_observability.py
 
