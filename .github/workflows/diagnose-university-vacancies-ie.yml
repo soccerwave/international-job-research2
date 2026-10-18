@@ -210,3 +210,20 @@ jobs:
           if not output['ok'] or not output.get('matches_reported_total'):
               raise SystemExit('urllib validation did not establish complete coverage')
           PY
+      - name: Assert patched Ireland collector end-to-end (read-only)
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from src.sources.core.university_vacancies import collect
+          records = collect(max_jobs=None, enrich_detail=True)
+          ids = [str(r.get('source_job_id') or r.get('id') or '') for r in records]
+          details = {}
+          for record in records:
+              status = str(record.get('detail_status') or record.get('full_jd_status') or 'unknown')
+              details[status] = details.get(status, 0) + 1
+          result = {'records': len(records), 'unique_ids': len(set(ids)), 'details': details}
+          print('PATCHED_COLLECTOR_RESULT=' + json.dumps(result), flush=True)
+          if not records or len(set(ids)) != len(ids):
+              raise SystemExit('Collector returned empty or duplicate records')
+          PY
