@@ -1,0 +1,97 @@
+name: Diagnose University Vacancies Ireland (isolated)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/diagnose-university-vacancies-ie.yml
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Probe API and HTML independently (read-only)
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import re
+          import time
+          import urllib.error
+          import urllib.request
+          from html.parser import HTMLParser
+
+          BASE = 'https://universityvacancies.com'
+          targets = [
+              ('home', BASE + '/'),
+              ('search', BASE + '/search'),
+              ('api_plain', BASE + '/api/job-posts/public?page=1&limit=3'),
+              ('api_browser_headers', BASE + '/api/job-posts/public?page=1&limit=3'),
+          ]
+
+          class LinkParser(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.links = []
+              def handle_starttag(self, tag, attrs):
+                  if tag == 'a':
+                      d = dict(attrs)
+                      if d.get('href'):
+                          self.links.append(d['href'])
+
+          results = {}
+          for label, url in targets:
+              headers = {'User-Agent': 'InternationalJobResearch-Diagnostic/1.0',
+                         'Accept': 'application/json' if 'api_' in label else 'text/html'}
+              if label == 'api_browser_headers':
+                  headers = {
+                      'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/130.0 Safari/537.36',
+                      'Accept': 'application/json, text/plain, */*',
+                      'Referer': BASE + '/search',
+                      'Origin': BASE,
+                  }
+              t0 = time.monotonic()
+              row = {'url_path': urllib.parse.urlsplit(url).path}
+              try:
+                  req = urllib.request.Request(url, headers=headers)
+                  try:
+                      res = urllib.request.urlopen(req, timeout=25)
+                  except urllib.error.HTTPError as exc:
+                      res = exc
+                  with res:
+                      row['http_status'] = res.status
+                      row['final_path'] = urllib.parse.urlsplit(res.url).path
+                      row['content_type'] = res.headers.get('Content-Type', '').split(';')[0]
+                      row['server'] = (res.headers.get('Server') or '')[:70]
+                      raw = res.read(500000)
+                      row['sample_bytes'] = len(raw)
+                      text = raw.decode('utf-8', errors='replace')
+                      if row['content_type'] == 'application/json':
+                          try:
+                              payload = json.loads(text)
+                              data = payload.get('data') if isinstance(payload, dict) else None
+                              row['json_keys'] = list(payload.keys())[:12] if isinstance(payload, dict) else []
+                              row['job_posts_count'] = len(data.get('jobPosts', [])) if isinstance(data, dict) and isinstance(data.get('jobPosts'), list) else None
+                              row['pagination'] = (data.get('pagination') if isinstance(data, dict) else None)
+                          except (ValueError, TypeError):
+                              row['json_parse_error'] = True
+                      elif 'html' in row['content_type']:
+                          parser = LinkParser()
+                          parser.feed(text)
+                          row['link_count'] = len(parser.links)
+                          row['job_like_links'] = len([x for x in parser.links if re.search(r'job|vacanc|position', x, re.I)])
+                          row['html_title'] = (re.search(r'<title[^>]*>(.*?)</title>', text, re.I | re.S).group(1).strip()[:90] if re.search(r'<title[^>]*>(.*?)</title>', text, re.I | re.S) else None)
+                          row['script_next_data'] = '__NEXT_DATA__' in text
+                          row['script_nuxt'] = '__NUXT__' in text
+              except Exception as exc:
+                  row['exception'] = f'{type(exc).__name__}: {str(exc)[:240]}'
+              row['elapsed_seconds'] = round(time.monotonic()-t0, 2)
+              results[label] = row
+              print(json.dumps({label: row}, ensure_ascii=False), flush=True)
+          print('DIAGNOSTIC_SUMMARY=' + json.dumps(results, ensure_ascii=False, sort_keys=True), flush=True)
+          PY
