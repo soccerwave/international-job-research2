@@ -26,7 +26,7 @@ concurrency:
 
 jobs:
   publish:
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name != 'workflow_run' || contains(fromJSON('["success","failure"]'), github.event.workflow_run.conclusion) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 240
     env:
@@ -106,6 +106,31 @@ jobs:
               expected = f"production-{run['id']}-{int(run.get('run_attempt') or 1)}"
               if not any(a.get('name') == expected and not a.get('expired') for a in (artifacts.get('artifacts') or [])):
                   raise SystemExit(f'Recovery refused: finalizer evidence artifact {expected} is missing')
+          elif run.get('conclusion') == 'failure' and os.environ.get('GITHUB_EVENT_NAME') == 'workflow_run':
+              # Only tolerate failed *transport* after successful collection and finalization.
+              jobs = get(f"https://api.github.com/repos/{repo}/actions/runs/{run['id']}/jobs?per_page=100")
+              all_jobs = jobs.get('jobs') or []
+              finalizers = [j for j in all_jobs if j.get('name') == 'production-finalizer']
+              failed = [j for j in all_jobs if j.get('conclusion') == 'failure']
+              if len(finalizers) != 1 or finalizers[0].get('conclusion') != 'success' or not failed:
+                  raise SystemExit('Failed production cannot be published: finalizer/failed jobs unsafe')
+              for job in failed:
+                  if not str(job.get('name') or '').startswith('production-shards ('):
+                      raise SystemExit(f"Unexpected failed job: {job.get('name')}")
+                  steps = job.get('steps') or []
+                  upload = [st for st in steps if st.get('name') == 'Upload encrypted production shard bundle']
+                  collected = [st for st in steps if st.get('name') == 'Run independent production shard']
+                  packed = [st for st in steps if st.get('name') == 'Encrypt shard bundle for Actions transport']
+                  if (len(upload) != 1 or upload[0].get('conclusion') != 'failure'
+                          or len(collected) != 1 or collected[0].get('conclusion') != 'success'
+                          or len(packed) != 1 or packed[0].get('conclusion') != 'success'
+                          or any(st.get('conclusion') == 'failure' and st.get('name') != 'Upload encrypted production shard bundle' for st in steps)):
+                      raise SystemExit(f"Failed shard not exclusively artifact transport: {job.get('name')}")
+              artifacts = get(f"https://api.github.com/repos/{repo}/actions/runs/{run['id']}/artifacts?per_page=100")
+              expected = f"production-{run['id']}-{int(run.get('run_attempt') or 1)}"
+              if not any(a.get('name') == expected and not a.get('expired') for a in (artifacts.get('artifacts') or [])):
+                  raise SystemExit('Finalizer evidence artifact missing; refusing incomplete publication')
+              print(f"WARNING: transport-only shard failure; verified finalizer and evidence for {run['id']}")
           elif run.get('conclusion') != 'success':
               raise SystemExit(f"Source run {run.get('id')} is not successful: {run.get('conclusion')}")
           if str(run.get('path') or '') != '.github/workflows/production.yml':
@@ -161,6 +186,18 @@ jobs:
               'today_actionable': summary.get('today_actionable'),
           }, indent=2))
           PY
+      - name: Flag missing-shard coverage explicitly
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          summary = json.loads(Path('downloaded-production/production/report_summary.json').read_text())
+          # Do not suppress a missing shard; leave an unambiguous workflow warning.
+          missing = summary.get('missing_shards') or []
+          if missing:
+              print('::warning title=Incomplete production coverage::Missing shards: ' + ', '.join(map(str, missing)))
+          PY
       - name: Build calibrated clean user-facing Excel and summary
         run: |
           python -m scripts.build_user_excel \
@@ -179,7 +216,7 @@ jobs:
             --commit '${{ steps.source.outputs.head_sha }}' \
             --manifest-out control-plane-publish-evidence.json
       - name: Deliver clean report after a manual production run
-        if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'workflow_dispatch') }}
+        if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && (github.event.workflow_run.event == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'failure')) }}
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_IDS: ${{ secrets.TELEGRAM_CHAT_IDS }}
@@ -194,8 +231,31 @@ jobs:
           report = Path('clean-report/international_academic_job_report.xlsx')
           if not report.is_file() or report.stat().st_size == 0:
               raise RuntimeError('Clean report is missing; refusing to report delivery success')
+          base_summary = json.loads(Path('downloaded-production/production/report_summary.json').read_text(encoding='utf-8'))
+          missing = base_summary.get('missing_shards') or []
           send_report(summary, report)
-          print(json.dumps({'ok': True, 'delivered': True, 'run_id': summary['run_id'], 'report_variant': 'E021_E11_REVIEW'}))
+          if missing:
+              import os
+              import urllib.parse
+              import urllib.request
+              token = os.environ.get('TELEGRAM_BOT_TOKEN') or ''
+              chat_ids = os.environ.get('TELEGRAM_CHAT_IDS') or ''
+              if not token or not chat_ids:
+                  raise RuntimeError('Missing Telegram configuration for required coverage warning')
+              message = ('⚠️ Daily job report was delivered with incomplete source coverage. '
+                         'Collector shard artifact upload failed; missing: ' + ', '.join(map(str, missing)) +
+                         '. Production workflow remains failed; missing source data was not included.')
+              for chat_id in chat_ids.split(','):
+                  chat_id = chat_id.strip()
+                  if not chat_id:
+                      continue
+                  data = urllib.parse.urlencode({'chat_id': chat_id, 'text': message}).encode()
+                  with urllib.request.urlopen(urllib.request.Request(
+                      f'https://api.telegram.org/bot{token}/sendMessage', data=data), timeout=30) as response:
+                      payload = json.load(response)
+                      if not payload.get('ok'):
+                          raise RuntimeError('Telegram coverage warning was not accepted')
+          print(json.dumps({'ok': True, 'delivered': True, 'run_id': summary['run_id'], 'missing_shards': missing}))
           PY
       - name: Run GPT-6 Luna shadow experiment
         id: llm_shadow
