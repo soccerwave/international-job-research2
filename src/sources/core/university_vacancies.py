@@ -1,13 +1,9 @@
 from __future__ import annotations
 
 from typing import Any
-import json
-from urllib.error import HTTPError
-from urllib.parse import urlencode
-from urllib.request import Request, urlopen
 
 from src.sources.shared.pagination import paginate
-from src.sources.shared.common import clean, html_to_text, make_record
+from src.sources.shared.common import clean, html_to_text, make_record, make_session
 
 BASE_URL = "https://universityvacancies.com"
 LISTING_URL = f"{BASE_URL}/search"
@@ -82,21 +78,14 @@ def _detail_from_payload(payload: Any) -> dict[str, Any] | None:
     return data if isinstance(data, dict) else None
 
 
-def _get_json(url: str, *, params: dict[str, int] | None = None, session=None) -> dict[str, Any]:
-    if session is not None:
-        response = session.get(url, params=params, timeout=(10, 45), allow_redirects=True)
-        response.raise_for_status()
-        return response.json()
-    full_url = url + ("?" + urlencode(params) if params else "")
-    req = Request(full_url, headers={"User-Agent": "InternationalJobResearch-Diagnostic/1.0", "Accept": "application/json"})
-    with urlopen(req, timeout=45) as response:
-        return json.load(response)
-
-
 def collect(*, max_jobs: int | None = 80, enrich_detail: bool = True, session=None) -> list[dict[str, Any]]:
+    s = session or make_session()
     limit = min(max_jobs, 100) if max_jobs is not None else 100
     def fetch(page):
-        payload = _get_json(PUBLIC_API_URL, params={"page": page, "limit": limit}, session=session)
+        response = s.get(PUBLIC_API_URL, params={"page": page, "limit": limit},
+                         timeout=(10, 45), allow_redirects=True)
+        response.raise_for_status()
+        payload = response.json()
         if not isinstance(payload.get("data"), dict) or "jobPosts" not in payload["data"]:
             raise ValueError("University Vacancies listing payload has no jobPosts")
         return parse_search_payload(payload), (payload["data"].get("pagination") or {}).get("total"), None
@@ -110,14 +99,19 @@ def collect(*, max_jobs: int | None = 80, enrich_detail: bool = True, session=No
 
         if enrich_detail and detail_status == "UNAVAILABLE":
             try:
-                detail_row = _detail_from_payload(_get_json(f"{PUBLIC_API_URL}/{item['id']}", session=session))
-                if detail_row:
-                    detail_text = html_to_text(str(detail_row.get("description") or ""))
-                    detail_status = "FULL" if len(detail_text) >= 200 else ("PARTIAL" if detail_text else "UNAVAILABLE")
-            except HTTPError as exc:
-                if exc.code != 404:
-                    detail_status = "FETCH_FAILED"
-                    failure = f"{type(exc).__name__}: {exc}"
+                detail_response = s.get(
+                    f"{PUBLIC_API_URL}/{item['id']}",
+                    timeout=(10, 45),
+                    allow_redirects=True,
+                )
+                if detail_response.status_code == 404:
+                    detail_status = "UNAVAILABLE"
+                else:
+                    detail_response.raise_for_status()
+                    detail_row = _detail_from_payload(detail_response.json())
+                    if detail_row:
+                        detail_text = html_to_text(str(detail_row.get("description") or ""))
+                        detail_status = "FULL" if len(detail_text) >= 200 else ("PARTIAL" if detail_text else "UNAVAILABLE")
             except Exception as exc:
                 detail_status = "FETCH_FAILED"
                 failure = f"{type(exc).__name__}: {exc}"
