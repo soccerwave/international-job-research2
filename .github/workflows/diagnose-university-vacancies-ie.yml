@@ -2,6 +2,11 @@ name: Diagnose University Vacancies Ireland (isolated)
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/sources/core/university_vacancies.py
+      - .github/workflows/diagnose-university-vacancies-ie.yml
   push:
     branches: [main]
     paths:
@@ -255,4 +260,21 @@ jobs:
           print('PATCHED_COLLECTOR_RESULT=' + json.dumps(result), flush=True)
           if not records or len(set(ids)) != len(ids):
               raise SystemExit('Collector returned empty or duplicate records')
+          PY
+      - name: Validate native Ireland collector urllib transport (read-only)
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from src.sources.core.university_vacancies import collect
+          records = collect(max_jobs=None, enrich_detail=True)
+          ids = [str(r['source']['source_job_id']) for r in records]
+          details = {}
+          for record in records:
+              status = record['description']['detail_status']
+              details[status] = details.get(status, 0) + 1
+          result = {'records': len(records), 'unique_ids': len(set(ids)), 'details': details}
+          print('NATIVE_COLLECTOR_RESULT=' + json.dumps(result), flush=True)
+          if len(records) < 100 or len(set(ids)) != len(ids) or details.get('FULL', 0) != len(records):
+              raise SystemExit('Native Ireland collector coverage or detail validation failed')
           PY
