@@ -7,9 +7,14 @@ on:
   workflow_dispatch:
     inputs:
       source_run_id:
-        description: Optional successful production workflow run ID to publish; defaults to latest successful run
+        description: Production workflow run ID; defaults to latest successful run
         required: false
         type: string
+      recover_oct18_report:
+        description: One-time recovery of 18 Oct 2026 report from completed finalizer artifact
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   actions: read
@@ -36,6 +41,7 @@ jobs:
       LLM_SHADOW_MODEL: gpt-6-luna
       EVENT_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || '' }}
       INPUT_SOURCE_RUN_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || '' }}
+      RECOVER_OCT18_REPORT: ${{ github.event_name == 'workflow_dispatch' && inputs.recover_oct18_report || false }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -85,7 +91,22 @@ jobs:
                   raise SystemExit('No successful production workflow run is available to publish')
               run = runs[0]
 
-          if run.get('conclusion') != 'success':
+          recovery = os.environ.get('RECOVER_OCT18_REPORT', '').lower() == 'true'
+          if recovery:
+              # Explicitly scoped to the single known incident; never weaken automatic publication.
+              if os.environ.get('GITHUB_EVENT_NAME') != 'workflow_dispatch' or str(run.get('id')) != '39095615068':
+                  raise SystemExit('Recovery is permitted only for manually selected production run 39095615068')
+              if run.get('status') != 'completed':
+                  raise SystemExit('Recovery source run has not completed')
+              jobs = get(f"https://api.github.com/repos/{repo}/actions/runs/{run['id']}/jobs?per_page=100")
+              finalizers = [job for job in (jobs.get('jobs') or []) if job.get('name') == 'production-finalizer']
+              if len(finalizers) != 1 or finalizers[0].get('conclusion') != 'success':
+                  raise SystemExit('Recovery refused: production-finalizer must have succeeded')
+              artifacts = get(f"https://api.github.com/repos/{repo}/actions/runs/{run['id']}/artifacts?per_page=100")
+              expected = f"production-{run['id']}-{int(run.get('run_attempt') or 1)}"
+              if not any(a.get('name') == expected and not a.get('expired') for a in (artifacts.get('artifacts') or [])):
+                  raise SystemExit(f'Recovery refused: finalizer evidence artifact {expected} is missing')
+          elif run.get('conclusion') != 'success':
               raise SystemExit(f"Source run {run.get('id')} is not successful: {run.get('conclusion')}")
           if str(run.get('path') or '') != '.github/workflows/production.yml':
               raise SystemExit(f"Source run {run.get('id')} is not the production workflow: {run.get('path')}")
