@@ -192,9 +192,9 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
-          summary = json.loads(Path('downloaded-production/production/report_summary.json').read_text())
-          # Do not suppress a missing shard; leave an unambiguous workflow warning.
-          missing = summary.get('missing_shards') or []
+          summary = json.loads(Path('downloaded-production/production/production_summary.json').read_text())
+          # The production summary nests finalizer diagnostics under core_result.
+          missing = (summary.get('core_result') or {}).get('missing_shards') or []
           if missing:
               print('::warning title=Incomplete production coverage::Missing shards: ' + ', '.join(map(str, missing)))
           PY
@@ -231,8 +231,8 @@ jobs:
           report = Path('clean-report/international_academic_job_report.xlsx')
           if not report.is_file() or report.stat().st_size == 0:
               raise RuntimeError('Clean report is missing; refusing to report delivery success')
-          base_summary = json.loads(Path('downloaded-production/production/report_summary.json').read_text(encoding='utf-8'))
-          missing = base_summary.get('missing_shards') or []
+          production_summary = json.loads(Path('downloaded-production/production/production_summary.json').read_text(encoding='utf-8'))
+          missing = (production_summary.get('core_result') or {}).get('missing_shards') or []
           send_report(summary, report)
           if missing:
               import os
