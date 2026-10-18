@@ -145,3 +145,68 @@ jobs:
                   'elapsed_seconds': round(time.monotonic()-started, 2),
               }), flush=True)
           PY
+      - name: Validate complete urllib pagination and detail access (read-only)
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import time
+          import urllib.parse
+          import urllib.request
+          from src.sources.core.university_vacancies import parse_search_payload
+
+          base = 'https://universityvacancies.com/api/job-posts/public'
+          def get_json(url):
+              req = urllib.request.Request(url, headers={
+                  'User-Agent': 'InternationalJobResearch-Diagnostic/1.0',
+                  'Accept': 'application/json'
+              })
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  if response.status != 200:
+                      raise RuntimeError(f'Unexpected HTTP {response.status}')
+                  return json.load(response)
+
+          started = time.monotonic()
+          seen = set()
+          total = None
+          pages = 0
+          missing_titles = 0
+          statuses = {}
+          examples = []
+          try:
+              while True:
+                  pages += 1
+                  if pages > 30:
+                      raise RuntimeError('Safety stop: pagination exceeded 30 pages')
+                  query = urllib.parse.urlencode({'page': pages, 'limit': 100})
+                  payload = get_json(base + '?' + query)
+                  data = payload.get('data') or {}
+                  pagination = data.get('pagination') or {}
+                  if total is None:
+                      total = pagination.get('total')
+                  rows = parse_search_payload(payload)
+                  raw_rows = data.get('jobPosts') or []
+                  missing_titles += len(raw_rows) - len(rows)
+                  duplicate_ids = [row['id'] for row in rows if row['id'] in seen]
+                  if duplicate_ids:
+                      raise RuntimeError('Duplicate job IDs between pages: ' + str(len(duplicate_ids)))
+                  seen.update(row['id'] for row in rows)
+                  examples.extend(row['id'] for row in rows[:2] if len(examples) < 3)
+                  print('URLLIB_PAGE=' + json.dumps({'page': pages, 'raw_rows': len(raw_rows), 'valid_rows': len(rows), 'reported_total': pagination.get('total'), 'has_next': pagination.get('hasNext')}), flush=True)
+                  if not pagination.get('hasNext'):
+                      break
+              for ident in examples[:3]:
+                  try:
+                      detail = get_json(base + '/' + urllib.parse.quote(str(ident), safe=''))
+                      row = detail.get('data') or {}
+                      description = str(row.get('description') or '')
+                      statuses[ident] = {'ok': True, 'description_chars': len(description)}
+                  except Exception as exc:
+                      statuses[ident] = {'ok': False, 'error': type(exc).__name__ + ': ' + str(exc)[:150]}
+              output = {'ok': True, 'pages': pages, 'unique_records': len(seen), 'reported_total': total, 'invalid_rows': missing_titles, 'matches_reported_total': len(seen) == total, 'detail_examples': statuses, 'elapsed_seconds': round(time.monotonic()-started, 2)}
+          except Exception as exc:
+              output = {'ok': False, 'pages_completed': pages-1, 'unique_records': len(seen), 'reported_total': total, 'error': type(exc).__name__ + ': ' + str(exc)[:220], 'elapsed_seconds': round(time.monotonic()-started, 2)}
+          print('URLLIB_VALIDATION=' + json.dumps(output, ensure_ascii=False), flush=True)
+          if not output['ok'] or not output.get('matches_reported_total'):
+              raise SystemExit('urllib validation did not establish complete coverage')
+          PY
