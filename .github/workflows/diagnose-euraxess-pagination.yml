@@ -29,6 +29,7 @@ jobs:
           import json
           import time
           from urllib.parse import urlparse, parse_qs
+          from src.sources.shared.euraxess import _increment_euraxess_page
           from src.sources.shared.euraxess import SEARCH_URL, parse_listing, next_listing_url
           from src.sources.shared.common import make_session
 
@@ -63,7 +64,7 @@ jobs:
                       'next_exists': bool(next_url), 'next_self': next_url == resp.url,
                       'html_chars': len(resp.text),
                   }
-                  if not jobs or not next_url or page in (2, 5, 10, 20, 40, 70):
+                  if not jobs or not next_url or page in (2, 5, 10, 20, 34, 35, 40, 70):
                       # Compare exactly the same listing URL under GET, as a read-only control.
                       try:
                           check = s.get(url, timeout=(10, 45), allow_redirects=True)
@@ -78,6 +79,25 @@ jobs:
                           }
                       except Exception as ex:
                           row['get_control_error'] = f'{type(ex).__name__}: {str(ex)[:140]}'
+                  row['requested_url'] = url
+                  row['response_url'] = resp.url
+                  row['next_url'] = next_url
+                  if next_url and (next_url in visited or page in (34, 35)):
+                      direct_url = _increment_euraxess_page(url)
+                      row['direct_increment_url'] = direct_url
+                      if direct_url and urlparse(direct_url).hostname == urlparse(SEARCH_URL).hostname:
+                          try:
+                              direct = s.get(direct_url, timeout=(10, 45), allow_redirects=True)
+                              direct.raise_for_status()
+                              direct_ids = {str(j['id']) for j in parse_listing(direct.text, direct.url)}
+                              row['direct_increment_probe'] = {
+                                  'status': direct.status_code, 'jobs': len(direct_ids),
+                                  'new_vs_seen': len(direct_ids - seen), 'same_as_current': direct_ids == ids,
+                                  'returned_url': direct.url,
+                                  'next_url': next_listing_url(direct.text, direct.url),
+                              }
+                          except Exception as ex:
+                              row['direct_increment_error'] = f'{type(ex).__name__}: {str(ex)[:160]}'
                   rows.append(row)
                   print('EURAXESS_PAGE=' + json.dumps(row, sort_keys=True), flush=True)
                   if not jobs:
@@ -88,6 +108,9 @@ jobs:
                       break
                   if ids and not new_ids:
                       stop = 'repeated_page_content'
+                      break
+                  if next_url in visited:
+                      stop = 'repeated_next_url'
                       break
                   url = next_url
                   time.sleep(1.5)
