@@ -1,0 +1,106 @@
+name: Diagnose EURAXESS pagination (read-only)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/diagnose-euraxess-pagination.yml
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install collector dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Inspect EURAXESS global pagination (no production writes)
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import time
+          from urllib.parse import urlparse, parse_qs
+          from src.sources.shared.euraxess import SEARCH_URL, parse_listing, next_listing_url
+          from src.sources.shared.common import make_session
+
+          s = make_session(retries=0)
+          visited = set()
+          seen = set()
+          url = SEARCH_URL
+          rows = []
+          stop = None
+          for page in range(1, 86):
+              if url in visited:
+                  stop = 'repeated_next_url'
+                  break
+              visited.add(url)
+              method = 'GET' if page == 1 else 'POST'
+              try:
+                  resp = s.request(method, url, timeout=(10, 45), allow_redirects=True)
+                  status = resp.status_code
+                  resp.raise_for_status()
+                  jobs = parse_listing(resp.text, resp.url)
+                  next_url = next_listing_url(resp.text, resp.url)
+                  ids = set(str(j['id']) for j in jobs)
+                  new_ids = ids - seen
+                  seen |= ids
+                  fp = hashlib.sha256('|'.join(sorted(ids)).encode()).hexdigest()[:12]
+                  row = {
+                      'page': page, 'method': method, 'status': status,
+                      'query_page': parse_qs(urlparse(url).query).get('page'),
+                      'returned_page': parse_qs(urlparse(resp.url).query).get('page'),
+                      'jobs': len(jobs), 'unique_ids_on_page': len(ids),
+                      'new_ids': len(new_ids), 'fingerprint': fp,
+                      'next_exists': bool(next_url), 'next_self': next_url == resp.url,
+                      'html_chars': len(resp.text),
+                  }
+                  if not jobs or not next_url or page in (2, 5, 10, 20, 40, 70):
+                      # Compare exactly the same listing URL under GET, as a read-only control.
+                      try:
+                          check = s.get(url, timeout=(10, 45), allow_redirects=True)
+                          check.raise_for_status()
+                          check_jobs = parse_listing(check.text, check.url)
+                          check_ids = set(str(j['id']) for j in check_jobs)
+                          row['get_control'] = {
+                              'status': check.status_code, 'jobs': len(check_jobs),
+                              'same_ids': check_ids == ids,
+                              'next_exists': bool(next_listing_url(check.text, check.url)),
+                              'html_chars': len(check.text),
+                          }
+                      except Exception as ex:
+                          row['get_control_error'] = f'{type(ex).__name__}: {str(ex)[:140]}'
+                  rows.append(row)
+                  print('EURAXESS_PAGE=' + json.dumps(row, sort_keys=True), flush=True)
+                  if not jobs:
+                      stop = 'empty_page'
+                      break
+                  if not next_url:
+                      stop = 'no_next_link'
+                      break
+                  if ids and not new_ids:
+                      stop = 'repeated_page_content'
+                      break
+                  url = next_url
+                  time.sleep(1.5)
+              except Exception as exc:
+                  stop = f'{type(exc).__name__}: {str(exc)[:180]}'
+                  break
+          summary = {
+              'pages': len(rows), 'unique_global_ids': len(seen),
+              'stop_reason': stop or 'diagnostic_page_limit_85',
+              'last_page': rows[-1] if rows else None,
+              'note': 'Read-only transport comparison; no country filtering, detail fetch, or state mutation',
+          }
+          print('EURAXESS_DIAGNOSTIC=' + json.dumps(summary, sort_keys=True), flush=True)
+          if not rows:
+              raise SystemExit('EURAXESS first-page diagnostic failed')
+          PY
