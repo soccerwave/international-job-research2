@@ -254,3 +254,68 @@ jobs:
                        'errors':[x.get('error') for x in outputs]}
               print('EURAXESS_SESSION_COMPARISON='+json.dumps(summary,sort_keys=True),flush=True)
           PY
+      - name: Audit country facets and next-page continuity for all targets (read-only)
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import time
+          from urllib.parse import urlencode
+          from src.sources.shared.common import make_session
+          from src.sources.shared.euraxess import (SEARCH_URL,TARGET_CODES,discover_country_facets,
+              discover_offer_type_facet,_facet_for_code,_assert_active_filter_response,
+              parse_listing,next_listing_url)
+          s=make_session(retries=0)
+          root=s.get(SEARCH_URL,timeout=(10,45))
+          root.raise_for_status()
+          facets=discover_country_facets(root.text)
+          offer=discover_offer_type_facet(root.text)
+          summary=[]
+          for code in TARGET_CODES:
+              facet=_facet_for_code(facets,code)
+              row={'country':code,'facet':facet,'offer_facet':offer}
+              if not facet or not offer:
+                  row['status']='missing_facet'
+              else:
+                  url=SEARCH_URL+'?'+urlencode([('f[0]',facet),('f[1]',offer)])
+                  try:
+                      a=s.get(url,timeout=(10,45))
+                      a.raise_for_status()
+                      first=parse_listing(a.text,a.url)
+                      nxt=next_listing_url(a.text,a.url)
+                      row.update({'first_status':a.status_code,'first_jobs':len(first),
+                                  'first_ids':len({str(x['id']) for x in first}),
+                                  'next_exists':bool(nxt),'next_preserves_facets':bool(nxt and facet in __import__('urllib.parse',fromlist=['parse_qsl']).parse_qs(__import__('urllib.parse',fromlist=['urlparse']).urlparse(nxt).query).get('f[0]',[]))})
+                      try:
+                          _assert_active_filter_response(a,facet,offer)
+                          row['filter_active']=True
+                      except Exception as exc:
+                          row['filter_active']=False
+                          row['filter_error']=str(exc)[:130]
+                      if nxt:
+                          b=s.get(nxt,timeout=(10,45))
+                          b.raise_for_status()
+                          second=parse_listing(b.text,b.url)
+                          fids={str(x['id']) for x in first}
+                          sids={str(x['id']) for x in second}
+                          row.update({'second_status':b.status_code,'second_jobs':len(second),
+                                      'second_new_ids':len(sids-fids),'second_next_exists':bool(next_listing_url(b.text,b.url))})
+                          try:
+                              _assert_active_filter_response(b,facet,offer)
+                              row['second_filter_active']=True
+                          except Exception:
+                              row['second_filter_active']=False
+                      row['status']='observed'
+                  except Exception as exc:
+                      row['status']='request_error'
+                      row['error']=type(exc).__name__+': '+str(exc)[:140]
+              summary.append(row)
+              print('EURAXESS_COUNTRY_AUDIT='+json.dumps(row,sort_keys=True),flush=True)
+              time.sleep(1.5)
+          counts={'active':sum(x.get('filter_active') is True for x in summary),
+                  'inactive':sum(x.get('filter_active') is False for x in summary),
+                  'missing':sum(x.get('status')=='missing_facet' for x in summary),
+                  'errors':sum(x.get('status')=='request_error' for x in summary)}
+          print('EURAXESS_COUNTRY_SUMMARY='+json.dumps({'countries':len(summary),**counts},sort_keys=True),flush=True)
+          if len(summary)!=len(TARGET_CODES): raise SystemExit('Not all country facets examined')
+          PY
