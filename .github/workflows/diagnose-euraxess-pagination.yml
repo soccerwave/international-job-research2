@@ -127,3 +127,63 @@ jobs:
           if not rows:
               raise SystemExit('EURAXESS first-page diagnostic failed')
           PY
+      - name: Compare Next-link and explicit-page traversal (read-only)
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import time
+          from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
+          from src.sources.shared.euraxess import SEARCH_URL, parse_listing, next_listing_url
+          from src.sources.shared.common import make_session
+
+          session = make_session(retries=0)
+          # Start both methods from the identical live unfiltered search page.
+          def page_url(number):
+              parsed = urlparse(SEARCH_URL)
+              pairs = [(k,v) for k,v in parse_qsl(parsed.query) if k != 'page']
+              if number: pairs.append(('page',str(number)))
+              return urlunparse(parsed._replace(query=urlencode(pairs)))
+
+          def traverse(mode, max_pages=16):
+              current = SEARCH_URL
+              seen = set()
+              visited = set()
+              output = []
+              for index in range(max_pages):
+                  if current in visited:
+                      return output, seen, 'repeated_url'
+                  visited.add(current)
+                  try:
+                      response = session.get(current, timeout=(10,45), allow_redirects=True)
+                      response.raise_for_status()
+                      jobs = parse_listing(response.text, response.url)
+                      ids = {str(job['id']) for job in jobs}
+                      nxt = next_listing_url(response.text, response.url)
+                      row = {'mode':mode,'index':index,'requested_url':current,'returned_url':response.url,
+                             'jobs':len(jobs),'new_ids':len(ids-seen),'unique_ids':len(ids),
+                             'next_url':nxt,'response_status':response.status_code}
+                      output.append(row)
+                      print('EURAXESS_COMPARE_PAGE='+json.dumps(row,sort_keys=True),flush=True)
+                      if not jobs: return output,seen,'empty_page'
+                      seen.update(ids)
+                      if mode == 'next':
+                          if not nxt: return output,seen,'no_next'
+                          if nxt in visited: return output,seen,'next_loop'
+                          current = nxt
+                      else:
+                          current = page_url(index+1)
+                      time.sleep(1.5)
+                  except Exception as exc:
+                      return output,seen,type(exc).__name__+': '+str(exc)[:120]
+              return output,seen,'page_cap_16'
+
+          next_rows,next_ids,next_stop=traverse('next')
+          page_rows,page_ids,page_stop=traverse('page')
+          summary={'next':{'pages':len(next_rows),'ids':len(next_ids),'stop':next_stop},
+                   'page':{'pages':len(page_rows),'ids':len(page_ids),'stop':page_stop},
+                   'shared_ids':len(next_ids & page_ids),'only_next':len(next_ids-page_ids),
+                   'only_page':len(page_ids-next_ids)}
+          print('EURAXESS_COMPARE_SUMMARY='+json.dumps(summary,sort_keys=True),flush=True)
+          if not next_rows or not page_rows: raise SystemExit('One traversal never fetched a page')
+          PY
