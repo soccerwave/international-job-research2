@@ -187,3 +187,70 @@ jobs:
           print('EURAXESS_COMPARE_SUMMARY='+json.dumps(summary,sort_keys=True),flush=True)
           if not next_rows or not page_rows: raise SystemExit('One traversal never fetched a page')
           PY
+      - name: Compare isolated sessions and verify country facets (read-only)
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import time
+          from urllib.parse import urlencode
+          from src.sources.shared.common import make_session
+          from src.sources.shared.euraxess import (SEARCH_URL, parse_listing, next_listing_url,
+              discover_country_facets, discover_offer_type_facet, _assert_active_filter_response)
+
+          def sample(label, url, facet=None, offer=None):
+              session = make_session(retries=0)
+              try:
+                  resp = session.get(url, timeout=(10,45), allow_redirects=True)
+                  resp.raise_for_status()
+                  ids = {str(x['id']) for x in parse_listing(resp.text, resp.url)}
+                  active = None
+                  if facet and offer:
+                      try:
+                          _assert_active_filter_response(resp, facet, offer)
+                          active = True
+                      except Exception as exc:
+                          active = False
+                  return {'label':label,'status':resp.status_code,'ids':ids,
+                          'returned_url':resp.url,'next_url':next_listing_url(resp.text, resp.url),
+                          'filter_active':active}
+              except Exception as exc:
+                  return {'label':label,'error':type(exc).__name__+': '+str(exc)[:160], 'ids':set()}
+              finally:
+                  session.close()
+
+          initial = sample('initial',SEARCH_URL)
+          probe = make_session(retries=0)
+          try:
+              base = probe.get(SEARCH_URL,timeout=(10,45))
+              base.raise_for_status()
+              facets = discover_country_facets(base.text)
+              offer = discover_offer_type_facet(base.text)
+          finally:
+              probe.close()
+          print('EURAXESS_SESSION_FACETS='+json.dumps({'country_facet_count':len(facets),
+                'offer_facet':offer,'netherlands_facet':facets.get('netherlands'),
+                'germany_facet':facets.get('germany')},sort_keys=True),flush=True)
+          targets=[('global',SEARCH_URL,None)]
+          for country in ('netherlands','germany'):
+              facet=facets.get(country)
+              if facet and offer:
+                  targets.append((country,SEARCH_URL+'?'+urlencode([('f[0]',facet),('f[1]',offer)]),facet))
+          for label,url,facet in targets:
+              outputs=[]
+              for n in range(3):
+                  result=sample(label+'_'+str(n),url,facet,offer)
+                  outputs.append(result)
+                  safe={k:v for k,v in result.items() if k!='ids'}
+                  safe['jobs']=len(result['ids'])
+                  print('EURAXESS_SESSION_SAMPLE='+json.dumps(safe,sort_keys=True),flush=True)
+                  time.sleep(1.5)
+              sets=[x['ids'] for x in outputs]
+              summary={'target':label,'counts':[len(x) for x in sets],
+                       'intersection':len(set.intersection(*sets)),
+                       'union':len(set.union(*sets)),
+                       'identical':all(x==sets[0] for x in sets),
+                       'active_flags':[x.get('filter_active') for x in outputs],
+                       'errors':[x.get('error') for x in outputs]}
+              print('EURAXESS_SESSION_COMPARISON='+json.dumps(summary,sort_keys=True),flush=True)
+          PY
