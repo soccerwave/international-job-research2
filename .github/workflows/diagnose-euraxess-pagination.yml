@@ -319,3 +319,69 @@ jobs:
           print('EURAXESS_COUNTRY_SUMMARY='+json.dumps({'countries':len(summary),**counts},sort_keys=True),flush=True)
           if len(summary)!=len(TARGET_CODES): raise SystemExit('Not all country facets examined')
           PY
+      - name: Cross-check global fallback terminal pages (read-only)
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import time
+          from urllib.parse import urlparse
+          from src.sources.shared.common import make_session
+          from src.sources.shared.euraxess import SEARCH_URL,parse_listing,next_listing_url,_increment_euraxess_page
+
+          s=make_session(retries=0)
+          url=SEARCH_URL
+          seen_urls=set()
+          seen_ids=set()
+          reason='cap_45'
+          checks=[]
+          for n in range(45):
+              if url in seen_urls:
+                  reason='repeated_url'
+                  break
+              seen_urls.add(url)
+              try:
+                  resp=s.request('GET' if n==0 else 'POST',url,timeout=(10,45),allow_redirects=True)
+                  resp.raise_for_status()
+                  jobs=parse_listing(resp.text,resp.url)
+                  ids={str(x['id']) for x in jobs}
+                  next_url=next_listing_url(resp.text,resp.url)
+                  new_ids=ids-seen_ids
+                  seen_ids.update(ids)
+                  suspect=(not jobs or not next_url or next_url in seen_urls or not new_ids)
+                  check={'page_index':n,'jobs':len(jobs),'new_ids':len(new_ids),
+                         'next_exists':bool(next_url),'next_revisited':bool(next_url in seen_urls),
+                         'request_url':url,'response_url':resp.url,'next_url':next_url}
+                  if suspect:
+                      controls=[]
+                      probes=[('repeat_get',url),('repeat_post',url),
+                              ('increment_get',_increment_euraxess_page(url))]
+                      for name,target in probes:
+                          if not target or urlparse(target).hostname!=urlparse(SEARCH_URL).hostname: continue
+                          try:
+                              rr=s.request('POST' if name=='repeat_post' else 'GET',target,timeout=(10,45),allow_redirects=True)
+                              rr.raise_for_status()
+                              probe_ids={str(x['id']) for x in parse_listing(rr.text,rr.url)}
+                              controls.append({'probe':name,'status':rr.status_code,'jobs':len(probe_ids),
+                                               'new_vs_seen':len(probe_ids-seen_ids),
+                                               'same_as_terminal':probe_ids==ids,
+                                               'next_exists':bool(next_listing_url(rr.text,rr.url))})
+                          except Exception as exc:
+                              controls.append({'probe':name,'error':type(exc).__name__+': '+str(exc)[:110]})
+                          time.sleep(1.0)
+                      check['controls']=controls
+                  checks.append(check)
+                  print('EURAXESS_TERMINAL_PAGE='+json.dumps(check,sort_keys=True),flush=True)
+                  if suspect:
+                      reason='suspect_terminal_crosschecked'
+                      break
+                  url=next_url
+                  time.sleep(1.2)
+              except Exception as exc:
+                  reason=type(exc).__name__+': '+str(exc)[:150]
+                  break
+          print('EURAXESS_TERMINAL_SUMMARY='+json.dumps({
+              'pages':len(checks),'unique_ids':len(seen_ids),'stop_reason':reason,
+              'terminal':checks[-1] if checks else None},sort_keys=True),flush=True)
+          if not checks: raise SystemExit('No EURAXESS pages inspected')
+          PY
