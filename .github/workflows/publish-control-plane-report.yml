@@ -230,6 +230,40 @@ jobs:
             --github-run-attempt "${{ steps.source.outputs.run_attempt }}" \
             --commit "${{ steps.source.outputs.head_sha }}" \
             --manifest-out llm-shadow-output/r2_report_publish.json
+      - name: Build accurate Luna report delivery summary
+        if: ${{ steps.llm_shadow.outcome == 'success' }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from openpyxl import load_workbook
+          original = json.loads(Path('clean-report/report_summary.json').read_text())
+          workbook = load_workbook('llm-shadow-output/luna_led_report.xlsx', read_only=True, data_only=True)
+          main = workbook['MAIN']
+          columns = {cell.value: cell.column - 1 for cell in next(main.iter_rows(min_row=1, max_row=1))}
+          data = list(main.iter_rows(min_row=2, values_only=True))
+          source_idx = columns['Source Path']
+          decision_idx = columns['Luna Decision']
+          if any(row[decision_idx] not in ('STRONG_APPLY', 'APPLY', 'REVIEW') for row in data):
+              raise SystemExit('Invalid Luna decision in MAIN; refusing cutover')
+          counts = {key: sum(row[source_idx] == key for row in data) for key in ('MAIN', 'RESCUE')}
+          if sum(counts.values()) != len(data):
+              raise SystemExit('Luna MAIN provenance counts do not reconcile')
+          original.update({
+              'report_variant': 'LUNA_LED_V1',
+              'current_actionable': len(data),
+              'luna_main_rows': len(data),
+              'luna_original_main_rows': counts['MAIN'],
+              'luna_rescued_rows': counts['RESCUE'],
+              'rule_current_actionable_before_luna': original.get('current_actionable'),
+          })
+          # The legacy "today_actionable" count is Rule-derived; do not mislabel it.
+          original.pop('today_actionable', None)
+          Path('llm-shadow-output/luna_led_delivery_summary.json').write_text(
+              json.dumps(original, ensure_ascii=False, indent=2) + '\\n')
+          workbook.close()
+          PY
       - name: Select Luna report when available and prepare fallback
         id: luna_cutover
         shell: bash
@@ -238,10 +272,12 @@ jobs:
           if [ "${{ steps.llm_shadow.outcome }}" = "success" ] && [ -s llm-shadow-output/luna_led_report.xlsx ]; then
             echo "variant=LUNA_LED_V1" >> "$GITHUB_OUTPUT"
             echo "report=llm-shadow-output/luna_led_report.xlsx" >> "$GITHUB_OUTPUT"
+            echo "summary=llm-shadow-output/luna_led_delivery_summary.json" >> "$GITHUB_OUTPUT"
             echo "Luna-led report selected for user delivery"
           else
             echo "variant=RULE_FALLBACK_V1" >> "$GITHUB_OUTPUT"
             echo "report=clean-report/international_academic_job_report.xlsx" >> "$GITHUB_OUTPUT"
+            echo "summary=clean-report/report_summary.json" >> "$GITHUB_OUTPUT"
             echo "::warning title=Luna unavailable::Publishing clearly labeled Rule fallback instead"
           fi
       - name: Publish selected report to authoritative international R2 pointer
@@ -249,7 +285,7 @@ jobs:
         run: |
           set -euo pipefail
           python scripts/publish_control_plane_report.py \
-            --summary clean-report/report_summary.json \
+            --summary "${{ steps.luna_cutover.outputs.summary }}" \
             --report "${{ steps.luna_cutover.outputs.report }}" \
             --audit-report downloaded-production/production/academic_job_report.xlsx \
             --github-run-id '${{ steps.source.outputs.run_id }}' \
@@ -269,7 +305,7 @@ jobs:
           from pathlib import Path
           from src.reporting.telegram import send_report
 
-          summary = json.loads(Path('clean-report/report_summary.json').read_text(encoding='utf-8'))
+          summary = json.loads(Path('${{ steps.luna_cutover.outputs.summary }}').read_text(encoding='utf-8'))
           report = Path('${{ steps.luna_cutover.outputs.report }}')
           if not report.is_file() or report.stat().st_size == 0:
               raise RuntimeError('Selected report is missing; refusing to report delivery success')
