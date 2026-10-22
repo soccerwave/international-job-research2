@@ -24,6 +24,7 @@ from src.llm.rescue_reject_audit import rescue_reject_audit_summary, run_rescue_
 from src.llm.rescue_triage import CLEARLY_OUT_OF_SCOPE, PASS_TO_FULL_REVIEW, RescueTriageError, RescueTriageEvaluator
 from src.llm.shadow_evaluator import ShadowEvaluator
 from src.reporting.llm_shadow_excel import build_llm_shadow_report_rows, build_llm_shadow_xlsx
+from src.reporting.luna_led_excel import build_luna_led_xlsx
 from src.reporting.user_excel import load_canonical_records
 
 DEFAULT_PROFILE = ROOT / "config" / "llm_candidate_profile_v1.json"
@@ -179,6 +180,14 @@ def main() -> int:
     build_llm_shadow_xlsx(
         prepared.jobs,
         out / "llm_shadow_report.xlsx",
+        main_job_ids=prepared.main_job_ids,
+        full_evaluation_records=full_run.records,
+    )
+
+    # Sidecar artifact only: do not switch the R2 latest pointer or Rule production report.
+    build_luna_led_xlsx(
+        prepared.jobs,
+        out / "luna_led_report.xlsx",
         main_job_ids=prepared.main_job_ids,
         full_evaluation_records=full_run.records,
     )
