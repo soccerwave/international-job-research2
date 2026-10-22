@@ -8,7 +8,29 @@ from xml.etree import ElementTree as ET
 
 from src.llm.full_evaluation_routing import FullEvaluationRecord, ORIGIN_MAIN, ORIGIN_LLM_RESCUE
 from src.reporting.luna_led_excel import build_luna_led_rows, build_luna_led_xlsx
-from tests.test_llm_shadow_excel_l7_2 import canonical, full_record
+def canonical(job_id, title):
+    return {
+        "canonical_id": job_id,
+        "source": {"listing_url": f"https://example.org/{job_id}"},
+        "position": {"title_raw": title, "institution_raw": "Example University",
+                     "role_level": "POSTDOC", "employment_type": "FULL_TIME"},
+        "location": {"city": "Barcelona", "country_code": "ES", "country_name": "Spain"},
+        "contract": {"term_type": "FIXED_TERM"},
+        "description": {"full_jd": "Research exercise health relevant PhD",
+                        "detail_status": "FULL"},
+        "requirements": {},
+        "raw_extra": {"state_event": {"seen_status": "SEEN"},
+                      "evaluation": {"recommendation": "REVIEW"}},
+        "lifecycle_status": "OPEN",
+    }
+
+
+def full_record(job_id, origin, decision):
+    return FullEvaluationRecord(
+        job_id=job_id, origin=origin, triage_id=None,
+        evaluation={"llm_result": {"decision": decision, "confidence": 85,
+                                   "reason_short": f"Reason for {job_id}"}},
+    )
 
 
 class LunaLedReportingTests(unittest.TestCase):
