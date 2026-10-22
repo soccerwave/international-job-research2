@@ -211,7 +211,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -n "${OPENAI_API_KEY:-}" || { echo 'Missing OPENAI_API_KEY; Rule report is already published, shadow run skipped with failure.' >&2; exit 2; }
+          test -n "${OPENAI_API_KEY:-}" || { echo 'Missing OPENAI_API_KEY; Luna run unavailable; explicit Rule fallback will be published.' >&2; exit 2; }
           python scripts/run_llm_production_shadow.py \
             --records downloaded-production/production/canonical_records.json \
             --run-id "prod-${{ steps.source.outputs.run_id }}-${{ steps.source.outputs.run_attempt }}" \
@@ -253,7 +253,6 @@ jobs:
           original.pop('today_actionable', None)
           Path('llm-shadow-output/luna_led_delivery_summary.json').write_text(
               json.dumps(original, ensure_ascii=False, indent=2) + '\n')
-          workbook.close()
           PY
       - name: Select Luna report when available and prepare fallback
         id: luna_cutover
@@ -345,7 +344,7 @@ jobs:
           path: secure-artifacts/llm-shadow-${{ steps.source.outputs.run_id }}-${{ steps.source.outputs.run_attempt }}.tar.gz.enc
           retention-days: 21
           if-no-files-found: ignore
-      - name: Report shadow status without changing Rule authority
+      - name: Report Luna-led delivery status
         if: ${{ always() }}
         shell: bash
         run: |
@@ -353,4 +352,4 @@ jobs:
           if [ -s llm-shadow-output/shadow_summary.json ]; then
             cat llm-shadow-output/shadow_summary.json
           fi
-          echo "Rule production state/report remains authoritative regardless of the shadow outcome."
+          echo "User report variant: ${{ steps.luna_cutover.outputs.variant }}; Rule routing and state remain unchanged."
