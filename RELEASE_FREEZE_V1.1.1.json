@@ -1,8 +1,8 @@
 {
   "freeze_patch_version": "V1.1.1",
   "base_manifest": "RELEASE_FREEZE_V1.1.0.json",
-  "status": "ACCEPTED_WORKFLOW_CLEANUP_REFRESH",
-  "reason": "Refresh only the V1 protected workflow surface after the accepted GitHub Actions cleanup and subsequent accepted production/CI wiring changes. All non-workflow protected blobs continue to inherit unchanged from RELEASE_FREEZE_V1.1.0.json.",
+  "status": "ACCEPTED_IRELAND_REPAIR_AND_LUNA_REPORT_CUTOVER_REFRESH",
+  "reason": "Refresh protected hashes only for the already merged University Vacancies Ireland collector repair and the explicitly proposed Luna-led report/CI workflow changes in PR #83. The accepted V1.1.0 baseline stays immutable; all unrelated protected files retain their original hashes.",
   "retired_protected_paths": [
     ".github/workflows/recover-production-state.yml",
     ".github/workflows/test-public-readiness.yml",
@@ -10,9 +10,10 @@
     ".github/workflows/test-stage5-4-live-artifact-durability.yml"
   ],
   "protected_git_blob_overrides": {
-    ".github/workflows/ci.yml": "c465383e089a54da6a084de29bf81030011b4af8",
+    ".github/workflows/ci.yml": "aad88f956437790d3c341841e6b171b3da9e854c",
     ".github/workflows/production.yml": "538c13b7d982848a734af481f6f78209f9500112",
     "scripts/verify_v1_freeze.py": "85efedfdfaf6958b38f617de1e00f64bd9d87fd6",
-    ".github/workflows/publish-control-plane-report.yml": "c6cfed2cb8ac4e5f276570acddfb93c34850a5c3"
+    ".github/workflows/publish-control-plane-report.yml": "6ce9bab594c44666a057e366753611a55c701f0b",
+    "src/sources/core/university_vacancies.py": "a6ecddf566361d1ea9b89a73922b229d2868d823"
   }
 }

@@ -42,6 +42,7 @@ def build_manifest(
     prefix: str = DEFAULT_PREFIX,
     published_at: str | None = None,
     audit_report_path: Path | None = None,
+    report_variant: str = "USER_CLEAN_V1",
 ) -> dict[str, Any]:
     summary, summary_bytes, report_bytes = _load_inputs(summary_path, report_path)
     run_key = f"{prefix.rstrip('/')}/runs/{github_run_id}-{github_run_attempt}"
@@ -60,7 +61,7 @@ def build_manifest(
         "report_sha256": sha256_bytes(report_bytes),
         "summary_bytes": len(summary_bytes),
         "report_bytes": len(report_bytes),
-        "report_variant": "USER_CLEAN_V1",
+        "report_variant": report_variant,
         "records_observed": int(summary.get("records_observed") or 0),
         "current_actionable": int(summary.get("current_actionable") or 0),
         "today_actionable": int(summary.get("today_actionable") or 0),
@@ -120,6 +121,7 @@ def publish_report(
     prefix: str = DEFAULT_PREFIX,
     manifest_out: Path | None = None,
     audit_report_path: Path | None = None,
+    report_variant: str = "USER_CLEAN_V1",
 ) -> dict[str, Any]:
     summary, summary_bytes, report_bytes = _load_inputs(summary_path, report_path)
     manifest = build_manifest(
@@ -130,6 +132,7 @@ def publish_report(
         commit=commit,
         prefix=prefix,
         audit_report_path=audit_report_path,
+        report_variant=report_variant,
     )
 
     # Publish immutable run-scoped payloads first. The latest pointer is written last,
@@ -208,6 +211,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--github-run-attempt", type=int, required=True)
     parser.add_argument("--commit", required=True)
     parser.add_argument("--prefix", default=DEFAULT_PREFIX)
+    parser.add_argument("--report-variant", default="USER_CLEAN_V1")
     parser.add_argument("--manifest-out", type=Path)
     return parser
 
@@ -227,6 +231,7 @@ def main() -> int:
         github_run_attempt=args.github_run_attempt,
         commit=args.commit,
         prefix=args.prefix,
+        report_variant=args.report_variant,
         manifest_out=args.manifest_out,
     )
     print(json.dumps(result, ensure_ascii=False, indent=2))

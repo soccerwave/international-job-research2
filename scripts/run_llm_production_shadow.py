@@ -19,11 +19,13 @@ from src.llm.experiment_evidence import ExperimentEvidenceError, R2ExperimentEvi
 from src.llm.full_evaluation_routing import full_evaluation_summary, run_full_evaluations, select_full_review_candidates
 from src.llm.openai_transport import OpenAIChatCompletionsTransport, OpenAITransportConfig
 from src.llm.production_shadow import select_production_shadow_inputs
+from src.llm.source_exclusions import exclude_paid_luna_sources
 from src.llm.r2_evaluation_cache import R2EvaluationCacheStore
 from src.llm.rescue_reject_audit import rescue_reject_audit_summary, run_rescue_reject_audit, select_rescue_reject_audit_candidates
 from src.llm.rescue_triage import CLEARLY_OUT_OF_SCOPE, PASS_TO_FULL_REVIEW, RescueTriageError, RescueTriageEvaluator
 from src.llm.shadow_evaluator import ShadowEvaluator
 from src.reporting.llm_shadow_excel import build_llm_shadow_report_rows, build_llm_shadow_xlsx
+from src.reporting.luna_led_excel import build_luna_led_xlsx, build_luna_led_rows
 from src.reporting.user_excel import load_canonical_records
 
 DEFAULT_PROFILE = ROOT / "config" / "llm_candidate_profile_v1.json"
@@ -77,7 +79,9 @@ def main() -> int:
         raise SystemExit("OPENAI_API_KEY is required")
 
     records = load_canonical_records(args.records)
-    prepared = select_production_shadow_inputs(records)
+    selected = select_production_shadow_inputs(records)
+    paid_filter = exclude_paid_luna_sources(selected)
+    prepared = paid_filter.inputs
     routing = route_dual_path_candidates(
         prepared.jobs,
         main_job_ids=prepared.main_job_ids,
@@ -89,6 +93,7 @@ def main() -> int:
     _write_json(out / "main_job_ids.json", list(prepared.main_job_ids))
     _write_json(out / "rescue_candidate_job_ids.json", list(prepared.rescue_candidate_job_ids))
     _write_json(out / "routing_summary.json", routing_summary(routing))
+    _write_json(out / "paid_source_exclusions.json", {"excluded_job_ids": list(paid_filter.excluded_job_ids), "excluded_count": len(paid_filter.excluded_job_ids), "reason": "explicit_alignerr_source"})
 
     profile = json.loads(args.profile.read_text(encoding="utf-8"))
     profile_version = str(profile.get("profile_version") or "").strip()
@@ -183,6 +188,27 @@ def main() -> int:
         full_evaluation_records=full_run.records,
     )
 
+    # Sidecar artifact only: do not switch the R2 latest pointer or Rule production report.
+    build_luna_led_xlsx(
+        prepared.jobs,
+        out / "luna_led_report.xlsx",
+        main_job_ids=prepared.main_job_ids,
+        full_evaluation_records=full_run.records,
+    )
+
+    luna_rows = build_luna_led_rows(
+        prepared.jobs,
+        main_job_ids=prepared.main_job_ids,
+        full_evaluation_records=full_run.records,
+    )
+    _write_json(out / "luna_led_counts.json", {
+        "main_rows": len(luna_rows["MAIN"]),
+        "main_origin_main": sum(r["source_path"] == "MAIN" for r in luna_rows["MAIN"]),
+        "main_origin_rescue": sum(r["source_path"] == "RESCUE" for r in luna_rows["MAIN"]),
+        "skipped_rows": len(luna_rows["SKIPPED"]),
+        "no_llm_result_rows": len(luna_rows["NO_LLM_RESULT"]),
+    })
+
     current_sha = _sha256_file(cache_path)
     if current_sha != loaded_cache.sha256:
         cache_sync = durable_cache.sync(cache_path, expected_etag=loaded_cache.etag)
@@ -203,6 +229,7 @@ def main() -> int:
     audit_stats = rescue_reject_audit_summary(audit_selection, audit_run)
     extra_summary = {
         "main_candidates": len(prepared.main_job_ids),
+        "paid_source_exclusions": len(paid_filter.excluded_job_ids),
         "rescue_candidates": len(prepared.rescue_candidate_job_ids),
         "triage_completed": len(triage_records),
         "triage_pass_to_full_review": int(triage_decisions.get(PASS_TO_FULL_REVIEW, 0)),
