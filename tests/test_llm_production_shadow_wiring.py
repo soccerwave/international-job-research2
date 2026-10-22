@@ -59,21 +59,26 @@ class LLMProductionShadowWiringTests(unittest.TestCase):
         self.assertEqual(selected.rescue_candidate_job_ids, ())
         review_mock.assert_not_called()
 
-    def test_existing_publisher_runs_rule_publish_before_non_authoritative_luna_shadow(self):
+    def test_publisher_runs_luna_before_authoritative_cutover_with_rule_fallback(self):
         workflow = (ROOT / ".github" / "workflows" / "publish-control-plane-report.yml").read_text(encoding="utf-8")
-        publish_step = "Publish clean report, audit workbook and latest pointer to international R2"
         shadow_step = "Run GPT-6 Luna shadow experiment"
+        selection_step = "Select Luna report when available and prepare fallback"
+        publish_step = "Publish selected report to authoritative international R2 pointer"
 
-        self.assertIn(publish_step, workflow)
-        self.assertIn(shadow_step, workflow)
-        self.assertLess(workflow.index(publish_step), workflow.index(shadow_step))
-        shadow_tail = workflow[workflow.index(shadow_step):]
-        self.assertIn("continue-on-error: true", shadow_tail)
+        for step in (shadow_step, selection_step, publish_step):
+            self.assertIn(step, workflow)
+        self.assertLess(workflow.index(shadow_step), workflow.index(selection_step))
+        self.assertLess(workflow.index(selection_step), workflow.index(publish_step))
+        self.assertIn("continue-on-error: true", workflow[workflow.index(shadow_step):])
         self.assertIn("OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}", workflow)
         self.assertIn("LLM_SHADOW_MODEL: gpt-6-luna", workflow)
-        self.assertIn("--run-id \"prod-${{ steps.source.outputs.run_id }}-${{ steps.source.outputs.run_attempt }}\"", shadow_tail)
-        self.assertIn("retention-days: 21", shadow_tail)
-        self.assertIn("Rule production state/report remains authoritative", shadow_tail)
+        self.assertIn('--run-id "prod-${{ steps.source.outputs.run_id }}-${{ steps.source.outputs.run_attempt }}"', workflow)
+        self.assertIn("retention-days: 21", workflow)
+        self.assertIn("LUNA_LED_V1", workflow)
+        self.assertIn("RULE_FALLBACK_V1", workflow)
+        self.assertIn("--report-variant", workflow)
+        self.assertIn("--audit-report downloaded-production/production/academic_job_report.xlsx", workflow)
+        self.assertNotIn("Rule production state/report remains authoritative", workflow)
 
 
 if __name__ == "__main__":
