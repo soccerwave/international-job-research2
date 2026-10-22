@@ -161,4 +161,4 @@ jobs:
       - name: Install reporting dependencies
         run: python -m pip install --disable-pip-version-check -r requirements.txt -r requirements-cloud.txt
       - name: Test Luna-led report independent of legacy freeze checks
-        run: python -m unittest -v tests.test_luna_led_reporting tests.test_llm_shadow_excel_l7_2
+        run: python -m unittest -v tests.test_luna_led_reporting tests.test_llm_shadow_excel_l7_2 tests.test_llm_source_exclusions
