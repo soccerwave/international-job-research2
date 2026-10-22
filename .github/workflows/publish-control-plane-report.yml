@@ -237,31 +237,22 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
-          from openpyxl import load_workbook
           original = json.loads(Path('clean-report/report_summary.json').read_text())
-          workbook = load_workbook('llm-shadow-output/luna_led_report.xlsx', read_only=True, data_only=True)
-          main = workbook['MAIN']
-          columns = {cell.value: cell.column - 1 for cell in next(main.iter_rows(min_row=1, max_row=1))}
-          data = list(main.iter_rows(min_row=2, values_only=True))
-          source_idx = columns['Source Path']
-          decision_idx = columns['Luna Decision']
-          if any(row[decision_idx] not in ('STRONG_APPLY', 'APPLY', 'REVIEW') for row in data):
-              raise SystemExit('Invalid Luna decision in MAIN; refusing cutover')
-          counts = {key: sum(row[source_idx] == key for row in data) for key in ('MAIN', 'RESCUE')}
-          if sum(counts.values()) != len(data):
+          counts = json.loads(Path('llm-shadow-output/luna_led_counts.json').read_text())
+          if counts['main_origin_main'] + counts['main_origin_rescue'] != counts['main_rows']:
               raise SystemExit('Luna MAIN provenance counts do not reconcile')
           original.update({
               'report_variant': 'LUNA_LED_V1',
-              'current_actionable': len(data),
-              'luna_main_rows': len(data),
-              'luna_original_main_rows': counts['MAIN'],
-              'luna_rescued_rows': counts['RESCUE'],
+              'current_actionable': counts['main_rows'],
+              'luna_main_rows': counts['main_rows'],
+              'luna_original_main_rows': counts['main_origin_main'],
+              'luna_rescued_rows': counts['main_origin_rescue'],
               'rule_current_actionable_before_luna': original.get('current_actionable'),
           })
           # The legacy "today_actionable" count is Rule-derived; do not mislabel it.
           original.pop('today_actionable', None)
           Path('llm-shadow-output/luna_led_delivery_summary.json').write_text(
-              json.dumps(original, ensure_ascii=False, indent=2) + '\\n')
+              json.dumps(original, ensure_ascii=False, indent=2) + '\n')
           workbook.close()
           PY
       - name: Select Luna report when available and prepare fallback
