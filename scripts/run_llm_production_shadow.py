@@ -25,7 +25,7 @@ from src.llm.rescue_reject_audit import rescue_reject_audit_summary, run_rescue_
 from src.llm.rescue_triage import CLEARLY_OUT_OF_SCOPE, PASS_TO_FULL_REVIEW, RescueTriageError, RescueTriageEvaluator
 from src.llm.shadow_evaluator import ShadowEvaluator
 from src.reporting.llm_shadow_excel import build_llm_shadow_report_rows, build_llm_shadow_xlsx
-from src.reporting.luna_led_excel import build_luna_led_xlsx
+from src.reporting.luna_led_excel import build_luna_led_xlsx, build_luna_led_rows
 from src.reporting.user_excel import load_canonical_records
 
 DEFAULT_PROFILE = ROOT / "config" / "llm_candidate_profile_v1.json"
@@ -195,6 +195,19 @@ def main() -> int:
         main_job_ids=prepared.main_job_ids,
         full_evaluation_records=full_run.records,
     )
+
+    luna_rows = build_luna_led_rows(
+        prepared.jobs,
+        main_job_ids=prepared.main_job_ids,
+        full_evaluation_records=full_run.records,
+    )
+    _write_json(out / "luna_led_counts.json", {
+        "main_rows": len(luna_rows["MAIN"]),
+        "main_origin_main": sum(r["source_path"] == "MAIN" for r in luna_rows["MAIN"]),
+        "main_origin_rescue": sum(r["source_path"] == "RESCUE" for r in luna_rows["MAIN"]),
+        "skipped_rows": len(luna_rows["SKIPPED"]),
+        "no_llm_result_rows": len(luna_rows["NO_LLM_RESULT"]),
+    })
 
     current_sha = _sha256_file(cache_path)
     if current_sha != loaded_cache.sha256:
