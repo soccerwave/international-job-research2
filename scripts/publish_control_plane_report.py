@@ -121,6 +121,7 @@ def publish_report(
     prefix: str = DEFAULT_PREFIX,
     manifest_out: Path | None = None,
     audit_report_path: Path | None = None,
+    report_variant: str = "USER_CLEAN_V1",
 ) -> dict[str, Any]:
     summary, summary_bytes, report_bytes = _load_inputs(summary_path, report_path)
     manifest = build_manifest(
