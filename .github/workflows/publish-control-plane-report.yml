@@ -205,17 +205,59 @@ jobs:
             --base-summary downloaded-production/production/report_summary.json \
             --summary-out clean-report/report_summary.json \
             --output clean-report/international_academic_job_report.xlsx
-      - name: Publish clean report, audit workbook and latest pointer to international R2
+      - name: Run GPT-6 Luna shadow experiment
+        id: llm_shadow
+        continue-on-error: true
+        shell: bash
         run: |
+          set -euo pipefail
+          test -n "${OPENAI_API_KEY:-}" || { echo 'Missing OPENAI_API_KEY; Rule report is already published, shadow run skipped with failure.' >&2; exit 2; }
+          python scripts/run_llm_production_shadow.py \
+            --records downloaded-production/production/canonical_records.json \
+            --run-id "prod-${{ steps.source.outputs.run_id }}-${{ steps.source.outputs.run_attempt }}" \
+            --output-dir llm-shadow-output \
+            --model "${LLM_SHADOW_MODEL}"
+      - name: Publish latest LLM shadow report to R2
+        if: ${{ steps.llm_shadow.outcome == 'success' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/publish_llm_shadow_report.py \
+            --summary llm-shadow-output/shadow_summary.json \
+            --report llm-shadow-output/llm_shadow_report.xlsx \
+            --production-run-id "prod-${{ steps.source.outputs.run_id }}-${{ steps.source.outputs.run_attempt }}" \
+            --github-run-id "${{ steps.source.outputs.run_id }}" \
+            --github-run-attempt "${{ steps.source.outputs.run_attempt }}" \
+            --commit "${{ steps.source.outputs.head_sha }}" \
+            --manifest-out llm-shadow-output/r2_report_publish.json
+      - name: Select Luna report when available and prepare fallback
+        id: luna_cutover
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.llm_shadow.outcome }}" = "success" ] && [ -s llm-shadow-output/luna_led_report.xlsx ]; then
+            echo "variant=LUNA_LED_V1" >> "$GITHUB_OUTPUT"
+            echo "report=llm-shadow-output/luna_led_report.xlsx" >> "$GITHUB_OUTPUT"
+            echo "Luna-led report selected for user delivery"
+          else
+            echo "variant=RULE_FALLBACK_V1" >> "$GITHUB_OUTPUT"
+            echo "report=clean-report/international_academic_job_report.xlsx" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Luna unavailable::Publishing clearly labeled Rule fallback instead"
+          fi
+      - name: Publish selected report to authoritative international R2 pointer
+        shell: bash
+        run: |
+          set -euo pipefail
           python scripts/publish_control_plane_report.py \
             --summary clean-report/report_summary.json \
-            --report clean-report/international_academic_job_report.xlsx \
+            --report "${{ steps.luna_cutover.outputs.report }}" \
             --audit-report downloaded-production/production/academic_job_report.xlsx \
             --github-run-id '${{ steps.source.outputs.run_id }}' \
             --github-run-attempt '${{ steps.source.outputs.run_attempt }}' \
             --commit '${{ steps.source.outputs.head_sha }}' \
+            --report-variant "${{ steps.luna_cutover.outputs.variant }}" \
             --manifest-out control-plane-publish-evidence.json
-      - name: Deliver clean report after a manual production run
+      - name: Deliver selected report after a manual production run
         if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && (github.event.workflow_run.event == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'failure')) }}
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -228,9 +270,9 @@ jobs:
           from src.reporting.telegram import send_report
 
           summary = json.loads(Path('clean-report/report_summary.json').read_text(encoding='utf-8'))
-          report = Path('clean-report/international_academic_job_report.xlsx')
+          report = Path('${{ steps.luna_cutover.outputs.report }}')
           if not report.is_file() or report.stat().st_size == 0:
-              raise RuntimeError('Clean report is missing; refusing to report delivery success')
+              raise RuntimeError('Selected report is missing; refusing to report delivery success')
           production_summary = json.loads(Path('downloaded-production/production/production_summary.json').read_text(encoding='utf-8'))
           missing = (production_summary.get('core_result') or {}).get('missing_shards') or []
           send_report(summary, report)
@@ -257,31 +299,6 @@ jobs:
                           raise RuntimeError('Telegram coverage warning was not accepted')
           print(json.dumps({'ok': True, 'delivered': True, 'run_id': summary['run_id'], 'missing_shards': missing}))
           PY
-      - name: Run GPT-6 Luna shadow experiment
-        id: llm_shadow
-        continue-on-error: true
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -n "${OPENAI_API_KEY:-}" || { echo 'Missing OPENAI_API_KEY; Rule report is already published, shadow run skipped with failure.' >&2; exit 2; }
-          python scripts/run_llm_production_shadow.py \
-            --records downloaded-production/production/canonical_records.json \
-            --run-id "prod-${{ steps.source.outputs.run_id }}-${{ steps.source.outputs.run_attempt }}" \
-            --output-dir llm-shadow-output \
-            --model "${LLM_SHADOW_MODEL}"
-      - name: Publish latest LLM shadow report to R2
-        if: ${{ steps.llm_shadow.outcome == 'success' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          python scripts/publish_llm_shadow_report.py \
-            --summary llm-shadow-output/shadow_summary.json \
-            --report llm-shadow-output/llm_shadow_report.xlsx \
-            --production-run-id "prod-${{ steps.source.outputs.run_id }}-${{ steps.source.outputs.run_attempt }}" \
-            --github-run-id "${{ steps.source.outputs.run_id }}" \
-            --github-run-attempt "${{ steps.source.outputs.run_attempt }}" \
-            --commit "${{ steps.source.outputs.head_sha }}" \
-            --manifest-out llm-shadow-output/r2_report_publish.json
       - name: Encrypt LLM shadow review artifact
         if: ${{ always() }}
         shell: bash
