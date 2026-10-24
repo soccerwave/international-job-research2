@@ -20,6 +20,20 @@ class PaidLunaExclusionsTests(unittest.TestCase):
         self.assertFalse(is_excluded_from_paid_luna(job("e", "https://example.org/alignerr.com")))
         self.assertFalse(is_excluded_from_paid_luna(job("f", "https://example.org", "other", "Alignerr Research Analyst")))
 
+    def test_aggregator_link_exact_alignerr_employer_excluded(self):
+        job = {
+            "canonical_id": "via-linkedin",
+            "source": {"listing_url": "https://www.linkedin.com/jobs/view/12345",
+                       "source_id": "linkedin-europe-uk"},
+            "position": {"title_raw": "General Postdoctoral Researcher",
+                         "institution_raw": "Alignerr"},
+        }
+        self.assertTrue(is_excluded_from_paid_luna(job))
+        job["position"]["institution_raw"] = "Alignerr Research Partners"
+        self.assertFalse(is_excluded_from_paid_luna(job))
+        job["position"]["institution_raw"] = "University of Barcelona"
+        self.assertFalse(is_excluded_from_paid_luna(job))
+
     def test_excluded_before_both_paid_paths_and_keeps_unrelated(self):
         inputs = ProductionShadowInputs(
             jobs=(job("a","https://alignerr.com/a"), job("b","https://example.org/b"),

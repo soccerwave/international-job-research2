@@ -37,7 +37,18 @@ def is_excluded_from_paid_luna(job: dict[str, Any]) -> bool:
             return True
     # Exact source identity, not substring matching of employers/titles.
     source_id = str(source.get("source_id") or source.get("source_name") or "").strip().casefold()
-    return source_id == "alignerr"
+    if source_id == "alignerr":
+        return True
+    # Aggregators like LinkedIn use their own URLs for Alignerr adverts.
+    # Match exact employer identity; never infer from title keywords.
+    position = job.get("position") or {}
+    if isinstance(position, dict):
+        employer = str(
+            position.get("institution_raw") or position.get("institution_normalized") or ""
+        ).strip().casefold()
+        if employer == "alignerr":
+            return True
+    return False
 
 
 @dataclass(frozen=True)
