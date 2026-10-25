@@ -1,0 +1,59 @@
+name: Production Finalizer Phase Diagnostics
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/diagnose_finalizer_phases.py'
+      - '.github/workflows/test-finalizer-phase-diagnostics.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  profile-sep12-finalizer:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      TARGET_ACTIONS_RUN_ID: '34671847466'
+      TARGET_PRODUCTION_RUN_ID: 'prod-34671847466-1'
+      TARGET_OBSERVED_AT: '2026-09-12T05:10:10+00:00'
+      ARTIFACT_ENCRYPTION_KEY: ${{ secrets.ARTIFACT_ENCRYPTION_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements.txt -r requirements-cloud.txt
+      - name: Require encrypted artifact key
+        run: test -n "${ARTIFACT_ENCRYPTION_KEY:-}"
+      - name: Download Sep 12 encrypted shard artifacts
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ env.TARGET_ACTIONS_RUN_ID }}
+          pattern: production-shard-*
+          path: downloaded-shards
+      - name: Decrypt shard bundles in ephemeral runner workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "artifacts/$TARGET_PRODUCTION_RUN_ID"
+          while IFS= read -r -d '' encrypted; do
+            bash scripts/secure_artifact.sh unpack "$encrypted" "artifacts/$TARGET_PRODUCTION_RUN_ID"
+          done < <(find downloaded-shards -type f -name '*.tar.gz.enc' -print0)
+          count="$(find "artifacts/$TARGET_PRODUCTION_RUN_ID/shards" -mindepth 1 -maxdepth 1 -type d | wc -l)"
+          echo "decrypted_shard_count=$count"
+          test "$count" -eq 17
+      - name: Profile finalizer phases read-only
+        run: |
+          python scripts/diagnose_finalizer_phases.py \
+            --run-id "$TARGET_PRODUCTION_RUN_ID" \
+            --artifact-root artifacts \
+            --output-root diagnostics \
+            --observed-at "$TARGET_OBSERVED_AT"
+      - name: Confirm no authoritative state mutation path
+        run: |
+          test ! -e state/current/state.json
+          echo "authoritative_state_mutation=false"
