@@ -1,0 +1,387 @@
+name: Diagnose EURAXESS pagination (read-only)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/diagnose-euraxess-pagination.yml
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install collector dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Inspect EURAXESS global pagination (no production writes)
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import time
+          from urllib.parse import urlparse, parse_qs
+          from src.sources.shared.euraxess import _increment_euraxess_page
+          from src.sources.shared.euraxess import SEARCH_URL, parse_listing, next_listing_url
+          from src.sources.shared.common import make_session
+
+          s = make_session(retries=0)
+          visited = set()
+          seen = set()
+          url = SEARCH_URL
+          rows = []
+          stop = None
+          for page in range(1, 86):
+              if url in visited:
+                  stop = 'repeated_next_url'
+                  break
+              visited.add(url)
+              method = 'GET' if page == 1 else 'POST'
+              try:
+                  resp = s.request(method, url, timeout=(10, 45), allow_redirects=True)
+                  status = resp.status_code
+                  resp.raise_for_status()
+                  jobs = parse_listing(resp.text, resp.url)
+                  next_url = next_listing_url(resp.text, resp.url)
+                  ids = set(str(j['id']) for j in jobs)
+                  new_ids = ids - seen
+                  seen |= ids
+                  fp = hashlib.sha256('|'.join(sorted(ids)).encode()).hexdigest()[:12]
+                  row = {
+                      'page': page, 'method': method, 'status': status,
+                      'query_page': parse_qs(urlparse(url).query).get('page'),
+                      'returned_page': parse_qs(urlparse(resp.url).query).get('page'),
+                      'jobs': len(jobs), 'unique_ids_on_page': len(ids),
+                      'new_ids': len(new_ids), 'fingerprint': fp,
+                      'next_exists': bool(next_url), 'next_self': next_url == resp.url,
+                      'html_chars': len(resp.text),
+                  }
+                  if not jobs or not next_url or page in (2, 5, 10, 20, 34, 35, 40, 70):
+                      # Compare exactly the same listing URL under GET, as a read-only control.
+                      try:
+                          check = s.get(url, timeout=(10, 45), allow_redirects=True)
+                          check.raise_for_status()
+                          check_jobs = parse_listing(check.text, check.url)
+                          check_ids = set(str(j['id']) for j in check_jobs)
+                          row['get_control'] = {
+                              'status': check.status_code, 'jobs': len(check_jobs),
+                              'same_ids': check_ids == ids,
+                              'next_exists': bool(next_listing_url(check.text, check.url)),
+                              'html_chars': len(check.text),
+                          }
+                      except Exception as ex:
+                          row['get_control_error'] = f'{type(ex).__name__}: {str(ex)[:140]}'
+                  row['requested_url'] = url
+                  row['response_url'] = resp.url
+                  row['next_url'] = next_url
+                  if next_url and (next_url in visited or page in (34, 35)):
+                      direct_url = _increment_euraxess_page(url)
+                      row['direct_increment_url'] = direct_url
+                      if direct_url and urlparse(direct_url).hostname == urlparse(SEARCH_URL).hostname:
+                          try:
+                              direct = s.get(direct_url, timeout=(10, 45), allow_redirects=True)
+                              direct.raise_for_status()
+                              direct_ids = {str(j['id']) for j in parse_listing(direct.text, direct.url)}
+                              row['direct_increment_probe'] = {
+                                  'status': direct.status_code, 'jobs': len(direct_ids),
+                                  'new_vs_seen': len(direct_ids - seen), 'same_as_current': direct_ids == ids,
+                                  'returned_url': direct.url,
+                                  'next_url': next_listing_url(direct.text, direct.url),
+                              }
+                          except Exception as ex:
+                              row['direct_increment_error'] = f'{type(ex).__name__}: {str(ex)[:160]}'
+                  rows.append(row)
+                  print('EURAXESS_PAGE=' + json.dumps(row, sort_keys=True), flush=True)
+                  if not jobs:
+                      stop = 'empty_page'
+                      break
+                  if not next_url:
+                      stop = 'no_next_link'
+                      break
+                  if ids and not new_ids:
+                      stop = 'repeated_page_content'
+                      break
+                  if next_url in visited:
+                      stop = 'repeated_next_url'
+                      break
+                  url = next_url
+                  time.sleep(1.5)
+              except Exception as exc:
+                  stop = f'{type(exc).__name__}: {str(exc)[:180]}'
+                  break
+          summary = {
+              'pages': len(rows), 'unique_global_ids': len(seen),
+              'stop_reason': stop or 'diagnostic_page_limit_85',
+              'last_page': rows[-1] if rows else None,
+              'note': 'Read-only transport comparison; no country filtering, detail fetch, or state mutation',
+          }
+          print('EURAXESS_DIAGNOSTIC=' + json.dumps(summary, sort_keys=True), flush=True)
+          if not rows:
+              raise SystemExit('EURAXESS first-page diagnostic failed')
+          PY
+      - name: Compare Next-link and explicit-page traversal (read-only)
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import time
+          from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
+          from src.sources.shared.euraxess import SEARCH_URL, parse_listing, next_listing_url
+          from src.sources.shared.common import make_session
+
+          session = make_session(retries=0)
+          # Start both methods from the identical live unfiltered search page.
+          def page_url(number):
+              parsed = urlparse(SEARCH_URL)
+              pairs = [(k,v) for k,v in parse_qsl(parsed.query) if k != 'page']
+              if number: pairs.append(('page',str(number)))
+              return urlunparse(parsed._replace(query=urlencode(pairs)))
+
+          def traverse(mode, max_pages=16):
+              current = SEARCH_URL
+              seen = set()
+              visited = set()
+              output = []
+              for index in range(max_pages):
+                  if current in visited:
+                      return output, seen, 'repeated_url'
+                  visited.add(current)
+                  try:
+                      response = session.get(current, timeout=(10,45), allow_redirects=True)
+                      response.raise_for_status()
+                      jobs = parse_listing(response.text, response.url)
+                      ids = {str(job['id']) for job in jobs}
+                      nxt = next_listing_url(response.text, response.url)
+                      row = {'mode':mode,'index':index,'requested_url':current,'returned_url':response.url,
+                             'jobs':len(jobs),'new_ids':len(ids-seen),'unique_ids':len(ids),
+                             'next_url':nxt,'response_status':response.status_code}
+                      output.append(row)
+                      print('EURAXESS_COMPARE_PAGE='+json.dumps(row,sort_keys=True),flush=True)
+                      if not jobs: return output,seen,'empty_page'
+                      seen.update(ids)
+                      if mode == 'next':
+                          if not nxt: return output,seen,'no_next'
+                          if nxt in visited: return output,seen,'next_loop'
+                          current = nxt
+                      else:
+                          current = page_url(index+1)
+                      time.sleep(1.5)
+                  except Exception as exc:
+                      return output,seen,type(exc).__name__+': '+str(exc)[:120]
+              return output,seen,'page_cap_16'
+
+          next_rows,next_ids,next_stop=traverse('next')
+          page_rows,page_ids,page_stop=traverse('page')
+          summary={'next':{'pages':len(next_rows),'ids':len(next_ids),'stop':next_stop},
+                   'page':{'pages':len(page_rows),'ids':len(page_ids),'stop':page_stop},
+                   'shared_ids':len(next_ids & page_ids),'only_next':len(next_ids-page_ids),
+                   'only_page':len(page_ids-next_ids)}
+          print('EURAXESS_COMPARE_SUMMARY='+json.dumps(summary,sort_keys=True),flush=True)
+          if not next_rows or not page_rows: raise SystemExit('One traversal never fetched a page')
+          PY
+      - name: Compare isolated sessions and verify country facets (read-only)
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import time
+          from urllib.parse import urlencode
+          from src.sources.shared.common import make_session
+          from src.sources.shared.euraxess import (SEARCH_URL, parse_listing, next_listing_url,
+              discover_country_facets, discover_offer_type_facet, _assert_active_filter_response)
+
+          def sample(label, url, facet=None, offer=None):
+              session = make_session(retries=0)
+              try:
+                  resp = session.get(url, timeout=(10,45), allow_redirects=True)
+                  resp.raise_for_status()
+                  ids = {str(x['id']) for x in parse_listing(resp.text, resp.url)}
+                  active = None
+                  if facet and offer:
+                      try:
+                          _assert_active_filter_response(resp, facet, offer)
+                          active = True
+                      except Exception as exc:
+                          active = False
+                  return {'label':label,'status':resp.status_code,'ids':ids,
+                          'returned_url':resp.url,'next_url':next_listing_url(resp.text, resp.url),
+                          'filter_active':active}
+              except Exception as exc:
+                  return {'label':label,'error':type(exc).__name__+': '+str(exc)[:160], 'ids':set()}
+              finally:
+                  session.close()
+
+          initial = sample('initial',SEARCH_URL)
+          probe = make_session(retries=0)
+          try:
+              base = probe.get(SEARCH_URL,timeout=(10,45))
+              base.raise_for_status()
+              facets = discover_country_facets(base.text)
+              offer = discover_offer_type_facet(base.text)
+          finally:
+              probe.close()
+          print('EURAXESS_SESSION_FACETS='+json.dumps({'country_facet_count':len(facets),
+                'offer_facet':offer,'netherlands_facet':facets.get('netherlands'),
+                'germany_facet':facets.get('germany')},sort_keys=True),flush=True)
+          targets=[('global',SEARCH_URL,None)]
+          for country in ('netherlands','germany'):
+              facet=facets.get(country)
+              if facet and offer:
+                  targets.append((country,SEARCH_URL+'?'+urlencode([('f[0]',facet),('f[1]',offer)]),facet))
+          for label,url,facet in targets:
+              outputs=[]
+              for n in range(3):
+                  result=sample(label+'_'+str(n),url,facet,offer)
+                  outputs.append(result)
+                  safe={k:v for k,v in result.items() if k!='ids'}
+                  safe['jobs']=len(result['ids'])
+                  print('EURAXESS_SESSION_SAMPLE='+json.dumps(safe,sort_keys=True),flush=True)
+                  time.sleep(1.5)
+              sets=[x['ids'] for x in outputs]
+              summary={'target':label,'counts':[len(x) for x in sets],
+                       'intersection':len(set.intersection(*sets)),
+                       'union':len(set.union(*sets)),
+                       'identical':all(x==sets[0] for x in sets),
+                       'active_flags':[x.get('filter_active') for x in outputs],
+                       'errors':[x.get('error') for x in outputs]}
+              print('EURAXESS_SESSION_COMPARISON='+json.dumps(summary,sort_keys=True),flush=True)
+          PY
+      - name: Audit country facets and next-page continuity for all targets (read-only)
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import time
+          from urllib.parse import urlencode
+          from src.sources.shared.common import make_session
+          from src.sources.shared.euraxess import (SEARCH_URL,TARGET_CODES,discover_country_facets,
+              discover_offer_type_facet,_facet_for_code,_assert_active_filter_response,
+              parse_listing,next_listing_url)
+          s=make_session(retries=0)
+          root=s.get(SEARCH_URL,timeout=(10,45))
+          root.raise_for_status()
+          facets=discover_country_facets(root.text)
+          offer=discover_offer_type_facet(root.text)
+          summary=[]
+          for code in TARGET_CODES:
+              facet=_facet_for_code(facets,code)
+              row={'country':code,'facet':facet,'offer_facet':offer}
+              if not facet or not offer:
+                  row['status']='missing_facet'
+              else:
+                  url=SEARCH_URL+'?'+urlencode([('f[0]',facet),('f[1]',offer)])
+                  try:
+                      a=s.get(url,timeout=(10,45))
+                      a.raise_for_status()
+                      first=parse_listing(a.text,a.url)
+                      nxt=next_listing_url(a.text,a.url)
+                      row.update({'first_status':a.status_code,'first_jobs':len(first),
+                                  'first_ids':len({str(x['id']) for x in first}),
+                                  'next_exists':bool(nxt),'next_preserves_facets':bool(nxt and facet in __import__('urllib.parse',fromlist=['parse_qsl']).parse_qs(__import__('urllib.parse',fromlist=['urlparse']).urlparse(nxt).query).get('f[0]',[]))})
+                      try:
+                          _assert_active_filter_response(a,facet,offer)
+                          row['filter_active']=True
+                      except Exception as exc:
+                          row['filter_active']=False
+                          row['filter_error']=str(exc)[:130]
+                      if nxt:
+                          b=s.get(nxt,timeout=(10,45))
+                          b.raise_for_status()
+                          second=parse_listing(b.text,b.url)
+                          fids={str(x['id']) for x in first}
+                          sids={str(x['id']) for x in second}
+                          row.update({'second_status':b.status_code,'second_jobs':len(second),
+                                      'second_new_ids':len(sids-fids),'second_next_exists':bool(next_listing_url(b.text,b.url))})
+                          try:
+                              _assert_active_filter_response(b,facet,offer)
+                              row['second_filter_active']=True
+                          except Exception:
+                              row['second_filter_active']=False
+                      row['status']='observed'
+                  except Exception as exc:
+                      row['status']='request_error'
+                      row['error']=type(exc).__name__+': '+str(exc)[:140]
+              summary.append(row)
+              print('EURAXESS_COUNTRY_AUDIT='+json.dumps(row,sort_keys=True),flush=True)
+              time.sleep(1.5)
+          counts={'active':sum(x.get('filter_active') is True for x in summary),
+                  'inactive':sum(x.get('filter_active') is False for x in summary),
+                  'missing':sum(x.get('status')=='missing_facet' for x in summary),
+                  'errors':sum(x.get('status')=='request_error' for x in summary)}
+          print('EURAXESS_COUNTRY_SUMMARY='+json.dumps({'countries':len(summary),**counts},sort_keys=True),flush=True)
+          if len(summary)!=len(TARGET_CODES): raise SystemExit('Not all country facets examined')
+          PY
+      - name: Cross-check global fallback terminal pages (read-only)
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import time
+          from urllib.parse import urlparse
+          from src.sources.shared.common import make_session
+          from src.sources.shared.euraxess import SEARCH_URL,parse_listing,next_listing_url,_increment_euraxess_page
+
+          s=make_session(retries=0)
+          url=SEARCH_URL
+          seen_urls=set()
+          seen_ids=set()
+          reason='cap_45'
+          checks=[]
+          for n in range(45):
+              if url in seen_urls:
+                  reason='repeated_url'
+                  break
+              seen_urls.add(url)
+              try:
+                  resp=s.request('GET' if n==0 else 'POST',url,timeout=(10,45),allow_redirects=True)
+                  resp.raise_for_status()
+                  jobs=parse_listing(resp.text,resp.url)
+                  ids={str(x['id']) for x in jobs}
+                  next_url=next_listing_url(resp.text,resp.url)
+                  new_ids=ids-seen_ids
+                  seen_ids.update(ids)
+                  suspect=(not jobs or not next_url or next_url in seen_urls or not new_ids)
+                  check={'page_index':n,'jobs':len(jobs),'new_ids':len(new_ids),
+                         'next_exists':bool(next_url),'next_revisited':bool(next_url in seen_urls),
+                         'request_url':url,'response_url':resp.url,'next_url':next_url}
+                  if suspect:
+                      controls=[]
+                      probes=[('repeat_get',url),('repeat_post',url),
+                              ('increment_get',_increment_euraxess_page(url))]
+                      for name,target in probes:
+                          if not target or urlparse(target).hostname!=urlparse(SEARCH_URL).hostname: continue
+                          try:
+                              rr=s.request('POST' if name=='repeat_post' else 'GET',target,timeout=(10,45),allow_redirects=True)
+                              rr.raise_for_status()
+                              probe_ids={str(x['id']) for x in parse_listing(rr.text,rr.url)}
+                              controls.append({'probe':name,'status':rr.status_code,'jobs':len(probe_ids),
+                                               'new_vs_seen':len(probe_ids-seen_ids),
+                                               'same_as_terminal':probe_ids==ids,
+                                               'next_exists':bool(next_listing_url(rr.text,rr.url))})
+                          except Exception as exc:
+                              controls.append({'probe':name,'error':type(exc).__name__+': '+str(exc)[:110]})
+                          time.sleep(1.0)
+                      check['controls']=controls
+                  checks.append(check)
+                  print('EURAXESS_TERMINAL_PAGE='+json.dumps(check,sort_keys=True),flush=True)
+                  if suspect:
+                      reason='suspect_terminal_crosschecked'
+                      break
+                  url=next_url
+                  time.sleep(1.2)
+              except Exception as exc:
+                  reason=type(exc).__name__+': '+str(exc)[:150]
+                  break
+          print('EURAXESS_TERMINAL_SUMMARY='+json.dumps({
+              'pages':len(checks),'unique_ids':len(seen_ids),'stop_reason':reason,
+              'terminal':checks[-1] if checks else None},sort_keys=True),flush=True)
+          if not checks: raise SystemExit('No EURAXESS pages inspected')
+          PY
