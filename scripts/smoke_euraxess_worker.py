@@ -21,7 +21,7 @@ def main():
     failures = [
         {"id":r.get("source_job_id"),"country":r.get("country")}
         for r in rows
-        if r.get("country", {}).get("code") not in (None, "DE")
+        if r.get("location", {}).get("country_code") not in (None, "DE")
     ]
     print(json.dumps({"rows":len(rows),"country_mismatches":failures,
                       "success":len(rows)>0 and not failures},sort_keys=True))
