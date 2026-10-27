@@ -11,6 +11,7 @@ from src.runtime.live_shards import (
 )
 from src.sources.core import cnrs, corehr, pageup, portals, smartrecruiters, successfactors, university_vacancies, workday
 from src.sources.shared import academicpositions, dvs, ecss, euraxess, fens, jobs_ac_uk, linkedin_mads
+from src.sources.shared.euraxess_worker_transport import configured_session
 
 
 def production_source_map(limit=None) -> dict[str, list[SourceCall]]:
@@ -19,7 +20,7 @@ def production_source_map(limit=None) -> dict[str, list[SourceCall]]:
         "euraxess-europe": [
             SourceCall(
                 "euraxess_europe", "euraxess",
-                lambda: euraxess.collect(country_codes=all_europe, pages_per_country=None, max_jobs=limit, enrich_detail=True),
+                lambda: euraxess.collect(country_codes=all_europe, pages_per_country=None, max_jobs=limit, enrich_detail=True, session=configured_session()),
             )
         ],
         "academicpositions": [
