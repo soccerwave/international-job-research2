@@ -8,6 +8,41 @@ export default {
       return new Response("Unauthorized", {status:401});
     let body;
     try { body = await request.json(); } catch { return new Response("Bad JSON",{status:400}); }
+    // Authenticated, bounded experiment: compare the same upstream URL with
+    // the original successful Worker fetch style and the relay fetch style.
+    // Reports only statuses and diagnostic headers; no HTML or secrets.
+    if (body.mode === "diagnose") {
+      const url = BASE + "/jobs/search";
+      const variants = [
+        {name: "direct_style", options: {redirect: "follow"}},
+        {name: "relay_style", options: {
+          method: "GET", redirect: "follow",
+          headers: {"Accept": "text/html"}
+        }}
+      ];
+      const results = [];
+      for (const variant of variants) {
+        try {
+          const response = await fetch(url, {
+            ...variant.options,
+            signal: AbortSignal.timeout(15000)
+          });
+          results.push({
+            variant: variant.name,
+            status: response.status,
+            finalPath: new URL(response.url).pathname,
+            server: response.headers.get("server"),
+            xCache: response.headers.get("x-cache"),
+            contentType: response.headers.get("content-type")
+          });
+          await response.body?.cancel();
+        } catch (error) {
+          results.push({variant: variant.name, error: error.name});
+        }
+      }
+      return Response.json({experiment: "euraxess_worker_fetch_comparison",
+        results}, {headers: {"Cache-Control": "no-store"}});
+    }
     const path = String(body.path || "");
     const method = String(body.method || "GET").toUpperCase();
     if (!["GET","POST"].includes(method)) return new Response("Bad method",{status:400});
