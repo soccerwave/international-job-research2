@@ -37,9 +37,19 @@ class EuraxessWorkerSession:
             timeout=kwargs.get("timeout", (10,45)),
             allow_redirects=False,
         )
-        response.raise_for_status()
-        upstream_status = int(response.headers.get("x-euraxess-status") or 200)
-        # The Worker propagates upstream status in its HTTP response.
+        if response.status_code >= 400:
+            upstream_url = response.headers.get("x-euraxess-final-url", "")
+            origin = "euraxess_upstream" if upstream_url.startswith(
+                "https://euraxess.ec.europa.eu/"
+            ) else "worker_or_cloudflare"
+            raise requests.HTTPError(
+                f"EURAXESS transport HTTP {response.status_code}; "
+                f"error_origin={origin}; "
+                f"requested_path={parsed.path}; "
+                f"upstream_path={urlparse(upstream_url).path if upstream_url else 'unknown'}",
+                response=response,
+            )
+        # The Worker propagates upstream HTTP status in its response.
         result = requests.Response()
         result.status_code = response.status_code
         result._content = response.content
