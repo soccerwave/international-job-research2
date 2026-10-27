@@ -11,7 +11,7 @@ export default {
     const path = String(body.path || "");
     const method = String(body.method || "GET").toUpperCase();
     if (!["GET","POST"].includes(method)) return new Response("Bad method",{status:400});
-    if (!(path === "/jobs/search" || /^\\/jobs\\/\\d+$/.test(path)))
+    if (!(path === "/jobs/search" || /^\/jobs\/\d+$/.test(path)))
       return new Response("Path not allowed",{status:400});
     const query = String(body.query || "");
     if (query.length > 1500) return new Response("Query too long",{status:400});
