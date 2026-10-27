@@ -589,9 +589,6 @@ def collect(
     pace_seconds: float = 1.25,
 ) -> list[dict[str,Any]]:
     if session is None:
-        from .euraxess_worker_transport import configured_session
-        session = configured_session()
-    if session is None:
         s=make_session(retries=0)
         no_status_retry=HTTPAdapter(max_retries=0)
         s.mount("https://", no_status_retry)
