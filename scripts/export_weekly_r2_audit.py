@@ -43,8 +43,7 @@ def list_keys(client, bucket, prefix):
             kwargs["ContinuationToken"] = continuation
         page = client.list_objects_v2(**kwargs)
         for obj in page.get("Contents", []):
-            if obj["Key"].endswith("/manifest.json"):
-                yield obj["Key"]
+            yield obj
         if not page.get("IsTruncated"):
             break
         continuation = page.get("NextContinuationToken")
@@ -92,11 +91,26 @@ def export(start, end, output):
     client = client_from_env()
     selected = []
     for family, (prefix, summary_name, report_name) in SOURCES.items():
-        for key in list_keys(client, bucket, prefix):
-            manifest = read_json(client, bucket, key)
-            day = day_of(manifest)
-            if start <= day <= end:
-                selected.append((family, day, key, manifest))
+        for obj in list_keys(client, bucket, prefix):
+            key = obj["Key"]
+            if not key.endswith("/" + summary_name):
+                continue
+            # Run-scoped R2 reports have no per-run manifest.json.
+            # Use object publication date and exact sibling keys, not latest pointers.
+            modified = obj.get("LastModified")
+            day = modified.date().isoformat() if modified else ""
+            if not (start <= day <= end):
+                continue
+            base = key.rsplit("/", 1)[0]
+            run_name = base.rsplit("/", 1)[-1]
+            manifest = {
+                "summary_key": key,
+                "report_key": base + "/" + report_name,
+                "audit_report_key": base + "/international_academic_job_audit.xlsx" if family == "collector" else None,
+                "published_at": modified.isoformat() if modified else "",
+                "github_run_id": run_name,
+            }
+            selected.append((family, day, key, manifest))
     # Prefer latest publication of each source type on each date, but
     # preserve all manifest rows for provenance / reruns.
     selected.sort(key=lambda x: (x[0], x[1], x[3].get("published_at", "")))
@@ -114,10 +128,18 @@ def export(start, end, output):
         for day in day_list:
             for family in SOURCES:
                 if (family, day) not in by_day:
-                    missing_rows.append([day, family, "NO_PUBLISHED_MANIFEST"])
+                    missing_rows.append([day, family, "NO_PUBLISHED_SUMMARY"])
         for family, day, manifest_key, manifest in chosen:
             summary_key = manifest.get("summary_key")
-            report_key = (manifest.get("audit_report_key") or manifest.get("report_key")) if family == "collector" else manifest.get("report_key")
+            report_key = manifest.get("report_key")
+            if family == "collector":
+                audit_key = manifest.get("audit_report_key")
+                try:
+                    client.head_object(Bucket=bucket, Key=audit_key)
+                    report_key = audit_key
+                except client.exceptions.ClientError as exc:
+                    if exc.response.get("ResponseMetadata", {}).get("HTTPStatusCode") != 404:
+                        raise
             record = {"date": day, "family": family, "production_run_id": manifest.get("production_run_id"),
                       "github_run_id": manifest.get("github_run_id"), "published_at": manifest.get("published_at"),
                       "manifest_key": manifest_key, "summary_key": summary_key, "report_key": report_key}
@@ -154,12 +176,12 @@ def export(start, end, output):
         hint = workbook.add_format({"text_wrap":True,"valign":"top"})
         for title, heads, rows in [
             ("README", ["topic","description"], [
-                ["date_range", f"{start} to {end} (published date, UTC)"],
+                ["date_range", f"{start} to {end} (R2 object modified date, UTC)"],
                 ["method", "R2 read-only; reuse published reports; no evaluator rerun"],
                 ["luna", "Published shadow summary and original XLSX; not a ground-truth recall estimate"],
                 ["collector", "Prefer control-plane audit XLSX when published; otherwise use clean XLSX; not raw shard artifacts"],
                 ["coverage", "Missing_Days lists unavailable publications and download errors"],
-                ["selection", "Latest published manifest per source per UTC day"],
+                ["selection", "Latest run-scoped summary object per source per R2 LastModified UTC day"],
                 ["caution", "Rule-vs-Luna false negatives require raw paired labels and human validation"]
             ]),
             ("Manifest_Index", ["date","family","production_run_id","github_run_id","published_at","manifest_key","summary_key","report_key","excel_bytes"],
@@ -186,7 +208,7 @@ def export(start, end, output):
     print(json.dumps({"output":str(output),"report_pairs":len(chosen),
                       "missing":len(missing_rows),"report_bytes":total_bytes}))
     if not chosen:
-        raise RuntimeError("No published R2 manifests found for selected dates")
+        raise RuntimeError("No published R2 run-scoped summaries found for selected dates")
 
 
 if __name__=="__main__":
