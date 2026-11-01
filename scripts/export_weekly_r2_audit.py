@@ -117,7 +117,7 @@ def export(start, end, output):
                     missing_rows.append([day, family, "NO_PUBLISHED_MANIFEST"])
         for family, day, manifest_key, manifest in chosen:
             summary_key = manifest.get("summary_key")
-            report_key = manifest.get("report_key")
+            report_key = (manifest.get("audit_report_key") or manifest.get("report_key")) if family == "collector" else manifest.get("report_key")
             record = {"date": day, "family": family, "production_run_id": manifest.get("production_run_id"),
                       "github_run_id": manifest.get("github_run_id"), "published_at": manifest.get("published_at"),
                       "manifest_key": manifest_key, "summary_key": summary_key, "report_key": report_key}
@@ -157,7 +157,7 @@ def export(start, end, output):
                 ["date_range", f"{start} to {end} (published date, UTC)"],
                 ["method", "R2 read-only; reuse published reports; no evaluator rerun"],
                 ["luna", "Published shadow summary and original XLSX; not a ground-truth recall estimate"],
-                ["collector", "Published control-plane summary and audit XLSX, not raw shard artifacts"],
+                ["collector", "Prefer control-plane audit XLSX when published; otherwise use clean XLSX; not raw shard artifacts"],
                 ["coverage", "Missing_Days lists unavailable publications and download errors"],
                 ["selection", "Latest published manifest per source per UTC day"],
                 ["caution", "Rule-vs-Luna false negatives require raw paired labels and human validation"]
