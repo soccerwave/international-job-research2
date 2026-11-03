@@ -1,0 +1,20 @@
+name: EURAXESS national portals diagnostic
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check requests==2.32.5
+      - name: Compare national EURAXESS jobs pages (read-only)
+        run: python scripts/diagnose_euraxess_national_portals.py
