@@ -1,0 +1,49 @@
+name: Diagnose Trinity CoreHR Discovery (Read Only)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check requests beautifulsoup4
+      - name: Probe TCD and UCD public listing forms (no mutation)
+        shell: bash
+        run: |
+          python - <<'PY'
+          from bs4 import BeautifulSoup
+          from src.sources.core.corehr import TENANTS, _form_payload_and_action, parse_listing, discover
+          from src.sources.shared.common import make_session
+          for key in ("tcd", "ucd"):
+              tenant=TENANTS[key]
+              print(f"=== {key} ===",flush=True)
+              try:
+                  s=make_session()
+                  r=s.get(tenant.search_url,timeout=(10,40),allow_redirects=True)
+                  soup=BeautifulSoup(r.text,"html.parser")
+                  action,payload=_form_payload_and_action(r.text,r.url)
+                  print("GET",r.status_code,"final_url",r.url,"bytes",len(r.content),"title",soup.title.get_text(" ",strip=True)[:100] if soup.title else "none",flush=True)
+                  print("forms",[(f.get("name"),f.get("method"),f.get("action")) for f in soup.find_all("form")][:8],flush=True)
+                  print("action",action,"payload_keys",[k for k,v in payload][:30],"initial_listings",len(parse_listing(r.text,r.url)),flush=True)
+                  if payload:
+                      p=s.post(action,data=payload,timeout=(10,40),allow_redirects=True)
+                      print("POST",p.status_code,"final_url",p.url,"bytes",len(p.content),"listings",len(parse_listing(p.text,p.url)),flush=True)
+                      soup2=BeautifulSoup(p.text,"html.parser")
+                      print("post_title",soup2.title.get_text(" ",strip=True)[:100] if soup2.title else "none","text_sample",soup2.get_text(" ",strip=True)[:220],flush=True)
+                  try:
+                      jobs=discover(tenant,session=s)
+                      print("DISCOVER",len(jobs),"sample",[(x.get("id"),x.get("title","")[:65]) for x in jobs[:5]],flush=True)
+                  except Exception as exc:
+                      print("DISCOVER_ERROR",type(exc).__name__,str(exc)[:250],flush=True)
+              except Exception as exc:
+                  print("ERROR",type(exc).__name__,str(exc)[:300],flush=True)
+          PY
