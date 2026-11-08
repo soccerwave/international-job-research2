@@ -1,0 +1,58 @@
+name: CoreHR Repair Validation
+
+on:
+  pull_request:
+    paths:
+      - 'src/sources/core/corehr.py'
+      - 'tests/test_corehr_post_pagination.py'
+      - 'RELEASE_FREEZE_V1.1.1.json'
+      - '.github/workflows/corehr-repair-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements.txt -r requirements-cloud.txt
+      - run: python -m unittest -v tests.test_corehr_post_pagination tests.test_stage6_core_sources tests.test_collector_pagination
+
+  live-coverage-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements.txt -r requirements-cloud.txt
+      - name: Validate public CoreHR results for all five tenants
+        run: |
+          python - <<'PY'
+          from src.sources.core import corehr
+          from src.sources.shared.pagination import capture_coverage
+          import json
+          errors=[]
+          for key, tenant in corehr.TENANTS.items():
+              try:
+                  with capture_coverage() as events:
+                      rows=corehr.discover(tenant)
+                  status=events[-1] if events else {}
+                  result={"tenant":key,"records":len(rows),"coverage":status}
+                  print(json.dumps(result),flush=True)
+                  if status.get("advertised_total") and len(rows) < status["advertised_total"]:
+                      errors.append(f"{key}: {len(rows)} < {status['advertised_total']}")
+                  if not status.get("complete"):
+                      errors.append(f"{key}: pagination incomplete: {status.get('stop_reason')}")
+              except Exception as exc:
+                  errors.append(f"{key}: {type(exc).__name__}: {exc}")
+          if errors:
+              raise SystemExit("; ".join(errors))
+          PY
