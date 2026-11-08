@@ -218,9 +218,13 @@ def _result_total(html: str) -> int | None:
 def _next_results_post(html: str, base_url: str) -> tuple[str, list[tuple[str, str]]] | None:
     """CoreHR Next uses a named POST form, not a navigable GET link."""
     soup = BeautifulSoup(html or "", "html.parser")
+    # CoreHR can retain a forward form even when the Next control is absent.
+    next_control = soup.find("a", attrs={"onclick": re.compile(r"searchv4navigateresultsforward\\.submit", re.I)})
+    if next_control is None:
+        return None
     form = soup.find("form", attrs={"name": re.compile(r"^searchv4navigateresultsforward$", re.I)})
     if form is None:
-        return None
+        raise ValueError("CoreHR Next control exists without its POST form")
     action = urljoin(base_url, str(form.get("action") or ""))
     if urlparse(action).netloc != urlparse(base_url).netloc:
         raise ValueError("CoreHR pagination form targets a different host")
