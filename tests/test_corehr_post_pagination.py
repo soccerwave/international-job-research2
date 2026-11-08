@@ -13,7 +13,8 @@ def page(start, end, total, *, next_page=True):
         f'<tr><td><a href="javascript:viewTheJobSpec(\'{n:06d}\')">Research Fellow {n}</a></td></tr>'
         for n in range(start, end + 1)
     )
-    form = ('<form name="searchv4navigateresultsforward" method="post" '
+    form = ('<a href="#" onclick="document.searchv4navigateresultsforward.submit()">Next</a>'
+            '<form name="searchv4navigateresultsforward" method="post" '
             'action="erq_search_version_4.start_search_with_params">'
             f'<input type="hidden" name="p_page" value="{end + 1}">'
             '<input type="hidden" name="p_company" value="1"></form>') if next_page else ""
@@ -67,7 +68,8 @@ class CoreHRPostPaginationTests(unittest.TestCase):
         self.assertEqual(events[-1]["stop_reason"], "request_failed")
 
     def test_cross_origin_post_rejected(self):
-        html = ('<form name="searchv4navigateresultsforward" '
+        html = ('<a href="#" onclick="document.searchv4navigateresultsforward.submit()">Next</a>'
+                '<form name="searchv4navigateresultsforward" '
                 'action="https://other.example/collect"></form>')
         with self.assertRaises(ValueError):
             corehr._next_results_post(html, URL)
