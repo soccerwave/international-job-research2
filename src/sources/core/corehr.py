@@ -7,7 +7,7 @@ from urllib.parse import parse_qs, urlencode, urljoin, urlparse
 
 from bs4 import BeautifulSoup
 
-from src.sources.shared.pagination import html_pages
+from src.sources.shared.pagination import paginate
 from src.sources.shared.common import clean, html_to_text, make_record, make_session
 
 
@@ -207,19 +207,72 @@ def parse_detail(html: str, fallback_title: str = "") -> dict[str, str]:
     return {"title": title, "deadline": clean(close_m.group(1)) if close_m else "", "description": text}
 
 
+
+def _result_total(html: str) -> int | None:
+    match = re.search(r"Displaying\s+\d+\s+to\s+\d+\s+of\s+(\d+)", html, re.I)
+    if not match:
+        match = re.search(r"Your search returned\s+(\d+)\s+results?", html, re.I)
+    return int(match.group(1)) if match else None
+
+
+def _next_results_post(html: str, base_url: str) -> tuple[str, list[tuple[str, str]]] | None:
+    """CoreHR Next uses a named POST form, not a navigable GET link."""
+    soup = BeautifulSoup(html or "", "html.parser")
+    # CoreHR can retain a forward form even when the Next control is absent.
+    next_control = soup.find("a", attrs={"onclick": re.compile(r"searchv4navigateresultsforward\.submit", re.I)})
+    if next_control is None:
+        return None
+    form = soup.find("form", attrs={"name": re.compile(r"^searchv4navigateresultsforward$", re.I)})
+    if form is None:
+        raise ValueError("CoreHR Next control exists without its POST form")
+    action = urljoin(base_url, str(form.get("action") or ""))
+    if urlparse(action).netloc != urlparse(base_url).netloc:
+        raise ValueError("CoreHR pagination form targets a different host")
+    payload: list[tuple[str, str]] = []
+    for field in form.find_all(["input", "select"]):
+        name = field.get("name")
+        if not name:
+            continue
+        if field.name == "select":
+            chosen = field.find("option", selected=True) or field.find("option")
+            if chosen is not None:
+                payload.append((str(name), str(chosen.get("value") or "")))
+        elif str(field.get("type") or "").lower() not in {"submit", "button", "image", "file"}:
+            payload.append((str(name), str(field.get("value") or "")))
+    return action, payload
+
+
+def _paginate_corehr_results(session, response, tenant_key: str) -> list[dict[str, Any]]:
+    current = response
+
+    def fetch(page: int):
+        nonlocal current
+        if page:
+            forward = _next_results_post(current.text, current.url)
+            if forward is None:
+                return [], _result_total(current.text), False
+            action, payload = forward
+            current = session.post(action, data=payload, timeout=(10, 45), allow_redirects=True)
+            current.raise_for_status()
+        rows = parse_listing(current.text, current.url)
+        return rows, _result_total(current.text), _next_results_post(current.text, current.url) is not None
+
+    return paginate(fetch, source=f"corehr_{tenant_key}", max_jobs=None, max_pages=100)
+
+
 def discover(tenant: CoreHRTenant, *, session=None) -> list[dict[str, Any]]:
     s = session or make_session()
     initial = s.get(tenant.search_url, timeout=(10, 45), allow_redirects=True)
     initial.raise_for_status()
     direct = parse_listing(initial.text, initial.url)
     if direct:
-        return html_pages(s, initial.url, parse_listing, initial_response=initial)
+        return _paginate_corehr_results(s, initial, tenant.key)
     action, payload = _form_payload_and_action(initial.text, initial.url)
     if not payload or action == initial.url:
         return []
     response = s.post(action, data=payload, timeout=(10, 45), allow_redirects=True)
     response.raise_for_status()
-    return html_pages(s, response.url, parse_listing, initial_response=response)
+    return _paginate_corehr_results(s, response, tenant.key)
 
 
 def collect(*, tenant_key: str, max_jobs: int | None = 80, enrich_detail: bool = True, session=None) -> list[dict[str, Any]]:

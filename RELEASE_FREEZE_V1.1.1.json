@@ -1,8 +1,8 @@
 {
   "freeze_patch_version": "V1.1.1",
   "base_manifest": "RELEASE_FREEZE_V1.1.0.json",
-  "status": "ACCEPTED_IRELAND_REPAIR_AND_LUNA_REPORT_CUTOVER_REFRESH",
-  "reason": "Refresh protected hashes only for the already merged University Vacancies Ireland collector repair and the explicitly proposed Luna-led report/CI workflow changes in PR #83. The accepted V1.1.0 baseline stays immutable; all unrelated protected files retain their original hashes.",
+  "status": "PROPOSED_COREHR_POST_PAGINATION_REPAIR_PR98",
+  "reason": "Refresh protected hashes only for the already merged University Vacancies Ireland collector repair and the explicitly proposed Luna-led report/CI workflow changes in PR #83. The accepted V1.1.0 baseline stays immutable; all unrelated protected files retain their original hashes. Proposed PR #98 explicitly changes frozen src/sources/core/corehr.py to recover CoreHR POST-form pagination. Override is scoped to that exact reviewed blob, does not retire any protection, and requires regression and live testing before merge.",
   "retired_protected_paths": [
     ".github/workflows/recover-production-state.yml",
     ".github/workflows/test-public-readiness.yml",
@@ -14,6 +14,7 @@
     ".github/workflows/production.yml": "538c13b7d982848a734af481f6f78209f9500112",
     "scripts/verify_v1_freeze.py": "85efedfdfaf6958b38f617de1e00f64bd9d87fd6",
     ".github/workflows/publish-control-plane-report.yml": "6ce9bab594c44666a057e366753611a55c701f0b",
-    "src/sources/core/university_vacancies.py": "a6ecddf566361d1ea9b89a73922b229d2868d823"
+    "src/sources/core/university_vacancies.py": "a6ecddf566361d1ea9b89a73922b229d2868d823",
+    "src/sources/core/corehr.py": "1dd211cb13b8b2ff60cdb4318d26b2de5b43dcc9"
   }
 }
