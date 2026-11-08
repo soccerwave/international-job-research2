@@ -209,9 +209,9 @@ def parse_detail(html: str, fallback_title: str = "") -> dict[str, str]:
 
 
 def _result_total(html: str) -> int | None:
-    match = re.search(r"Displaying\\s+\\d+\\s+to\\s+\\d+\\s+of\\s+(\\d+)", html, re.I)
+    match = re.search(r"Displaying\s+\d+\s+to\s+\d+\s+of\s+(\d+)", html, re.I)
     if not match:
-        match = re.search(r"Your search returned\\s+(\\d+)\\s+results?", html, re.I)
+        match = re.search(r"Your search returned\s+(\d+)\s+results?", html, re.I)
     return int(match.group(1)) if match else None
 
 
@@ -219,7 +219,7 @@ def _next_results_post(html: str, base_url: str) -> tuple[str, list[tuple[str, s
     """CoreHR Next uses a named POST form, not a navigable GET link."""
     soup = BeautifulSoup(html or "", "html.parser")
     # CoreHR can retain a forward form even when the Next control is absent.
-    next_control = soup.find("a", attrs={"onclick": re.compile(r"searchv4navigateresultsforward\\.submit", re.I)})
+    next_control = soup.find("a", attrs={"onclick": re.compile(r"searchv4navigateresultsforward\.submit", re.I)})
     if next_control is None:
         return None
     form = soup.find("form", attrs={"name": re.compile(r"^searchv4navigateresultsforward$", re.I)})
