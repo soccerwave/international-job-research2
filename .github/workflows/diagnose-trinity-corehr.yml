@@ -39,6 +39,14 @@ jobs:
                       print("POST",p.status_code,"final_url",p.url,"bytes",len(p.content),"listings",len(parse_listing(p.text,p.url)),flush=True)
                       soup2=BeautifulSoup(p.text,"html.parser")
                       print("post_title",soup2.title.get_text(" ",strip=True)[:100] if soup2.title else "none","text_sample",soup2.get_text(" ",strip=True)[:220],flush=True)
+                      import re
+                      from src.sources.shared.pagination import next_listing_url
+                      print("NEXT_LISTING_URL",next_listing_url(p.text,p.url),flush=True)
+                      print("PAGINATION_FORMS",[(f.get("name"),f.get("method"),f.get("action")) for f in soup2.find_all("form") if re.search("page|search|result",str(f),re.I)][:8],flush=True)
+                      print("PAGINATION_LINKS",[(a.get_text(" ",strip=True)[:50],a.get("href","")[:140],a.get("onclick","")[:140]) for a in soup2.find_all("a") if re.search(r"next|previous|last|page|[2345]",a.get_text(" ",strip=True),re.I)][:25],flush=True)
+                      for marker in ("Next", "next", "Page 2", "page 2", "start_search_with_params"):
+                          found=re.search(re.escape(marker),p.text)
+                          if found: print("HTML_MARKER",marker,re.sub(r"\\s+"," ",p.text[max(0,found.start()-180):found.end()+240])[:450],flush=True)
                   try:
                       jobs=discover(tenant,session=s)
                       print("DISCOVER",len(jobs),"sample",[(x.get("id"),x.get("title","")[:65]) for x in jobs[:5]],flush=True)
