@@ -43,7 +43,7 @@ def summarize_state(state):
     jobs = state.get("jobs") or {}
     by_source = Counter()
     eur_entries = []
-    others_by_country = defaultdict(list)
+    others_by_country = defaultdict(lambda: defaultdict(list))
     for sid, entry in jobs.items():
         sources = source_ids(entry)
         for key in sources:
@@ -54,7 +54,7 @@ def summarize_state(state):
             eur_entries.append((sid, entry, snapshot, sources))
         else:
             if country and normalized(snapshot.get("title")):
-                others_by_country[country].append((sid, entry, snapshot, sources))
+                others_by_country[country][normalized(snapshot.get("title"))].append(normalized(snapshot.get("institution")))
     eur_country = Counter()
     eur_first_month = Counter()
     eur_last_month = Counter()
@@ -79,10 +79,10 @@ def summarize_state(state):
         if any(t in title for t in ["exercise", "neurosc", "brain", "psycholog", "cognit", "sport", "physical activity", "stress"]):
             unique_relevant_titles[title] += 1
         # Exact normalized title is a candidate only; never claim a verified cross-source duplicate.
-        candidates = [(other_entry, other_snap) for _, other_entry, other_snap, _ in others_by_country.get(country, []) if normalized(other_snap.get("title")) == title]
+        candidates = others_by_country.get(country, {}).get(title, [])
         if candidates:
             similar_title_candidates += 1
-            if org and any((normalized(osnap.get("institution")) == org) for _, osnap in candidates):
+            if org and org in candidates:
                 compatible_org_candidates += 1
 
     return {
