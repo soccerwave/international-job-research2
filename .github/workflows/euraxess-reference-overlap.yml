@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - 'scripts/audit_euraxess_overlap_r2.py'
+      - 'scripts/audit_euraxess_r2_feasibility.py'
       - 'tests/test_euraxess_reference_overlap.py'
       - 'validation/euraxess_reference_2026-11-15.json'
       - '.github/workflows/euraxess-reference-overlap.yml'
@@ -22,6 +23,32 @@ jobs:
           python-version: '3.12'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
       - run: python -m unittest -v tests.test_euraxess_reference_overlap
+
+  feasibility:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_BUCKET: ${{ vars.R2_BUCKET }}
+      R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install R2 read-only dependencies
+        run: python -m pip install --disable-pip-version-check boto3
+      - name: Assess actual R2 coverage and retained historical records
+        run: python -m scripts.audit_euraxess_r2_feasibility
+      - uses: actions/upload-artifact@v4
+        with:
+          name: euraxess-r2-feasibility
+          path: euraxess-r2-feasibility.json
+          retention-days: 14
+          if-no-files-found: error
 
   compare:
     if: github.event_name == 'workflow_dispatch'
