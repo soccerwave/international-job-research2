@@ -1,0 +1,50 @@
+name: EURAXESS Historical R2 Overlap (Read Only)
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/audit_euraxess_historical_overlap.py'
+      - 'tests/test_euraxess_historical_overlap.py'
+      - '.github/workflows/euraxess-historical-overlap.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Unit-test historical matching
+        run: python -m unittest -v tests.test_euraxess_historical_overlap
+
+  audit:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_BUCKET: ${{ vars.R2_BUCKET }}
+      R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install read-only R2 client
+        run: python -m pip install --disable-pip-version-check boto3
+      - name: Audit historical overlap in R2 state
+        run: python -m scripts.audit_euraxess_historical_overlap
+      - name: Upload summary and all high-priority matched candidates
+        uses: actions/upload-artifact@v4
+        with:
+          name: euraxess-historical-r2-overlap
+          path: euraxess-historical-overlap.json
+          retention-days: 14
+          if-no-files-found: error
