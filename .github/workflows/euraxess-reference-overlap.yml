@@ -2,12 +2,29 @@ name: EURAXESS Independent Reference vs R2 (Read Only)
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - 'scripts/audit_euraxess_overlap_r2.py'
+      - 'tests/test_euraxess_reference_overlap.py'
+      - 'validation/euraxess_reference_2026-11-15.json'
+      - '.github/workflows/euraxess-reference-overlap.yml'
 
 permissions:
   contents: read
 
 jobs:
+  unit-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - run: python -m unittest -v tests.test_euraxess_reference_overlap
+
   compare:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
