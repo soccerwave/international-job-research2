@@ -1,0 +1,33 @@
+name: EURAXESS Independent Reference vs R2 (Read Only)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_BUCKET: ${{ vars.R2_BUCKET }}
+      R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install R2 and schema dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements.txt -r requirements-cloud.txt
+      - name: Read R2 state and compare independent EURAXESS reference
+        run: python scripts/audit_euraxess_overlap_r2.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: euraxess-independent-overlap
+          path: euraxess-reference-vs-r2-state.json
+          retention-days: 14
+          if-no-files-found: error
