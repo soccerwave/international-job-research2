@@ -1,0 +1,170 @@
+{
+  "sampling": "Search-indexed targeted convenience sample; not representative of EURAXESS. Separate CURRENT_WEEK from older controls. No claim of actual miss until raw state checked.",
+  "reference": [
+    {
+      "id": "480114",
+      "date": "2026-11-13",
+      "country": "NL",
+      "org": "Radboud University Medical Center",
+      "title": "Research Assistant Computational Neuroimaging (Animal MRI)",
+      "priority": "REVIEW",
+      "channel": "AcademicTransfer",
+      "cohort": "current_week",
+      "url": "https://euraxess.ec.europa.eu/jobs/480114"
+    },
+    {
+      "id": "480264",
+      "date": "2026-11-13",
+      "country": "FR",
+      "org": "Université de Rennes",
+      "title": "Post-Doc position : Surgical Data Science for Women’s Health",
+      "priority": "LOW",
+      "channel": "University of Rennes",
+      "cohort": "current_week",
+      "url": "https://euraxess.ec.europa.eu/jobs/480264"
+    },
+    {
+      "id": "480208",
+      "date": "2026-11-13",
+      "country": "BE",
+      "org": "Vrije Universiteit Brussel",
+      "title": "Senior Researcher (Post-Doc) Assistant Professorship Physical AI Human-Centered Robotics",
+      "priority": "LOW",
+      "channel": "VUB direct",
+      "cohort": "current_week",
+      "url": "https://euraxess.ec.europa.eu/jobs/480208"
+    },
+    {
+      "id": "480306",
+      "date": "2026-11-13",
+      "country": "IT",
+      "org": "Eurac Research",
+      "title": "Senior Researcher in Human-Based Cell Models for Genetic Parkinson’s Disease",
+      "priority": "LOW",
+      "channel": "Eurac direct",
+      "cohort": "current_week",
+      "url": "https://euraxess.ec.europa.eu/jobs/480306"
+    },
+    {
+      "id": "480535",
+      "date": "2026-11-14",
+      "country": "IE",
+      "org": "University College Dublin",
+      "title": "UCD Post-doctoral Research Fellow Level 1",
+      "priority": "LOW",
+      "channel": "UCD CoreHR",
+      "cohort": "current_week",
+      "url": "https://euraxess.ec.europa.eu/jobs/480535"
+    },
+    {
+      "id": "480212",
+      "date": "2026-11-13",
+      "country": "IE",
+      "org": "University College Dublin",
+      "title": "UCD Post-doctoral Research Fellow Level 1",
+      "priority": "LOW",
+      "channel": "UCD CoreHR",
+      "cohort": "current_week",
+      "url": "https://euraxess.ec.europa.eu/jobs/480212"
+    },
+    {
+      "id": "480470",
+      "date": "2026-11-14",
+      "country": "NL",
+      "org": "KNAW",
+      "title": "Postdoctoral Researcher in Citizen Science, Pollinator Conservation and Environmental Policy",
+      "priority": "LOW",
+      "channel": "AcademicTransfer",
+      "cohort": "current_week",
+      "url": "https://euraxess.ec.europa.eu/jobs/480470"
+    },
+    {
+      "id": "480469",
+      "date": "2026-11-14",
+      "country": "NL",
+      "org": "KNAW",
+      "title": "Postdoctoral Researcher in Environmental Landscape-Scale Data Integration for FPV - SPARKLES",
+      "priority": "LOW",
+      "channel": "AcademicTransfer",
+      "cohort": "current_week",
+      "url": "https://euraxess.ec.europa.eu/jobs/480469"
+    },
+    {
+      "id": "480476",
+      "date": "2026-11-14",
+      "country": "NL",
+      "org": "Vrije Universiteit Amsterdam",
+      "title": "Postdoctoral Researcher Land-Use and Grid Modelling for Biodiversity Restoration",
+      "priority": "LOW",
+      "channel": "AcademicTransfer",
+      "cohort": "current_week",
+      "url": "https://euraxess.ec.europa.eu/jobs/480476"
+    },
+    {
+      "id": "480512",
+      "date": "2026-11-14",
+      "country": "FR",
+      "org": "CNRS",
+      "title": "Postdoctoral Position in Biogeochemistry and Microbial Ecology of Permafrost (M/F)",
+      "priority": "LOW",
+      "channel": "CNRS direct",
+      "cohort": "current_week",
+      "url": "https://euraxess.ec.europa.eu/jobs/480512"
+    },
+    {
+      "id": "480507",
+      "date": "2026-11-14",
+      "country": "FR",
+      "org": "CNRS",
+      "title": "Postdoctoral fellow in Planetary Science (M/F)",
+      "priority": "LOW",
+      "channel": "CNRS direct",
+      "cohort": "current_week",
+      "url": "https://euraxess.ec.europa.eu/jobs/480507"
+    },
+    {
+      "id": "480481",
+      "date": "2026-11-14",
+      "country": "DE",
+      "org": "DESY",
+      "title": "Postdoc for laser integration and operation at IFuEL",
+      "priority": "LOW",
+      "channel": "DESY direct",
+      "cohort": "current_week",
+      "url": "https://euraxess.ec.europa.eu/jobs/480481"
+    },
+    {
+      "id": "480119",
+      "date": "2026-11-13",
+      "country": "NL",
+      "org": "University of Twente",
+      "title": "Full Professor of Digital Transformation for Responsible Organizations (1.0 fte)",
+      "priority": "LOW",
+      "channel": "AcademicTransfer",
+      "cohort": "current_week",
+      "url": "https://euraxess.ec.europa.eu/jobs/480119"
+    },
+    {
+      "id": "450256",
+      "date": "2026-07-03",
+      "country": "PL",
+      "org": "Jagiellonian University",
+      "title": "Postdoctoral Researcher in Exercise Neuroscience and EEG – The Fit Brain Project",
+      "priority": "HIGH",
+      "channel": "Jagiellonian direct",
+      "cohort": "older_control",
+      "url": "https://euraxess.ec.europa.eu/jobs/450256"
+    },
+    {
+      "id": "478787",
+      "date": "2026-11-08",
+      "country": "FR",
+      "org": "CNRS",
+      "title": "Researcher in Electrophysiology and Computational Modeling (M/F)",
+      "priority": "REVIEW",
+      "channel": "CNRS direct",
+      "cohort": "older_control",
+      "url": "https://euraxess.ec.europa.eu/jobs/478787"
+    }
+  ]
+}
